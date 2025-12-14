@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CI/CD NFT Test Analysis Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 1.1em;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.5);
+        }
+
+        .btn:hover {
+            background: rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-refresh {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border-color: rgba(34, 197, 94, 0.5);
+        }
+
+        .btn-refresh:hover {
+            background: rgba(34, 197, 94, 0.3);
+        }
+
+        .alerts-section {
+            margin-bottom: 30px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .alert-critical {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+        }
+
+        .alert-warning {
+            background: rgba(251, 146, 60, 0.2);
+            border: 1px solid rgba(251, 146, 60, 0.5);
+        }
+
+        .alert-icon {
+            font-size: 24px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            transition: all 0.3s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.6);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .metric-icon {
+            font-size: 28px;
+        }
+
+        .metric-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge-high {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .badge-medium {
+            background: rgba(251, 146, 60, 0.3);
+            color: #fdba74;
+        }
+
+        .badge-low {
+            background: rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            color: #94a3b8;
+            font-size: 0.9em;
+        }
+
+        .metric-detail {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            font-size: 0.85em;
+            color: #cbd5e1;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .chart-title {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .table-container {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            margin-bottom: 30px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: rgba(59, 130, 246, 0.2);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid rgba(59, 130, 246, 0.5);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        tr:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .recommendations {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .recommendation-item {
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 10px;
+            border-left: 4px solid;
+        }
+
+        .recommendation-high {
+            border-color: #ef4444;
+        }
+
+        .recommendation-medium {
+            border-color: #f59e0b;
+        }
+
+        .recommendation-low {
+            border-color: #22c55e;
+        }
+
+        .recommendation-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .recommendation-actions {
+            margin-top: 15px;
+        }
+
+        .recommendation-actions li {
+            margin: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .recommendation-actions li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #60a5fa;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-increasing {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        .status-stable {
+            background: #eab308;
+            box-shadow: 0 0 8px #eab308;
+        }
+
+        .status-decreasing {
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 CI/CD NFT Test Analysis Dashboard</h1>
+            <p>Predictive Analytics & Real-time Monitoring | Daily Runs: 12PM - 2PM EST</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn active" onclick="loadData(7)">Last 7 Days</button>
+            <button class="btn" onclick="loadData(30)">Last 30 Days</button>
+            <button class="btn" onclick="loadData(90)">Last 90 Days</button>
+            <button class="btn btn-refresh" onclick="refreshData()">🔄 Refresh Data</button>
+        </div>
+
+        <div id="alerts" class="alerts-section"></div>
+
+        <div class="metrics-grid" id="metrics"></div>
+
+        <div class="chart-grid">
+            <div class="chart-container">
+                <h3 class="chart-title">Failure Rate Trend & Prediction</h3>
+                <canvas id="failureChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3 class="chart-title">P95 Response Time Trend</h3>
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="chart-container">
+                <h3 class="chart-title">API Failure Distribution</h3>
+                <canvas id="apiChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3 class="chart-title">Test Pass/Fail Distribution</h3>
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h3 class="chart-title">API Failure Analysis</h3>
+            <table id="apiTable"></table>
+        </div>
+
+        <div class="table-container">
+            <h3 class="chart-title">Instability Hotspots</h3>
+            <table id="instabilityTable"></table>
+        </div>
+
+        <div class="recommendations">
+            <h3 class="chart-title">🎯 AI-Powered Recommendations</h3>
+            <div id="recommendationsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let currentDays = 7;
+        let charts = {};
+
+        async function loadData(days = 7) {
+            currentDays = days;
+            
+            // Update button states
+            document.querySelectorAll('.controls .btn').forEach((btn, idx) => {
+                btn.classList.remove('active');
+                if ((idx === 0 && days === 7) || (idx === 1 && days === 30) || (idx === 2 && days === 90)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/dashboard?days=${days}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    renderAlerts(data.alerts);
+                    renderMetrics(data);
+                    renderCharts(data);
+                    renderTables(data);
+                    renderRecommendations(data.recommendations);
+                } else {
+                    alert('Error loading data: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to connect to backend. Make sure the Python server is running.');
+            }
+        }
+
+        function showLoading() {
+            const elements = ['alerts', 'metrics', 'recommendationsContent'];
+            elements.forEach(id => {
+                document.getElementById(id).innerHTML = '<div class="loading"><div class="spinner"></div>Loading data...</div>';
+            });
+        }
+
+        function renderAlerts(alerts) {
+            const container = document.getElementById('alerts');
+            if (!alerts || alerts.length === 0) {
+                container.innerHTML = '<div class="alert" style="background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.5);"><span class="alert-icon">✅</span><div><strong>All Systems Operational</strong><br>No critical alerts detected</div></div>';
+                return;
+            }
+
+            container.innerHTML = alerts.map(alert => `
+                <div class="alert alert-${alert.type}">
+                    <span class="alert-icon">${alert.type === 'critical' ? '🚨' : '⚠️'}</span>
+                    <div>
+                        <strong>${alert.category}</strong><br>
+                        ${alert.message}
+                        <div style="font-size: 0.85em; color: #94a3b8; margin-top: 5px;">
+                            ${alert.timestamp}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderMetrics(data) {
+            const container = document.getElementById('metrics');
+            const pred = data.predictions;
+            const latest = data.daily_metrics[data.daily_metrics.length - 1];
+
+            container.innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">📊</span>
+                        <span class="metric-badge badge-${pred.next_day_prediction > 7 ? 'high' : pred.next_day_prediction > 4 ? 'medium' : 'low'}">
+                            ${pred.next_day_prediction > 7 ? 'HIGH RISK' : pred.next_day_prediction > 4 ? 'MEDIUM' : 'LOW RISK'}
+                        </span>
+                    </div>
+                    <div class="metric-value">${pred.next_day_prediction}%</div>
+                    <div class="metric-label">Predicted Failure Rate (24h)</div>
+                    <div class="metric-detail">
+                        Trend: <strong style="color: ${pred.trend === 'increasing' ? '#ef4444' : pred.trend === 'decreasing' ? '#22c55e' : '#eab308'}">${pred.trend}</strong><br>
+                        Confidence: ${pred.confidence}%
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">✅</span>
+                    </div>
+                    <div class="metric-value" style="color: #22c55e">${latest.PASS_COUNT}</div>
+                    <div class="metric-label">Tests Passed (Latest)</div>
+                    <div class="metric-detail">
+                        Success Rate: <strong>${((latest.PASS_COUNT / latest.TOTAL_TESTS) * 100).toFixed(1)}%</strong>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">❌</span>
+                    </div>
+                    <div class="metric-value" style="color: #ef4444">${latest.FAILURES}</div>
+                    <div class="metric-label">Tests Failed (Latest)</div>
+                    <div class="metric-detail">
+                        Failure Rate: <strong>${latest.FAILURE_RATE}%</strong>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">⚡</span>
+                    </div>
+                    <div class="metric-value">${latest.P95_RESPONSE_TIME.toFixed(0)}ms</div>
+                    <div class="metric-label">P95 Response Time</div>
+                    <div class="metric-detail">
+                        ${data.performance.is_degrading ? 
+                            `<span style="color: #ef4444">⚠️ Degraded by ${data.performance.degradation_pct}%</span>` :
+                            `<span style="color: #22c55e">✓ Performance stable</span>`
+                        }
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCharts(data) {
+            // Failure Rate Chart
+            const failureCtx = document.getElementById('failureChart').getContext('2d');
+            if (charts.failure) charts.failure.destroy();
+            
+            charts.failure = new Chart(failureCtx, {
+                type: 'line',
+                data: {
+                    labels: data.daily_metrics.map(d => d.TEST_DATE),
+                    datasets: [{
+                        label: 'Failure Rate (%)',
+                        data: data.daily_metrics.map(d => d.FAILURE_RATE),
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { labels: { color: '#e2e8f0' } }
+                    },
+                    scales: {
+                        y: { 
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        },
+                        x: { 
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        }
+                    }
+                }
+            });
+
+            // Performance Chart
+            const perfCtx = document.getElementById('performanceChart').getContext('2d');
+            if (charts.performance) charts.performance.destroy();
+            
+            charts.performance = new Chart(perfCtx, {
+                type: 'line',
+                data: {
+                    labels: data.performance.data.map(d => d.TEST_DATE),
+                    datasets: [{
+                        label: 'P95 Response Time (ms)',
+                        data: data.performance.data.map(d => d.P95_RESPONSE_TIME),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { labels: { color: '#e2e8f0' } }
+                    },
+                    scales: {
+                        y: { 
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        },
+                        x: { 
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        }
+                    }
+                }
+            });
+
+            // API Failures Chart
+            const apiCtx = document.getElementById('apiChart').getContext('2d');
+            if (charts.api) charts.api.destroy();
+            
+            const topApis = data.api_failures.slice(0, 8);
+            charts.api = new Chart(apiCtx, {
+                type: 'bar',
+                data: {
+                    labels: topApis.map(a => a.api),
+                    datasets: [{
+                        label: 'Total Failures',
+                        data: topApis.map(a => a.failures),
+                        backgroundColor: topApis.map(a => 
+                            a.severity === 'high' ? 'rgba(239, 68, 68, 0.7)' :
+                            a.severity === 'medium' ? 'rgba(251, 146, 60, 0.7)' :
+                            'rgba(234, 179, 8, 0.7)'
+                        )
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { labels: { color: '#e2e8f0' } }
+                    },
+                    scales: {
+                        y: { 
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        },
+                        x: { 
+                            ticks: { color: '#94a3b8', maxRotation: 45, minRotation: 45 },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        }
+                    }
+                }
+            });
+
+            // Pie Chart
+            const pieCtx = document.getElementById('pieChart').getContext('2d');
+            if (charts.pie) charts.pie.destroy();
+            
+            const latest = data.daily_metrics[data.daily_metrics.length - 1];
+            charts.pie = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Passed', 'Failed'],
+                    datasets: [{
+                        data: [latest.PASS_COUNT, latest.FAILURES],
+                        backgroundColor: ['rgba(34, 197, 94, 0.7)', 'rgba(239, 68, 68, 0.7)']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { 
+                            labels: { color: '#e2e8f0' },
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTables(data) {
+            // API Table
+            const apiTable = document.getElementById('apiTable');
+            apiTable.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>API Endpoint</th>
+                        <th>Failures</th>
+                        <th>Failure Rate</th>
+                        <th>P95 Response Time</th>
+                        <th>Trend</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.api_failures.slice(0, 10).map(api => `
+                        <tr>
+                            <td>${api.api}</td>
+                            <td>${api.failures}</td>
+                            <td>${api.failure_rate}%</td>
+                            <td>${api.p95_response_time.toFixed(0)}ms</td>
+                            <td>
+                                <span class="status-indicator status-${api.trend}"></span>
+                                ${api.trend}
+                            </td>
+                            <td><span class="metric-badge badge-${api.severity === 'high' ? 'high' : api.severity === 'medium' ? 'medium' : 'low'}">${api.severity.toUpperCase()}</span></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+
+            // Instability Table
+            const instabilityTable = document.getElementById('instabilityTable');
+            instabilityTable.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Identifier</th>
+                        <th>Type</th>
+                        <th>Instability Score</th>
+                        <th>Avg Failures</th>
+                        <th>Variance</th>
+                        <th>Executions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.instability_hotspots.map(hotspot => `
+                        <tr>
+                            <td style="font-family: monospace;">${hotspot.identifier}</td>
+                            <td>${hotspot.type}</td>
+                            <td>
+                                <span class="metric-badge badge-${hotspot.instability_score > 8 ? 'high' : hotspot.instability_score > 5 ? 'medium' : 'low'}">
+                                    ${hotspot.instability_score}
+                                </span>
+                            </td>
+                            <td>${hotspot.avg_failures.toFixed(1)}</td>
+                            <td>${hotspot.variance.toFixed(2)}</td>
+                            <td>${hotspot.total_executions}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+        }
+
+        function renderRecommendations(recommendations) {
+            const container = document.getElementById('recommendationsContent');
+            
+            if (!recommendations || recommendations.length === 0) {
+                container.innerHTML = '<p style="color: #94a3b8;">No recommendations at this time. System is operating normally.</p>';
+                return;
+            }
+
+            container.innerHTML = recommendations.map(rec => `
+                <div class="recommendation-item recommendation-${rec.priority}">
+                    <div class="recommendation-title">
+                        ${rec.priority === 'high' ? '🔴' : rec.priority === 'medium' ? '🟡' : '🟢'}
+                        ${rec.title}
+                    </div>
+                    <p style="color: #cbd5e1; margin: 10px 0;">${rec.description}</p>
+                    <div class="recommendation-actions">
+                        <strong>Recommended Actions:</strong>
+                        <ul style="margin-top: 10px;">
+                            ${rec.actions.map(action => `<li>${action}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function refreshData() {
+            await loadData(currentDays);
+        }
+
+        // Initialize on load
+        window.onload = () => {
+            loadData(7);
+            // Auto-refresh every 5 minutes
+            setInterval(refreshData, 300000);
+        };
+    </script>
+</body>
+</html>

@@ -56,39 +56,38 @@ def assign_art_from_path(path: str) -> str:
         if re.search(pat, low):
             return art
     return "Others"
-
 # --------------------------------------------------------------
-# 2. LIGHT DEMO DATA + 8 ARTs
+# 2. ULTRA-LIGHT DEMO DATA – ONLY ~8,000 ROWS TOTAL (runs in <1 sec)
 # --------------------------------------------------------------
 def create_demo_data():
-    print("Generating LIGHT DEMO data with 8 ARTs (~120k rows)...")
+    print("Generating ULTRA-LIGHT DEMO data (~8k rows total)...")
     np.random.seed(42)
     base_time = datetime(2025, 11, 15, 8, 0, 0)
-    hours = 24
+    hours = 12                                      # Only 12 hours (half day)
     arts = [
         "Payment Initiation", "Payment Management", "Platform",
         "Entitlement", "Trade", "Information Management",
         "Liquidity", "Connect API"
     ]
-    apis = [f"/v1/payment{i}" for i in range(1, 81)]
+    apis = [f"/v1/payment{i}" for i in range(1, 33)]  # Only 32 APIs (4 per ART)
     api_to_art = {api: arts[i % 8] for i, api in enumerate(apis)}
 
     def generate_for_source(is_cert):
         data = []
-        load_factor = 1.8 if is_cert else 1.0
-        rt_shift = 300 if is_cert else 0
-        error_rate = 0.005 if is_cert else 0.001
+        load_factor = 1.7 if is_cert else 1.0
+        rt_shift = 350 if is_cert else 0
+        error_rate = 0.006 if is_cert else 0.001
 
         for h in range(hours):
             hour_start = base_time + timedelta(hours=h)
-            base_tps = 30 + 20 * np.sin(np.pi * h / 24)
+            base_tps = 25 + 15 * np.sin(np.pi * h / 12)   # Lower base load
 
             for api in apis:
-                tps = max(10, (base_tps + np.random.normal(0, 8)) * load_factor)
-                count = int(tps * 3600) // 35
+                tps = max(8, (base_tps + np.random.normal(0, 6)) * load_factor)
+                count = int(tps * 3600) // 180                # Extreme sampling: 1 row per 180 real calls
 
                 for _ in range(count):
-                    rt = np.random.lognormal(mean=np.log(600 + rt_shift), sigma=0.6)
+                    rt = np.random.lognormal(mean=np.log(580 + rt_shift), sigma=0.65)
                     status = 200 if np.random.rand() > error_rate else 500
                     secs = np.random.randint(0, 3600)
                     ts = hour_start + timedelta(seconds=secs)
@@ -100,7 +99,8 @@ def create_demo_data():
 
     pd.DataFrame(prod_data, columns=["timestamp", "api", "response_time_ms", "status", "art"]).to_csv(PROD_CSV, index=False)
     pd.DataFrame(cert_data, columns=["timestamp", "api", "response_time_ms", "status", "art"]).to_csv(CERT_CSV, index=False)
-    print(f"DEMO data created → {len(prod_data)+len(cert_data):,} rows | 8 ARTs assigned")
+    total_rows = len(prod_data) + len(cert_data)
+    print(f"ULTRA-LIGHT DEMO created → {total_rows:,} rows | 32 APIs | 8 ARTs")
 
 # --------------------------------------------------------------
 # 3. LOAD FUNCTIONS
