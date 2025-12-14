@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": ".."
+		},
+		{
+			"path": "../../13Dec_AIML_Project"
 		}
 	]
 }

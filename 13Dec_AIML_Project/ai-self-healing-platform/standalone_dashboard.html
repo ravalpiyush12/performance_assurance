@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Self-Healing Platform - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #f1f5f9;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-start {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-start:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+        
+        .btn-stop {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-stop:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+        
+        .btn-start:disabled,
+        .btn-stop:disabled {
+            background: #334155;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .status-card {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(30, 41, 59, 0.5);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .status-label {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            margin-bottom: 8px;
+        }
+        
+        .status-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .status-value.health {
+            color: #10b981;
+        }
+        
+        .status-value.alerts {
+            color: #f59e0b;
+        }
+        
+        .status-value.actions {
+            color: #60a5fa;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-container {
+            background: rgba(30, 41, 59, 0.5);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .icon {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .alerts-list {
+            background: rgba(30, 41, 59, 0.5);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .alert-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .alert-item.warning {
+            background: rgba(251, 146, 60, 0.1);
+            border-left-color: #f59e0b;
+        }
+        
+        .alert-item.critical {
+            background: rgba(239, 68, 68, 0.1);
+            border-left-color: #ef4444;
+        }
+        
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .alert-type {
+            font-weight: 600;
+        }
+        
+        .alert-time {
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+        
+        .healing-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+        }
+        
+        .healing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .healing-action {
+            font-weight: 600;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .status-badge.executing {
+            background: #fbbf24;
+            color: #1e293b;
+        }
+        
+        .status-badge.completed {
+            background: #10b981;
+            color: white;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .connection-status.connected {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid #10b981;
+            color: #10b981;
+        }
+        
+        .connection-status.disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+        }
+        
+        .pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">
+        <div class="pulse"></div>
+        <span>Connecting...</span>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>AI Self-Healing Platform</h1>
+            <p class="subtitle">Real-time performance monitoring with automated remediation</p>
+        </header>
+
+        <div class="controls">
+            <button class="btn-start" id="startBtn" onclick="startMonitoring()">Start Monitoring</button>
+            <button class="btn-stop" id="stopBtn" onclick="stopMonitoring()" disabled>Stop Monitoring</button>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-card">
+                <div class="status-label">System Health</div>
+                <div class="status-value health" id="healthScore">--</div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">Active Alerts</div>
+                <div class="status-value alerts" id="alertCount">0</div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">Healing Actions</div>
+                <div class="status-value actions" id="actionCount">0</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="chart-container">
+                <div class="chart-title">
+                    <span>📊</span> CPU & Memory Usage
+                </div>
+                <canvas id="metricsChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">
+                    <span>⚡</span> Response Time & Errors
+                </div>
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="alerts-list">
+                <div class="chart-title">
+                    <span>⚠️</span> Detected Anomalies
+                </div>
+                <div id="alertsList">
+                    <p style="color: #64748b; text-align: center; padding: 20px;">No anomalies detected</p>
+                </div>
+            </div>
+            <div class="alerts-list">
+                <div class="chart-title">
+                    <span>✅</span> Self-Healing Actions
+                </div>
+                <div id="healingList">
+                    <p style="color: #64748b; text-align: center; padding: 20px;">No actions taken</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let isMonitoring = false;
+        let monitoringInterval;
+        let metricsChart, performanceChart;
+        let metricsData = [];
+        let alertsData = [];
+        let healingData = [];
+
+        // Initialize charts
+        function initCharts() {
+            const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+            metricsChart = new Chart(metricsCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'CPU Usage (%)',
+                            data: [],
+                            borderColor: '#60a5fa',
+                            backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Memory Usage (%)',
+                            data: [],
+                            borderColor: '#a78bfa',
+                            backgroundColor: 'rgba(167, 139, 250, 0.1)',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#f1f5f9' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        }
+                    }
+                }
+            });
+
+            const perfCtx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(perfCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Response Time (ms)',
+                            data: [],
+                            borderColor: '#fbbf24',
+                            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Error Rate (%)',
+                            data: [],
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#f1f5f9' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            max: 15,
+                            ticks: { color: '#94a3b8' },
+                            grid: { display: false }
+                        },
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update charts with new data
+        function updateCharts(metric) {
+            const timestamp = new Date(metric.timestamp).toLocaleTimeString();
+            
+            if (metricsChart.data.labels.length > 20) {
+                metricsChart.data.labels.shift();
+                metricsChart.data.datasets[0].data.shift();
+                metricsChart.data.datasets[1].data.shift();
+                performanceChart.data.labels.shift();
+                performanceChart.data.datasets[0].data.shift();
+                performanceChart.data.datasets[1].data.shift();
+            }
+
+            metricsChart.data.labels.push(timestamp);
+            metricsChart.data.datasets[0].data.push(metric.cpu_usage);
+            metricsChart.data.datasets[1].data.push(metric.memory_usage);
+            metricsChart.update('none');
+
+            performanceChart.data.labels.push(timestamp);
+            performanceChart.data.datasets[0].data.push(metric.response_time);
+            performanceChart.data.datasets[1].data.push(metric.error_rate);
+            performanceChart.update('none');
+        }
+
+        // Fetch and display metrics
+        async function fetchMetrics() {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/metrics?limit=1`);
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    const latest = data[0];
+                    updateCharts(latest);
+                }
+                
+                updateConnectionStatus(true);
+            } catch (error) {
+                console.error('Error fetching metrics:', error);
+                updateConnectionStatus(false);
+            }
+        }
+
+        // Fetch alerts
+        async function fetchAlerts() {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/anomalies?limit=10`);
+                const data = await response.json();
+                
+                document.getElementById('alertCount').textContent = data.length;
+                
+                const alertsList = document.getElementById('alertsList');
+                if (data.length === 0) {
+                    alertsList.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No anomalies detected</p>';
+                } else {
+                    alertsList.innerHTML = data.map(alert => `
+                        <div class="alert-item ${alert.severity}">
+                            <div class="alert-header">
+                                <span class="alert-type">${alert.anomaly_type.replace(/_/g, ' ')}</span>
+                                <span class="alert-time">${new Date(alert.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                            <div style="font-size: 0.875rem; color: #94a3b8;">
+                                Severity: ${alert.severity}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error fetching alerts:', error);
+            }
+        }
+
+        // Fetch healing actions
+        async function fetchHealingActions() {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/healing-actions?limit=10`);
+                const data = await response.json();
+                
+                document.getElementById('actionCount').textContent = data.length;
+                
+                const healingList = document.getElementById('healingList');
+                if (data.length === 0) {
+                    healingList.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No actions taken</p>';
+                } else {
+                    healingList.innerHTML = data.map(action => `
+                        <div class="healing-item">
+                            <div class="healing-header">
+                                <span class="healing-action">${action.action_type.replace(/_/g, ' ')}</span>
+                                <span class="status-badge ${action.status}">${action.status}</span>
+                            </div>
+                            <div style="font-size: 0.875rem; color: #94a3b8;">
+                                Target: ${action.target}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error fetching healing actions:', error);
+            }
+        }
+
+        // Fetch system status
+        async function fetchStatus() {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/status`);
+                const data = await response.json();
+                
+                document.getElementById('healthScore').textContent = `${data.health_score.toFixed(0)}%`;
+            } catch (error) {
+                console.error('Error fetching status:', error);
+            }
+        }
+
+        // Update connection status indicator
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.className = 'connection-status connected';
+                status.innerHTML = '<div class="pulse"></div><span>Connected</span>';
+            } else {
+                status.className = 'connection-status disconnected';
+                status.innerHTML = '<div class="pulse"></div><span>Disconnected</span>';
+            }
+        }
+
+        // Start monitoring
+        function startMonitoring() {
+            if (isMonitoring) return;
+            
+            isMonitoring = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            // Initial fetch
+            fetchMetrics();
+            fetchAlerts();
+            fetchHealingActions();
+            fetchStatus();
+            
+            // Set up polling
+            monitoringInterval = setInterval(() => {
+                fetchMetrics();
+                fetchAlerts();
+                fetchHealingActions();
+                fetchStatus();
+            }, 2000);
+        }
+
+        // Stop monitoring
+        function stopMonitoring() {
+            isMonitoring = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initCharts();
+            updateConnectionStatus(false);
+        });
+    </script>
+</body>
+</html>
