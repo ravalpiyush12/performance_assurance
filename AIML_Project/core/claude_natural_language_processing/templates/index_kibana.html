@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NL Query Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .query-section {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        #queryInput {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        #queryInput:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .sample-queries {
+            margin-top: 15px;
+        }
+        
+        .sample-query {
+            display: inline-block;
+            padding: 8px 15px;
+            background: #f0f0f0;
+            border-radius: 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        
+        .sample-query:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .results-section {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sql-display {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        
+        .sql-display pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 18px;
+        }
+        
+        .error {
+            background: #fee;
+            border-left: 4px solid #f44;
+            padding: 15px;
+            border-radius: 5px;
+            color: #c33;
+            margin: 20px 0;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Natural Language Query Interface</h1>
+            <p class="subtitle">Query Production Stats and PTE Metrics using plain English</p>
+        </div>
+        
+        <div class="query-section">
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="queryInput" 
+                    placeholder="Ask a question about your data..."
+                    onkeypress="if(event.key==='Enter') executeQuery()"
+                >
+                <button onclick="executeQuery()" id="queryBtn">Query</button>
+            </div>
+            
+            <div class="sample-queries">
+                <strong>Sample queries:</strong>
+                <div id="sampleQueriesContainer"></div>
+            </div>
+        </div>
+        
+        <div id="loadingSection" class="loading hidden">
+            <p>⏳ Processing your query...</p>
+        </div>
+        
+        <div id="errorSection" class="hidden"></div>
+        
+        <div id="resultsSection" class="hidden">
+            <div class="results-section">
+                <h2>📊 Query Interpretation</h2>
+                <div class="info-box" id="interpretationBox"></div>
+                
+                <h3>Production Database Query</h3>
+                <div class="sql-display">
+                    <pre id="prodQuery"></pre>
+                </div>
+                
+                <h3>PTE Database Query</h3>
+                <div class="sql-display">
+                    <pre id="pteQuery"></pre>
+                </div>
+            </div>
+            
+            <div class="results-section">
+                <h2>📈 Production Statistics</h2>
+                <div id="prodResults"></div>
+            </div>
+            
+            <div class="results-section">
+                <h2>✅ PTE Metrics</h2>
+                <div id="pteResults"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Load sample queries on page load
+        fetch('/api/sample-queries')
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById('sampleQueriesContainer');
+                data.samples.forEach(sample => {
+                    const span = document.createElement('span');
+                    span.className = 'sample-query';
+                    span.textContent = sample;
+                    span.onclick = () => {
+                        document.getElementById('queryInput').value = sample;
+                    };
+                    container.appendChild(span);
+                });
+            });
+        
+        function executeQuery() {
+            const query = document.getElementById('queryInput').value;
+            if (!query.trim()) return;
+            
+            // Show loading, hide results and errors
+            document.getElementById('loadingSection').classList.remove('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('errorSection').classList.add('hidden');
+            document.getElementById('queryBtn').disabled = true;
+            
+            fetch('/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query: query })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    displayResults(data);
+                }
+            })
+            .catch(err => {
+                showError('Failed to execute query: ' + err.message);
+            })
+            .finally(() => {
+                document.getElementById('loadingSection').classList.add('hidden');
+                document.getElementById('queryBtn').disabled = false;
+            });
+        }
+        
+        function showError(message) {
+            const errorSection = document.getElementById('errorSection');
+            errorSection.innerHTML = `<div class="error">${message}</div>`;
+            errorSection.classList.remove('hidden');
+        }
+        
+        function displayResults(data) {
+            // Display interpretation
+            document.getElementById('interpretationBox').innerHTML = `
+                <strong>Pattern matched:</strong> ${data.pattern}<br>
+                <strong>Executed at:</strong> ${new Date(data.timestamp).toLocaleString()}
+            `;
+            
+            // Display queries
+            document.getElementById('prodQuery').textContent = data.prod_query;
+            document.getElementById('pteQuery').textContent = data.pte_query;
+            
+            // Display production results
+            document.getElementById('prodResults').innerHTML = createTable(data.prod_results);
+            
+            // Display PTE results
+            document.getElementById('pteResults').innerHTML = createTable(data.pte_results);
+            
+            // Show results section
+            document.getElementById('resultsSection').classList.remove('hidden');
+        }
+        
+        function createTable(results) {
+            if (results.error) {
+                return `<div class="error">Database Error: ${results.error}</div>`;
+            }
+            
+            if (results.row_count === 0) {
+                return '<p>No results found.</p>';
+            }
+            
+            let html = '';
+            
+            // Show note if available (e.g., showing X of Y records)
+            if (results.note) {
+                html += `<div class="info-box"><strong>Note:</strong> ${results.note}</div>`;
+            }
+            
+            html += '<table><thead><tr>';
+            results.columns.forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            results.rows.forEach(row => {
+                html += '<tr>';
+                results.columns.forEach(col => {
+                    html += `<td>${row[col] !== null && row[col] !== undefined ? row[col] : 'NULL'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += `</tbody></table>`;
+            html += `<p><strong>${results.row_count}</strong> row(s) returned`;
+            if (results.total_available && results.total_available > results.row_count) {
+                html += ` (${results.total_available} total available)`;
+            }
+            html += `</p>`;
+            return html;
+        }
+    </script>
+</body>
+</html>
