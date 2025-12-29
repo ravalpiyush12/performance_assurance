@@ -1,6 +1,13 @@
 """
-Main API Server - Complete Integration of All Components
+Main API Server - Complete Integration of All Components (Version 13)
 Save as: src/api/main.py
+
+Key Updates in v13:
+- Dynamic active alerts tracking with unique IDs
+- Auto-resolution of alerts when healing succeeds
+- Improved health score calculation
+- Fixed import order
+- Better alert lifecycle management
 
 This integrates:
 - ML Anomaly Detection
@@ -22,15 +29,17 @@ import logging
 from datetime import datetime
 import sys
 from pathlib import Path
+from collections import deque
+import psutil
+import random
 
-# Add src to path for imports
+# Add src to path for imports FIRST
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Ensure logs directory exists
 Path('logs').mkdir(exist_ok=True)
 
 # Setup logging with UTF-8 encoding for Windows compatibility
-import sys
 if sys.platform == 'win32':
     # Windows: Force UTF-8 encoding
     import io
@@ -47,11 +56,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Import our modules AFTER path setup
+try:
+    from src.ml.anomaly_detector import AnomalyDetector, PerformancePredictor
+    from src.orchestrator.self_healing import SelfHealingOrchestrator, CloudProvider
+    logger.info("✅ Successfully imported custom modules")
+except ImportError as e:
+    logger.error(f"❌ Import error: {e}")
+    logger.error("Make sure you're running from the project root directory")
+    logger.error("Required files: src/ml/anomaly_detector.py, src/orchestrator/self_healing.py")
+    sys.exit(1)
+
 # FastAPI app
 app = FastAPI(
     title="AI-Driven Self-Healing Platform",
     description="Intelligent observability and automated remediation for cloud workloads",
-    version="1.0.0"
+    version="13.0"
 )
 
 # CORS middleware
@@ -68,11 +88,15 @@ anomaly_detector = AnomalyDetector(contamination=0.1, window_size=100)
 performance_predictor = PerformancePredictor()
 healing_orchestrator = SelfHealingOrchestrator(cloud_provider=CloudProvider.LOCAL)
 
-# In-memory storage
-metrics_history = []
-anomalies_detected = []
-healing_actions_taken = []
+# In-memory storage with deques for better performance
+metrics_history = deque(maxlen=1000)
+anomalies_detected = deque(maxlen=200)
+healing_actions_taken = deque(maxlen=200)
 active_websockets = []
+startup_time = datetime.now()
+
+# NEW in v13: Active alerts tracking
+active_alerts = {}  # Dict with anomaly_id as key for O(1) lookups
 
 # Pydantic models
 class Metric(BaseModel):
@@ -100,6 +124,7 @@ class AnomalyResponse(BaseModel):
     severity: str
     score: float
     metrics: Dict
+    status: Optional[str] = "active"
 
 class HealingActionResponse(BaseModel):
     action_id: str
@@ -109,7 +134,95 @@ class HealingActionResponse(BaseModel):
     status: str
     execution_time: Optional[float] = None
 
+# ============================================================================
+# NEW in v13: Alert Management Functions
+# ============================================================================
+
+def generate_anomaly_id() -> str:
+    """Generate unique anomaly ID"""
+    return f"anomaly_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{random.randint(1000, 9999)}"
+
+def add_active_alert(anomaly_id: str, anomaly_data: dict):
+    """Add a new active alert"""
+    active_alerts[anomaly_id] = {
+        **anomaly_data,
+        'anomaly_id': anomaly_id,
+        'status': 'active',
+        'created_at': datetime.now().isoformat()
+    }
+    logger.info(f"🚨 New active alert: {anomaly_id} - {anomaly_data.get('anomaly_type')}")
+
+def resolve_alert(anomaly_id: str):
+    """Mark an alert as resolved and remove from active alerts"""
+    if anomaly_id in active_alerts:
+        active_alerts[anomaly_id]['status'] = 'resolved'
+        active_alerts[anomaly_id]['resolved_at'] = datetime.now().isoformat()
+        del active_alerts[anomaly_id]
+        logger.info(f"✅ Alert resolved: {anomaly_id}")
+
+def auto_resolve_old_alerts():
+    """Auto-resolve alerts older than 5 minutes"""
+    now = datetime.now()
+    to_remove = []
+    
+    for anomaly_id, alert in active_alerts.items():
+        created_at = datetime.fromisoformat(alert['created_at'])
+        age = (now - created_at).total_seconds()
+        
+        # Auto-resolve if older than 5 minutes
+        if age > 300:
+            to_remove.append(anomaly_id)
+    
+    for anomaly_id in to_remove:
+        resolve_alert(anomaly_id)
+        logger.info(f"⏰ Auto-resolved old alert: {anomaly_id}")
+
+def calculate_health_score() -> float:
+    """Calculate dynamic health score based on metrics and alerts"""
+    if len(metrics_history) == 0:
+        return 100.0
+    
+    # Get recent metrics (last 20)
+    recent_metrics = list(metrics_history)[-20:]
+    
+    # Calculate averages
+    avg_cpu = sum(m['cpu_usage'] for m in recent_metrics) / len(recent_metrics)
+    avg_memory = sum(m['memory_usage'] for m in recent_metrics) / len(recent_metrics)
+    avg_error = sum(m['error_rate'] for m in recent_metrics) / len(recent_metrics)
+    avg_response = sum(m['response_time'] for m in recent_metrics) / len(recent_metrics)
+    
+    # Start with perfect health
+    health = 100.0
+    
+    # Deduct for high resource usage
+    if avg_cpu > 80:
+        health -= (avg_cpu - 80) * 0.5
+    if avg_memory > 80:
+        health -= (avg_memory - 80) * 0.5
+    
+    # Deduct for errors
+    health -= avg_error * 5
+    
+    # Deduct for slow response times
+    if avg_response > 200:
+        health -= (avg_response - 200) * 0.02
+    
+    # Deduct for active alerts (2 points per alert)
+    alert_penalty = len(active_alerts) * 2
+    health -= alert_penalty
+    
+    # Ensure between 0 and 100
+    health = max(0.0, min(100.0, health))
+    
+    return round(health, 1)
+
+def get_active_alerts_count() -> int:
+    """Get count of currently active alerts"""
+    return len(active_alerts)
+
+# ============================================================================
 # API Endpoints
+# ============================================================================
 
 @app.get("/")
 async def root():
@@ -118,33 +231,29 @@ async def root():
 
 @app.get("/api/v1/status", response_model=SystemStatus)
 async def get_system_status():
-    """Get overall system status"""
-    recent_anomalies = len([a for a in anomalies_detected[-10:]])
-    health_score = max(60, min(100, 100 - (recent_anomalies * 5)))
+    """Get overall system status with DYNAMIC health score and alerts"""
+    health_score = calculate_health_score()
+    active_alerts_count = get_active_alerts_count()
     
     return SystemStatus(
         health_score=health_score,
-        active_alerts=len([a for a in anomalies_detected[-5:]]),
+        active_alerts=active_alerts_count,  # NOW DYNAMIC!
         total_metrics=len(metrics_history),
         healing_actions_count=len(healing_actions_taken),
         ml_model_trained=anomaly_detector.is_trained,
-        uptime_seconds=0  # Would track actual uptime
+        uptime_seconds=(datetime.now() - startup_time).total_seconds()
     )
 
 @app.get("/api/v1/metrics")
 async def get_metrics(limit: int = 50):
     """Get recent metrics"""
-    return metrics_history[-limit:]
+    return list(metrics_history)[-limit:]
 
 @app.post("/api/v1/metrics")
 async def ingest_metrics(metric: Metric, background_tasks: BackgroundTasks):
     """Ingest new metrics and trigger anomaly detection"""
     metric_dict = metric.dict()
     metrics_history.append(metric_dict)
-    
-    # Keep history manageable
-    if len(metrics_history) > 1000:
-        metrics_history[:] = metrics_history[-1000:]
     
     # Trigger anomaly detection in background
     background_tasks.add_task(process_metric, metric_dict)
@@ -153,13 +262,35 @@ async def ingest_metrics(metric: Metric, background_tasks: BackgroundTasks):
 
 @app.get("/api/v1/anomalies")
 async def get_anomalies(limit: int = 20):
-    """Get detected anomalies"""
-    return anomalies_detected[-limit:]
+    """Get detected anomalies (all)"""
+    return list(anomalies_detected)[-limit:]
+
+@app.get("/api/v1/anomalies/active")
+async def get_active_anomalies():
+    """Get only currently active (unresolved) anomalies"""
+    return list(active_alerts.values())
+
+@app.post("/api/v1/anomalies/{anomaly_id}/resolve")
+async def resolve_anomaly_endpoint(anomaly_id: str):
+    """Manually resolve an anomaly"""
+    if anomaly_id in active_alerts:
+        resolve_alert(anomaly_id)
+        return {"status": "success", "message": f"Alert {anomaly_id} resolved"}
+    return {"status": "error", "message": f"Alert {anomaly_id} not found"}
+
+@app.post("/api/v1/anomalies/{anomaly_id}/acknowledge")
+async def acknowledge_anomaly(anomaly_id: str):
+    """Acknowledge an anomaly (mark as seen but keep active)"""
+    if anomaly_id in active_alerts:
+        active_alerts[anomaly_id]['status'] = 'acknowledged'
+        active_alerts[anomaly_id]['acknowledged_at'] = datetime.now().isoformat()
+        return {"status": "success", "message": f"Alert {anomaly_id} acknowledged"}
+    return {"status": "error", "message": f"Alert {anomaly_id} not found"}
 
 @app.get("/api/v1/healing-actions")
 async def get_healing_actions(limit: int = 20):
     """Get healing actions history"""
-    return healing_actions_taken[-limit:]
+    return list(healing_actions_taken)[-limit:]
 
 @app.get("/api/v1/predictions")
 async def get_predictions():
@@ -167,13 +298,23 @@ async def get_predictions():
     if len(metrics_history) < 10:
         return {"predictions": None, "message": "Insufficient data"}
     
-    predictions = performance_predictor.predict_resource_exhaustion(metrics_history[-20:])
+    predictions = performance_predictor.predict_resource_exhaustion(list(metrics_history)[-20:])
     return predictions
 
 @app.get("/api/v1/orchestrator/stats")
 async def get_orchestrator_stats():
     """Get orchestrator statistics"""
     return healing_orchestrator.get_statistics()
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "uptime_seconds": (datetime.now() - startup_time).total_seconds(),
+        "active_alerts": get_active_alerts_count()
+    }
 
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):
@@ -190,7 +331,9 @@ async def websocket_endpoint(websocket: WebSocket):
         active_websockets.remove(websocket)
         logger.info(f"WebSocket disconnected. Total: {len(active_websockets)}")
 
-# Background processing
+# ============================================================================
+# Background Processing
+# ============================================================================
 
 async def process_metric(metric: Dict):
     """Process metric for anomaly detection and healing"""
@@ -203,20 +346,30 @@ async def process_metric(metric: Dict):
             anomaly = anomaly_detector.detect_anomaly(metric)
             
             if anomaly:
+                # Generate unique ID
+                anomaly_id = generate_anomaly_id()
+                
                 # Store anomaly with proper structure
                 anomaly_record = {
                     'id': len(anomalies_detected) + 1,
+                    'anomaly_id': anomaly_id,
                     'timestamp': anomaly.get('timestamp', datetime.now().isoformat()),
                     'anomaly_type': anomaly.get('anomaly_type', 'UNKNOWN'),
                     'severity': anomaly.get('severity', 'warning'),
                     'anomaly_score': anomaly.get('anomaly_score', 0.0),
-                    'score': anomaly.get('anomaly_score', 0.0),  # Duplicate for compatibility
+                    'score': anomaly.get('anomaly_score', 0.0),
                     'confidence': anomaly.get('confidence', 0.0),
-                    'metrics': anomaly.get('metrics', metric)
+                    'metrics': anomaly.get('metrics', metric),
+                    'status': 'active'
                 }
+                
+                # Add to active alerts
+                add_active_alert(anomaly_id, anomaly_record)
+                
+                # Store in history
                 anomalies_detected.append(anomaly_record)
                 
-                logger.warning(f"[ANOMALY] Anomaly #{len(anomalies_detected)} detected: {anomaly['anomaly_type']} (severity: {anomaly['severity']})")
+                logger.warning(f"🚨 Anomaly #{len(anomalies_detected)} detected: {anomaly['anomaly_type']} (severity: {anomaly['severity']})")
                 
                 # Trigger self-healing
                 action = healing_orchestrator.decide_action(anomaly)
@@ -225,9 +378,14 @@ async def process_metric(metric: Dict):
                     success = await healing_orchestrator.execute_action(action)
                     
                     action_record = action.to_dict()
+                    action_record['anomaly_id'] = anomaly_id
                     healing_actions_taken.append(action_record)
                     
-                    logger.info(f"[HEALING] Healing action #{len(healing_actions_taken)} executed: {action.action_type.value} (success: {success})")
+                    logger.info(f"🔧 Healing action #{len(healing_actions_taken)} executed: {action.action_type.value} (success: {success})")
+                    
+                    # NEW in v13: Resolve alert if healing was successful
+                    if success:
+                        resolve_alert(anomaly_id)
                     
                     # Broadcast to WebSocket clients
                     await broadcast_update({
@@ -246,6 +404,9 @@ async def process_metric(metric: Dict):
             'type': 'metric',
             'data': metric
         })
+        
+        # Periodically auto-resolve old alerts
+        auto_resolve_old_alerts()
         
     except Exception as e:
         logger.error(f"Error processing metric: {e}", exc_info=True)
@@ -266,10 +427,13 @@ async def broadcast_update(message: Dict):
     for ws in disconnected:
         active_websockets.remove(ws)
 
-# Automatic metrics generation for demo
+# ============================================================================
+# Automatic Metrics Generation for Demo
+# ============================================================================
+
 async def auto_generate_metrics():
     """Automatically generate metrics for demonstration"""
-    logger.info("Starting automatic metrics generation...")
+    logger.info("🔄 Starting automatic metrics generation...")
     counter = 0
     
     while True:
@@ -286,7 +450,7 @@ async def auto_generate_metrics():
             # Inject anomaly every ~20 metrics
             if counter % random.randint(18, 25) == 0:
                 anomaly_type = random.choice(['cpu', 'memory', 'latency', 'error'])
-                logger.info(f"[ANOMALY INJECTION] Injecting {anomaly_type} anomaly...")
+                logger.info(f"💉 Injecting {anomaly_type} anomaly...")
                 
                 if anomaly_type == 'cpu':
                     cpu = random.uniform(85, 98)
@@ -318,20 +482,30 @@ async def auto_generate_metrics():
             logger.error(f"Error in auto metrics generation: {e}")
             await asyncio.sleep(2)
 
+# ============================================================================
+# Startup/Shutdown Events
+# ============================================================================
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize platform on startup"""
-    logger.info("=" * 60)
-    logger.info("AI-Driven Self-Healing Platform Starting...")
-    logger.info("=" * 60)
+    logger.info("=" * 70)
+    logger.info("🚀 AI-Driven Self-Healing Platform v13 Starting...")
+    logger.info("=" * 70)
+    logger.info("New in v13:")
+    logger.info("  • Dynamic active alerts tracking")
+    logger.info("  • Auto-resolution of old alerts")
+    logger.info("  • Improved health score calculation")
+    logger.info("  • Alert lifecycle management")
+    logger.info("=" * 70)
     
     # Start automatic metrics generation
     asyncio.create_task(auto_generate_metrics())
     
-    logger.info("Platform started successfully!")
-    logger.info("Dashboard: http://localhost:8000")
-    logger.info("API Docs: http://localhost:8000/docs")
-    logger.info("=" * 60)
+    logger.info("✅ Platform started successfully!")
+    logger.info("📊 Dashboard: http://localhost:8000")
+    logger.info("📡 API Docs: http://localhost:8000/docs")
+    logger.info("=" * 70)
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -340,16 +514,23 @@ async def shutdown_event():
     
     # Save ML model
     if anomaly_detector.is_trained:
-        anomaly_detector.save_model('data/anomaly_model.pkl')
-        logger.info("ML model saved")
+        try:
+            anomaly_detector.save_model('data/anomaly_model.pkl')
+            logger.info("ML model saved")
+        except Exception as e:
+            logger.error(f"Error saving model: {e}")
+
+# ============================================================================
+# Dashboard HTML
+# ============================================================================
 
 def get_dashboard_html():
-    """Embedded dashboard HTML"""
+    """Embedded dashboard HTML with v13 improvements"""
     return """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Self-Healing Platform - Live Demo</title>
+    <title>AI Self-Healing Platform v13 - Live Demo</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -376,6 +557,16 @@ def get_dashboard_html():
             margin-bottom: 10px;
         }
         .subtitle { color: #94a3b8; font-size: 1rem; }
+        .version-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-left: 10px;
+            color: white;
+        }
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -387,9 +578,17 @@ def get_dashboard_html():
             padding: 20px;
             border-radius: 12px;
             border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: transform 0.2s;
         }
-        .stat-label { color: #94a3b8; font-size: 0.875rem; margin-bottom: 8px; }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(148, 163, 184, 0.3);
+        }
+        .stat-label { color: #94a3b8; font-size: 0.875rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
         .stat-value { font-size: 2rem; font-weight: 700; }
+        .stat-value.green { color: #10b981; }
+        .stat-value.yellow { color: #fbbf24; }
+        .stat-value.red { color: #ef4444; }
         .charts {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
@@ -428,6 +627,7 @@ def get_dashboard_html():
         }
         .status.completed { background: #10b981; color: white; }
         .status.executing { background: #fbbf24; color: #1e293b; animation: pulse 1s infinite; }
+        .status.failed { background: #ef4444; color: white; }
         .connection {
             position: fixed;
             top: 20px;
@@ -439,6 +639,7 @@ def get_dashboard_html():
             display: flex;
             align-items: center;
             gap: 8px;
+            z-index: 1000;
         }
         .connection.connected {
             background: rgba(16, 185, 129, 0.2);
@@ -461,6 +662,21 @@ def get_dashboard_html():
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+        .no-data {
+            color: #64748b;
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+        }
+        .success-message {
+            color: #10b981;
+            text-align: center;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -471,8 +687,8 @@ def get_dashboard_html():
 
     <div class="container">
         <header>
-            <h1>🤖 AI Self-Healing Platform</h1>
-            <p class="subtitle">Real-time Observability & Automated Remediation Demo</p>
+            <h1>🤖 AI Self-Healing Platform<span class="version-badge">v13</span></h1>
+            <p class="subtitle">Real-time Observability & Automated Remediation with Dynamic Alert Management</p>
             <div style="margin-top: 15px;">
                 <button onclick="forceRefresh()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
                     🔄 Refresh Data
@@ -480,17 +696,20 @@ def get_dashboard_html():
                 <button onclick="checkAPI()" style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-left: 10px;">
                     🔍 Check API
                 </button>
+                <button onclick="viewActiveAlerts()" style="padding: 8px 16px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-left: 10px;">
+                    ⚠️ View Active Alerts
+                </button>
             </div>
         </header>
 
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-label">System Health</div>
-                <div class="stat-value" style="color: #10b981" id="health">--</div>
+                <div class="stat-value green" id="health">--</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Active Alerts</div>
-                <div class="stat-value" style="color: #f59e0b" id="alerts">0</div>
+                <div class="stat-label">Active Alerts 🆕</div>
+                <div class="stat-value yellow" id="alerts">0</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Healing Actions</div>
@@ -515,12 +734,12 @@ def get_dashboard_html():
 
         <div class="charts">
             <div class="alerts">
-                <div class="chart-title">⚠️ Detected Anomalies</div>
-                <div id="anomaliesList"><p style="color: #64748b; text-align: center; padding: 20px;">No anomalies detected</p></div>
+                <div class="chart-title">⚠️ Recent Anomalies (Last 10)</div>
+                <div id="anomaliesList"><p class="no-data">Waiting for data...</p></div>
             </div>
             <div class="alerts">
                 <div class="chart-title">✅ Self-Healing Actions</div>
-                <div id="healingList"><p style="color: #64748b; text-align: center; padding: 20px;">No actions taken</p></div>
+                <div id="healingList"><p class="no-data">Waiting for data...</p></div>
             </div>
         </div>
     </div>
@@ -551,6 +770,7 @@ def get_dashboard_html():
             },
             options: {
                 responsive: true,
+                animation: { duration: 300 },
                 plugins: { legend: { labels: { color: '#f1f5f9' } } },
                 scales: {
                     y: { beginAtZero: true, max: 100, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
@@ -582,6 +802,7 @@ def get_dashboard_html():
             },
             options: {
                 responsive: true,
+                animation: { duration: 300 },
                 plugins: { legend: { labels: { color: '#f1f5f9' } } },
                 scales: {
                     y: { type: 'linear', position: 'left', beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148, 163, 184, 0.1)' } },
@@ -615,17 +836,11 @@ def get_dashboard_html():
             ws.onmessage = (event) => {
                 try {
                     const message = JSON.parse(event.data);
-                    console.log('📨 Received:', message.type, message.data);
+                    console.log('📨 Received:', message.type);
                     
                     if (message.type === 'metric') {
                         updateCharts(message.data);
-                    } else if (message.type === 'anomaly') {
-                        console.log('⚠️ Anomaly detected!', message.data);
-                        // Force refresh the dashboard
-                        updateDashboard();
-                    } else if (message.type === 'healing_action') {
-                        console.log('✅ Healing action!', message.data);
-                        // Force refresh the dashboard
+                    } else if (message.type === 'anomaly' || message.type === 'healing_action') {
                         updateDashboard();
                     }
                 } catch (error) {
@@ -668,9 +883,16 @@ def get_dashboard_html():
                     fetch('/api/v1/healing-actions?limit=10').then(r => r.json())
                 ]);
 
-                // Update status cards
-                document.getElementById('health').textContent = status.health_score.toFixed(0) + '%';
-                document.getElementById('alerts').textContent = status.active_alerts;
+                // Update status cards with color coding
+                const health = status.health_score;
+                const healthEl = document.getElementById('health');
+                healthEl.textContent = health.toFixed(0) + '%';
+                healthEl.className = 'stat-value ' + (health >= 90 ? 'green' : health >= 70 ? 'yellow' : 'red');
+                
+                const alertsEl = document.getElementById('alerts');
+                alertsEl.textContent = status.active_alerts;
+                alertsEl.className = 'stat-value ' + (status.active_alerts === 0 ? 'green' : status.active_alerts < 3 ? 'yellow' : 'red');
+                
                 document.getElementById('actions').textContent = status.healing_actions_count;
                 document.getElementById('mlStatus').textContent = status.ml_model_trained ? '✓ Trained' : 'Training...';
 
@@ -698,12 +920,14 @@ def get_dashboard_html():
                             </div>
                             <div style="font-size: 0.875rem; color: #94a3b8;">
                                 Type: ${a.anomaly_type || 'UNKNOWN'}<br>
-                                Score: ${a.anomaly_score ? a.anomaly_score.toFixed(3) : a.score ? a.score.toFixed(3) : 'N/A'}
+                                Score: ${a.anomaly_score ? a.anomaly_score.toFixed(3) : a.score ? a.score.toFixed(3) : 'N/A'}<br>
+                                ${a.anomaly_id ? `ID: ${a.anomaly_id}<br>` : ''}
+                                Status: ${a.status || 'active'}
                             </div>
                         </div>
                     `).join('');
                 } else {
-                    document.getElementById('anomaliesList').innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No anomalies detected yet...</p>';
+                    document.getElementById('anomaliesList').innerHTML = '<p class="success-message">✅ No anomalies detected - System healthy!</p>';
                 }
 
                 // Update healing actions list
@@ -717,11 +941,12 @@ def get_dashboard_html():
                             <div style="font-size: 0.875rem; color: #94a3b8;">
                                 Target: ${h.target}<br>
                                 ${h.execution_time ? `Time: ${h.execution_time.toFixed(2)}s` : 'Executing...'}
+                                ${h.anomaly_id ? `<br>For: ${h.anomaly_id}` : ''}
                             </div>
                         </div>
                     `).join('');
                 } else {
-                    document.getElementById('healingList').innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No healing actions taken yet...</p>';
+                    document.getElementById('healingList').innerHTML = '<p class="no-data">No healing actions taken yet</p>';
                 }
 
             } catch (error) {
@@ -743,16 +968,48 @@ def get_dashboard_html():
         async function checkAPI() {
             console.log('🔍 Checking API...');
             try {
-                const [anomalies, healing] = await Promise.all([
+                const [status, anomalies, healing, activeAlerts] = await Promise.all([
+                    fetch('/api/v1/status').then(r => r.json()),
                     fetch('/api/v1/anomalies').then(r => r.json()),
-                    fetch('/api/v1/healing-actions').then(r => r.json())
+                    fetch('/api/v1/healing-actions').then(r => r.json()),
+                    fetch('/api/v1/anomalies/active').then(r => r.json())
                 ]);
-                console.log('📊 Anomalies:', anomalies);
+                console.log('📊 Status:', status);
+                console.log('⚠️ All Anomalies:', anomalies);
+                console.log('🚨 Active Alerts:', activeAlerts);
                 console.log('✅ Healing Actions:', healing);
-                alert(`Anomalies: ${anomalies.length}\nHealing Actions: ${healing.length}\n\nCheck browser console for details (F12)`);
+                alert(`System Status:
+Health Score: ${status.health_score.toFixed(1)}%
+Active Alerts: ${status.active_alerts}
+Total Anomalies: ${anomalies.length}
+Healing Actions: ${healing.length}
+
+Check browser console for details (F12)`);
             } catch (error) {
                 console.error('Error:', error);
                 alert('Error checking API. See console for details.');
+            }
+        }
+
+        async function viewActiveAlerts() {
+            try {
+                const activeAlerts = await fetch('/api/v1/anomalies/active').then(r => r.json());
+                console.log('🚨 Active Alerts:', activeAlerts);
+                
+                if (activeAlerts.length === 0) {
+                    alert('✅ No active alerts! System is healthy.');
+                } else {
+                    const alertList = activeAlerts.map(a => 
+                        `${a.severity.toUpperCase()}: ${a.anomaly_type} (${a.anomaly_id})`
+                    ).join('\\n');
+                    alert(`Active Alerts (${activeAlerts.length}):
+${alertList}
+
+See console for full details (F12)`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error fetching active alerts. See console for details.');
             }
         }
     </script>
@@ -762,5 +1019,27 @@ def get_dashboard_html():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    
+    print("\n" + "="*70)
+    print("🚀 AI Self-Healing Platform v13 - Starting...")
+    print("="*70)
+    print("\n📊 Dashboard: http://localhost:8000")
+    print("📡 API Docs: http://localhost:8000/docs")
+    print("🔧 Health Check: http://localhost:8000/health")
+    print("\n💡 New in v13:")
+    print("   • Dynamic active alerts count (no longer hardcoded)")
+    print("   • Auto-resolution when healing succeeds")
+    print("   • Auto-cleanup of old alerts (>5 minutes)")
+    print("   • New endpoint: GET /api/v1/anomalies/active")
+    print("   • Improved health score calculation")
+    print("   • Alert acknowledgement support")
+    print("\n" + "="*70 + "\n")
+    
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000, 
+        log_level="info",
+        access_log=True
+    )
     
