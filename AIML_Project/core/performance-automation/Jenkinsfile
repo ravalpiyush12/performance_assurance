@@ -1,0 +1,414 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(
+            name: 'PC_SERVER',
+            defaultValue: 'pc-server.example.com',
+            description: 'Performance Center Server URL (without http://)'
+        )
+        string(
+            name: 'PC_DOMAIN',
+            defaultValue: 'DEFAULT',
+            description: 'Performance Center Domain'
+        )
+        string(
+            name: 'PC_PROJECT',
+            defaultValue: 'MyProject',
+            description: 'Performance Center Project Name'
+        )
+        string(
+            name: 'TEST_ID',
+            defaultValue: '1',
+            description: 'Performance Center Test ID to execute'
+        )
+        string(
+            name: 'TEST_DURATION',
+            defaultValue: '1800',
+            description: 'Test duration in seconds (default: 30 minutes)'
+        )
+        choice(
+            name: 'POST_RUN_ACTION',
+            choices: ['COLLATE_AND_ANALYZE', 'COLLATE', 'DO_NOTHING'],
+            description: 'Post run action after test execution'
+        )
+        string(
+            name: 'POLL_INTERVAL',
+            defaultValue: '60',
+            description: 'Status check interval in seconds'
+        )
+        string(
+            name: 'EMAIL_RECIPIENTS',
+            defaultValue: 'team@example.com',
+            description: 'Comma-separated email addresses for report'
+        )
+    }
+    
+    environment {
+        WORKSPACE_DIR = "${WORKSPACE}"
+        SCRIPTS_DIR = "${WORKSPACE}/scripts"
+        RESULTS_DIR = "${WORKSPACE}/results"
+        PYTHON_ENV = "${WORKSPACE}/venv"
+    }
+    
+    stages {
+        stage('Preparation') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Performance Center Automation POC"
+                    echo "=========================================="
+                    echo "Server: ${params.PC_SERVER}"
+                    echo "Domain: ${params.PC_DOMAIN}"
+                    echo "Project: ${params.PC_PROJECT}"
+                    echo "Test ID: ${params.TEST_ID}"
+                    echo "Duration: ${params.TEST_DURATION} seconds"
+                    echo "=========================================="
+                    
+                    // Clean and create directories
+                    sh """
+                        rm -rf ${RESULTS_DIR}
+                        mkdir -p ${RESULTS_DIR}
+                        mkdir -p ${SCRIPTS_DIR}
+                    """
+                }
+            }
+        }
+        
+        stage('Setup Python Environment') {
+            steps {
+                script {
+                    echo "Setting up Python environment..."
+                    sh """
+                        # Check Python version
+                        python3 --version || python --version
+                        
+                        # Install required packages
+                        pip3 install --user requests pandas openpyxl jinja2 || pip install --user requests pandas openpyxl jinja2
+                    """
+                }
+            }
+        }
+        
+        stage('Checkout Scripts') {
+            steps {
+                script {
+                    echo "Creating automation scripts..."
+                    // Scripts will be created inline or from SCM
+                    // For POC, we'll create them dynamically
+                    
+                    writeFile file: "${SCRIPTS_DIR}/pc_automation.py", text: libraryResource('pc_automation.py')
+                    writeFile file: "${SCRIPTS_DIR}/results_analyzer.py", text: libraryResource('results_analyzer.py')
+                    
+                    // Make scripts executable
+                    sh "chmod +x ${SCRIPTS_DIR}/*.py"
+                }
+            }
+        }
+        
+        stage('Trigger Performance Center Test') {
+            steps {
+                script {
+                    echo "Triggering Performance Center Test..."
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        passwordVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        sh """
+                            cd ${SCRIPTS_DIR}
+                            python3 pc_automation.py trigger \
+                                --server "${params.PC_SERVER}" \
+                                --domain "${params.PC_DOMAIN}" \
+                                --project "${params.PC_PROJECT}" \
+                                --username "${PC_USERNAME}" \
+                                --password "${PC_PASSWORD}" \
+                                --test-id "${params.TEST_ID}" \
+                                --duration "${params.TEST_DURATION}" \
+                                --post-run-action "${params.POST_RUN_ACTION}" \
+                                --output "${RESULTS_DIR}/run_info.json"
+                        """
+                        
+                        // Read run ID
+                        def runInfo = readJSON file: "${RESULTS_DIR}/run_info.json"
+                        env.RUN_ID = runInfo.run_id
+                        env.RUN_STATUS = runInfo.status
+                        
+                        echo "Test triggered successfully!"
+                        echo "Run ID: ${env.RUN_ID}"
+                        echo "Initial Status: ${env.RUN_STATUS}"
+                    }
+                }
+            }
+        }
+        
+        stage('Monitor Test Execution') {
+            steps {
+                script {
+                    echo "Monitoring test execution for Run ID: ${env.RUN_ID}"
+                    echo "This may take a while depending on test duration..."
+                    
+                    timeout(time: 5, unit: 'HOURS') {
+                        withCredentials([usernamePassword(
+                            credentialsId: 'pc-credentials',
+                            usernameVariable: 'PC_USERNAME',
+                            passwordVariable: 'PC_PASSWORD'
+                        )]) {
+                            
+                            sh """
+                                cd ${SCRIPTS_DIR}
+                                python3 pc_automation.py monitor \
+                                    --server "${params.PC_SERVER}" \
+                                    --domain "${params.PC_DOMAIN}" \
+                                    --project "${params.PC_PROJECT}" \
+                                    --username "${PC_USERNAME}" \
+                                    --password "${PC_PASSWORD}" \
+                                    --run-id "${env.RUN_ID}" \
+                                    --poll-interval "${params.POLL_INTERVAL}" \
+                                    --output "${RESULTS_DIR}/execution_log.json"
+                            """
+                            
+                            // Read final status
+                            def execLog = readJSON file: "${RESULTS_DIR}/execution_log.json"
+                            env.FINAL_STATUS = execLog.final_status
+                            env.EXECUTION_TIME = execLog.execution_time
+                            
+                            echo "Test completed with status: ${env.FINAL_STATUS}"
+                            echo "Total execution time: ${env.EXECUTION_TIME}"
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Download Test Results') {
+            when {
+                expression { env.FINAL_STATUS == 'FINISHED' }
+            }
+            steps {
+                script {
+                    echo "Downloading test results and analysis data..."
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        passwordVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        sh """
+                            cd ${SCRIPTS_DIR}
+                            python3 pc_automation.py download \
+                                --server "${params.PC_SERVER}" \
+                                --domain "${params.PC_DOMAIN}" \
+                                --project "${params.PC_PROJECT}" \
+                                --username "${PC_USERNAME}" \
+                                --password "${PC_PASSWORD}" \
+                                --run-id "${env.RUN_ID}" \
+                                --output-dir "${RESULTS_DIR}"
+                        """
+                        
+                        echo "Results downloaded successfully!"
+                    }
+                }
+            }
+        }
+        
+        stage('Analyze Results') {
+            when {
+                expression { env.FINAL_STATUS == 'FINISHED' }
+            }
+            steps {
+                script {
+                    echo "Analyzing test results..."
+                    
+                    sh """
+                        cd ${SCRIPTS_DIR}
+                        python3 results_analyzer.py analyze \
+                            --results-dir "${RESULTS_DIR}" \
+                            --run-id "${env.RUN_ID}" \
+                            --output-html "${RESULTS_DIR}/performance_report.html" \
+                            --output-json "${RESULTS_DIR}/analysis_summary.json" \
+                            --output-excel "${RESULTS_DIR}/performance_data.xlsx"
+                    """
+                    
+                    // Read analysis summary
+                    def analysis = readJSON file: "${RESULTS_DIR}/analysis_summary.json"
+                    env.SLA_PASSED = analysis.sla_passed
+                    env.TOTAL_TRANSACTIONS = analysis.total_transactions
+                    env.FAILED_TRANSACTIONS = analysis.failed_transactions
+                    env.AVG_RESPONSE_TIME = analysis.avg_response_time
+                    
+                    echo "Analysis completed!"
+                    echo "SLA Status: ${env.SLA_PASSED ? 'PASSED' : 'FAILED'}"
+                    echo "Total Transactions: ${env.TOTAL_TRANSACTIONS}"
+                    echo "Failed Transactions: ${env.FAILED_TRANSACTIONS}"
+                    echo "Average Response Time: ${env.AVG_RESPONSE_TIME}s"
+                }
+            }
+        }
+        
+        stage('Generate Reports') {
+            when {
+                expression { env.FINAL_STATUS == 'FINISHED' }
+            }
+            steps {
+                script {
+                    echo "Generating comprehensive reports..."
+                    
+                    sh """
+                        cd ${SCRIPTS_DIR}
+                        python3 results_analyzer.py report \
+                            --results-dir "${RESULTS_DIR}" \
+                            --run-id "${env.RUN_ID}" \
+                            --test-name "Test_${params.TEST_ID}" \
+                            --build-number "${BUILD_NUMBER}" \
+                            --output "${RESULTS_DIR}/final_report.html"
+                    """
+                    
+                    echo "Reports generated successfully!"
+                }
+            }
+        }
+        
+        stage('Publish Results') {
+            when {
+                expression { env.FINAL_STATUS == 'FINISHED' }
+            }
+            steps {
+                script {
+                    echo "Publishing results..."
+                    
+                    // Publish HTML Report
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: "${RESULTS_DIR}",
+                        reportFiles: 'final_report.html',
+                        reportName: 'Performance Test Report',
+                        reportTitles: 'Performance Test Results'
+                    ])
+                    
+                    // Archive artifacts
+                    archiveArtifacts artifacts: 'results/**/*', 
+                                   allowEmptyArchive: false,
+                                   fingerprint: true
+                    
+                    echo "Results published to Jenkins!"
+                }
+            }
+        }
+        
+        stage('Send Email Notification') {
+            when {
+                expression { env.FINAL_STATUS == 'FINISHED' }
+            }
+            steps {
+                script {
+                    echo "Sending email notification..."
+                    
+                    def emailBody = """
+                    <html>
+                    <body>
+                        <h2>Performance Test Execution Report</h2>
+                        <table border="1" cellpadding="5" cellspacing="0">
+                            <tr><td><b>Build Number:</b></td><td>${BUILD_NUMBER}</td></tr>
+                            <tr><td><b>Test ID:</b></td><td>${params.TEST_ID}</td></tr>
+                            <tr><td><b>Run ID:</b></td><td>${env.RUN_ID}</td></tr>
+                            <tr><td><b>Status:</b></td><td>${env.FINAL_STATUS}</td></tr>
+                            <tr><td><b>Execution Time:</b></td><td>${env.EXECUTION_TIME}</td></tr>
+                            <tr><td><b>SLA Status:</b></td><td style="color: ${env.SLA_PASSED == 'true' ? 'green' : 'red'}"><b>${env.SLA_PASSED == 'true' ? 'PASSED' : 'FAILED'}</b></td></tr>
+                            <tr><td><b>Total Transactions:</b></td><td>${env.TOTAL_TRANSACTIONS}</td></tr>
+                            <tr><td><b>Failed Transactions:</b></td><td>${env.FAILED_TRANSACTIONS}</td></tr>
+                            <tr><td><b>Avg Response Time:</b></td><td>${env.AVG_RESPONSE_TIME}s</td></tr>
+                        </table>
+                        <br>
+                        <p><a href="${BUILD_URL}Performance_20Test_20Report/">View Detailed Report</a></p>
+                        <p><a href="${BUILD_URL}">View Jenkins Build</a></p>
+                    </body>
+                    </html>
+                    """
+                    
+                    emailext(
+                        subject: "Performance Test Results - Build #${BUILD_NUMBER} - ${env.SLA_PASSED == 'true' ? '✓ PASSED' : '✗ FAILED'}",
+                        body: emailBody,
+                        mimeType: 'text/html',
+                        to: "${params.EMAIL_RECIPIENTS}",
+                        attachmentsPattern: 'results/*.xlsx',
+                        attachLog: false
+                    )
+                    
+                    echo "Email notification sent!"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            script {
+                if (env.FINAL_STATUS == 'FINISHED') {
+                    if (env.SLA_PASSED == 'true') {
+                        currentBuild.result = 'SUCCESS'
+                        echo "✓ Build SUCCEEDED - All SLAs passed!"
+                    } else {
+                        currentBuild.result = 'UNSTABLE'
+                        echo "⚠ Build UNSTABLE - SLA failures detected!"
+                    }
+                } else {
+                    echo "✓ Build completed successfully"
+                }
+            }
+        }
+        
+        failure {
+            script {
+                echo "✗ Build FAILED!"
+                
+                emailext(
+                    subject: "Performance Test FAILED - Build #${BUILD_NUMBER}",
+                    body: """
+                    <html>
+                    <body>
+                        <h2>Performance Test Execution Failed</h2>
+                        <p><b>Build Number:</b> ${BUILD_NUMBER}</p>
+                        <p><b>Test ID:</b> ${params.TEST_ID}</p>
+                        <p><b>Status:</b> FAILED</p>
+                        <p><a href="${BUILD_URL}console">View Console Output</a></p>
+                    </body>
+                    </html>
+                    """,
+                    mimeType: 'text/html',
+                    to: "${params.EMAIL_RECIPIENTS}",
+                    attachLog: true
+                )
+            }
+        }
+        
+        unstable {
+            script {
+                echo "⚠ Build is UNSTABLE - Performance issues detected"
+            }
+        }
+        
+        always {
+            script {
+                echo "=========================================="
+                echo "Pipeline Execution Summary"
+                echo "=========================================="
+                echo "Build Number: ${BUILD_NUMBER}"
+                echo "Build URL: ${BUILD_URL}"
+                echo "Status: ${currentBuild.result}"
+                echo "=========================================="
+                
+                // Cleanup
+                sh """
+                    echo "Cleaning up temporary files..."
+                    # Keep results but clean up temporary files if needed
+                """
+            }
+        }
+    }
+}
