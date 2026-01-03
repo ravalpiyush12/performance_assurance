@@ -1,0 +1,162 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(
+            name: 'TEST_MESSAGE',
+            defaultValue: 'Hello from Jenkins!',
+            description: 'Test message'
+        )
+    }
+    
+    stages {
+        stage('Test Environment') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Testing Jenkins Pipeline - No Plugins Required"
+                    echo "=========================================="
+                    echo "Build: #${BUILD_NUMBER}"
+                    echo "Workspace: ${WORKSPACE}"
+                    echo "Message: ${params.TEST_MESSAGE}"
+                    echo "=========================================="
+                }
+            }
+        }
+        
+        stage('Check Tools') {
+            steps {
+                script {
+                    echo "Checking available tools..."
+                    
+                    // Check curl
+                    try {
+                        sh 'curl --version'
+                        echo "✓ curl is available"
+                    } catch (Exception e) {
+                        echo "✗ curl not found: ${e.message}"
+                    }
+                    
+                    // Check basic commands
+                    sh 'pwd'
+                    sh 'whoami'
+                    sh 'date'
+                    
+                    echo "✓ Basic commands work"
+                }
+            }
+        }
+        
+        stage('Create Files') {
+            steps {
+                script {
+                    echo "Creating test files..."
+                    
+                    // Create directory
+                    sh 'mkdir -p ${WORKSPACE}/test-results'
+                    
+                    // Create a simple text file
+                    writeFile file: '${WORKSPACE}/test-results/summary.txt', text: """
+Build Number: ${BUILD_NUMBER}
+Test Message: ${params.TEST_MESSAGE}
+Generated: ${new Date().format('yyyy-MM-dd HH:mm:ss')}
+Status: SUCCESS
+"""
+                    
+                    // Create HTML report
+                    def htmlContent = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Report - Build #${BUILD_NUMBER}</title>
+    <style>
+        body { font-family: Arial; margin: 40px; background: #f0f0f0; }
+        .container { background: white; padding: 30px; border-radius: 10px; max-width: 800px; margin: 0 auto; }
+        h1 { color: #333; }
+        .success { color: green; font-size: 24px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #4CAF50; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✓ Jenkins Pipeline Test Report</h1>
+        <p class="success">ALL TESTS PASSED</p>
+        
+        <h2>Build Information</h2>
+        <table>
+            <tr><th>Property</th><th>Value</th></tr>
+            <tr><td>Build Number</td><td>#${BUILD_NUMBER}</td></tr>
+            <tr><td>Job Name</td><td>${JOB_NAME}</td></tr>
+            <tr><td>Workspace</td><td>${WORKSPACE}</td></tr>
+            <tr><td>Test Message</td><td>${params.TEST_MESSAGE}</td></tr>
+            <tr><td>Generated</td><td>${new Date().format('yyyy-MM-dd HH:mm:ss')}</td></tr>
+        </table>
+        
+        <h2>Links</h2>
+        <ul>
+            <li><a href="${BUILD_URL}">View Build in Jenkins</a></li>
+            <li><a href="${BUILD_URL}console">View Console Output</a></li>
+            <li><a href="${BUILD_URL}artifact/test-results/">Download Artifacts</a></li>
+        </ul>
+    </div>
+</body>
+</html>"""
+                    
+                    writeFile file: '${WORKSPACE}/test-results/report.html', text: htmlContent
+                    
+                    echo "✓ Files created successfully"
+                }
+            }
+        }
+        
+        stage('Archive Artifacts') {
+            steps {
+                script {
+                    echo "Archiving test results..."
+                    
+                    // Archive the files
+                    archiveArtifacts artifacts: 'test-results/**/*', 
+                                   allowEmptyArchive: false,
+                                   fingerprint: true
+                    
+                    echo "✓ Artifacts archived!"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            script {
+                echo ""
+                echo "=========================================="
+                echo "✓✓✓ ALL TESTS PASSED! ✓✓✓"
+                echo "=========================================="
+                echo ""
+                echo "Your Jenkins environment is working correctly!"
+                echo ""
+                echo "Next Steps:"
+                echo "1. Your workspace is ready: ${WORKSPACE}"
+                echo "2. Files can be created and archived"
+                echo "3. You can now use the full automation pipeline"
+                echo ""
+                echo "Download your test report:"
+                echo "${BUILD_URL}artifact/test-results/report.html"
+                echo ""
+                echo "=========================================="
+            }
+        }
+        
+        failure {
+            script {
+                echo ""
+                echo "=========================================="
+                echo "✗ Some tests failed"
+                echo "=========================================="
+                echo "Check the console output above for details"
+                echo "=========================================="
+            }
+        }
+    }
+}
