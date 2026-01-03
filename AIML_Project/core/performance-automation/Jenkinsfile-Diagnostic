@@ -1,0 +1,234 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(
+            name: 'PC_SERVER',
+            defaultValue: 'pc-server.example.com:8080',
+            description: 'PC Server with port (e.g., server:8080 or server.company.com:8080)'
+        )
+    }
+    
+    stages {
+        stage('Test 1: Basic Connectivity') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "TEST 1: Testing PC Server Connectivity"
+                    echo "=========================================="
+                    echo "Server: ${params.PC_SERVER}"
+                    
+                    def response = sh(
+                        script: "curl -i -s http://${params.PC_SERVER}/LoadTest/rest/",
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "Response:"
+                    echo response
+                    
+                    if (response.contains("200 OK") || response.contains("401")) {
+                        echo "✓ Server is reachable"
+                    } else {
+                        echo "⚠ Unexpected response - check server URL"
+                    }
+                }
+            }
+        }
+        
+        stage('Test 2: Authentication - Method 1') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "TEST 2: Standard JSON Authentication"
+                    echo "=========================================="
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        passwordVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        echo "Username: ${PC_USERNAME}"
+                        
+                        def response = sh(
+                            script: """
+                                curl -i -s -X POST \
+                                http://${params.PC_SERVER}/LoadTest/rest/authentication-point/authenticate \
+                                -H "Content-Type: application/json" \
+                                -H "Accept: application/json" \
+                                -d '{"username":"${PC_USERNAME}","password":"${PC_PASSWORD}"}'
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Full Response:"
+                        echo response
+                        echo ""
+                        
+                        if (response.contains("200 OK") || response.contains("201")) {
+                            echo "✓ Method 1 SUCCESS"
+                        } else {
+                            echo "✗ Method 1 FAILED"
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Test 3: Authentication - Method 2') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "TEST 3: Basic Authentication Header"
+                    echo "=========================================="
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        passwordVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        def response = sh(
+                            script: """
+                                curl -i -s -X POST \
+                                http://${params.PC_SERVER}/LoadTest/rest/authentication-point/authenticate \
+                                -u "${PC_USERNAME}:${PC_PASSWORD}" \
+                                -H "Content-Type: application/json" \
+                                -H "Accept: application/json"
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Full Response:"
+                        echo response
+                        echo ""
+                        
+                        if (response.contains("200 OK") || response.contains("201")) {
+                            echo "✓ Method 2 SUCCESS"
+                        } else {
+                            echo "✗ Method 2 FAILED"
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Test 4: Authentication - Method 3') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "TEST 4: Form Data Authentication"
+                    echo "=========================================="
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        usernameVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        def response = sh(
+                            script: """
+                                curl -i -s -X POST \
+                                http://${params.PC_SERVER}/LoadTest/rest/authentication-point/authenticate \
+                                -H "Content-Type: application/x-www-form-urlencoded" \
+                                -d "username=${PC_USERNAME}&password=${PC_PASSWORD}"
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Full Response:"
+                        echo response
+                        echo ""
+                        
+                        if (response.contains("200 OK") || response.contains("201")) {
+                            echo "✓ Method 3 SUCCESS"
+                        } else {
+                            echo "✗ Method 3 FAILED"
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Test 5: Alternative Endpoint') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "TEST 5: Alternative Authentication Endpoint"
+                    echo "=========================================="
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        passwordVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        def response = sh(
+                            script: """
+                                curl -i -s -X POST \
+                                http://${params.PC_SERVER}/LoadTest/rest/authentication \
+                                -H "Content-Type: application/json" \
+                                -d '{"username":"${PC_USERNAME}","password":"${PC_PASSWORD}"}'
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Full Response:"
+                        echo response
+                        echo ""
+                        
+                        if (response.contains("200 OK") || response.contains("201")) {
+                            echo "✓ Method 5 SUCCESS"
+                        } else {
+                            echo "✗ Method 5 FAILED - trying /rest/site-session..."
+                            
+                            response = sh(
+                                script: """
+                                    curl -i -s -X POST \
+                                    http://${params.PC_SERVER}/LoadTest/rest/site-session \
+                                    -H "Content-Type: application/json" \
+                                    -d '{"username":"${PC_USERNAME}","password":"${PC_PASSWORD}"}'
+                                """,
+                                returnStdout: true
+                            ).trim()
+                            
+                            echo "Response:"
+                            echo response
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                echo ""
+                echo "=========================================="
+                echo "DIAGNOSTIC SUMMARY"
+                echo "=========================================="
+                echo "Check the results above to see which authentication method worked."
+                echo ""
+                echo "Next steps:"
+                echo "1. Find the method that shows '✓ SUCCESS'"
+                echo "2. Look for 'Set-Cookie' headers in that response"
+                echo "3. Note the authentication token format"
+                echo "4. Update the main Jenkinsfile with the working method"
+                echo ""
+                echo "Common PC REST API endpoints:"
+                echo "  - /LoadTest/rest/authentication-point/authenticate"
+                echo "  - /LoadTest/rest/site-session"
+                echo "  - /qcbin/rest/site-session (older versions)"
+                echo ""
+                echo "If ALL methods failed, check:"
+                echo "  - Is the PC server URL correct?"
+                echo "  - Is the port correct? (usually 8080 or 443)"
+                echo "  - Are the credentials correct?"
+                echo "  - Is PC REST API enabled?"
+                echo "  - Can you access http://${params.PC_SERVER}/LoadTest in a browser?"
+                echo "=========================================="
+            }
+        }
+    }
+}

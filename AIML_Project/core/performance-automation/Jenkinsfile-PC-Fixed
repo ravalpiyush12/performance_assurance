@@ -1,0 +1,499 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(
+            name: 'PC_SERVER',
+            defaultValue: 'pc-server.example.com:8080',
+            description: 'Performance Center Server with port (e.g., pc-server:8080)'
+        )
+        string(
+            name: 'PC_DOMAIN',
+            defaultValue: 'DEFAULT',
+            description: 'Performance Center Domain'
+        )
+        string(
+            name: 'PC_PROJECT',
+            defaultValue: 'MyProject',
+            description: 'Performance Center Project Name'
+        )
+        string(
+            name: 'TEST_ID',
+            defaultValue: '1',
+            description: 'Performance Center Test ID to execute'
+        )
+        string(
+            name: 'TEST_DURATION',
+            defaultValue: '600',
+            description: 'Test duration in seconds (default: 10 minutes for testing)'
+        )
+        choice(
+            name: 'POST_RUN_ACTION',
+            choices: ['COLLATE_AND_ANALYZE', 'COLLATE', 'DO_NOTHING'],
+            description: 'Post run action after test execution'
+        )
+        string(
+            name: 'POLL_INTERVAL',
+            defaultValue: '30',
+            description: 'Status check interval in seconds'
+        )
+    }
+    
+    environment {
+        RUN_ID = ""
+        FINAL_STATUS = ""
+        PC_COOKIE = ""
+        CSRF_TOKEN = ""
+    }
+    
+    stages {
+        stage('Preparation') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Performance Center Automation"
+                    echo "=========================================="
+                    echo "Server: ${params.PC_SERVER}"
+                    echo "Domain: ${params.PC_DOMAIN}"
+                    echo "Project: ${params.PC_PROJECT}"
+                    echo "Test ID: ${params.TEST_ID}"
+                    echo "Duration: ${params.TEST_DURATION} seconds"
+                    echo "=========================================="
+                    
+                    sh "mkdir -p ${WORKSPACE}/results"
+                    echo "✓ Results directory created"
+                }
+            }
+        }
+        
+        stage('Test PC Connectivity') {
+            steps {
+                script {
+                    echo "Testing connection to Performance Center..."
+                    
+                    // Test basic connectivity
+                    def pingResponse = sh(
+                        script: """
+                            curl -s -w "\\nHTTP_CODE:%{http_code}" \
+                            http://${params.PC_SERVER}/LoadTest/rest/ \
+                            2>&1 || echo "CONNECTION_FAILED"
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "Connectivity test response:"
+                    echo pingResponse
+                    
+                    if (pingResponse.contains("CONNECTION_FAILED") || pingResponse.contains("Could not resolve host")) {
+                        error "Cannot connect to Performance Center server: ${params.PC_SERVER}"
+                    }
+                    
+                    echo "✓ PC server is reachable"
+                }
+            }
+        }
+        
+        stage('Authenticate with PC') {
+            steps {
+                script {
+                    echo "Authenticating with Performance Center..."
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        passwordVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        echo "Attempting authentication for user: ${PC_USERNAME}"
+                        
+                        // Method 1: Try standard authentication
+                        def authResponse = sh(
+                            script: """
+                                curl -i -s -X POST \
+                                "http://${params.PC_SERVER}/LoadTest/rest/authentication-point/authenticate" \
+                                -H "Content-Type: application/json" \
+                                -H "Accept: application/json" \
+                                -d '{"username":"${PC_USERNAME}","password":"${PC_PASSWORD}"}'
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Full authentication response:"
+                        echo authResponse
+                        echo "---"
+                        
+                        // Extract cookies and tokens
+                        def cookieMatch = (authResponse =~ /Set-Cookie:\s*([^;]+)/)
+                        if (cookieMatch.find()) {
+                            env.PC_COOKIE = cookieMatch[0][1]
+                            echo "✓ Cookie extracted: ${env.PC_COOKIE.take(50)}..."
+                        }
+                        
+                        // Extract CSRF token
+                        def csrfMatch = (authResponse =~ /QCSession|LWSSO_COOKIE_KEY/)
+                        
+                        // Try to extract authentication token from JSON body
+                        def bodyStart = authResponse.indexOf('{')
+                        if (bodyStart >= 0) {
+                            def jsonBody = authResponse.substring(bodyStart)
+                            echo "JSON response body:"
+                            echo jsonBody
+                            
+                            // Extract token
+                            if (jsonBody.contains('"token"')) {
+                                env.CSRF_TOKEN = jsonBody.replaceAll(/.*"token"\s*:\s*"([^"]+)".*/, '$1')
+                                echo "✓ CSRF Token extracted"
+                            } else if (jsonBody.contains('"authenticity-token"')) {
+                                env.CSRF_TOKEN = jsonBody.replaceAll(/.*"authenticity-token"\s*:\s*"([^"]+)".*/, '$1')
+                                echo "✓ Authenticity Token extracted"
+                            }
+                        }
+                        
+                        // Check HTTP status code
+                        def statusCode = authResponse.replaceAll(/.*HTTP\/\d\.\d\s+(\d+).*/, '$1')
+                        echo "HTTP Status Code: ${statusCode}"
+                        
+                        if (statusCode != "200" && statusCode != "201") {
+                            // Try Method 2: Basic Authentication
+                            echo "Standard auth failed, trying Basic Authentication..."
+                            
+                            authResponse = sh(
+                                script: """
+                                    curl -i -s -X POST \
+                                    "http://${params.PC_SERVER}/LoadTest/rest/authentication-point/authenticate" \
+                                    -H "Content-Type: application/json" \
+                                    -H "Accept: application/json" \
+                                    -u "${PC_USERNAME}:${PC_PASSWORD}"
+                                """,
+                                returnStdout: true
+                            ).trim()
+                            
+                            echo "Basic auth response:"
+                            echo authResponse
+                        }
+                        
+                        // Verify we have credentials
+                        if (!env.PC_COOKIE && !env.CSRF_TOKEN) {
+                            error """
+Authentication failed! Error 1101 - Authentication information missing.
+
+Possible causes:
+1. Incorrect PC server URL (current: ${params.PC_SERVER})
+2. Wrong username/password in credentials
+3. PC REST API not enabled
+4. Firewall blocking connection
+
+Please verify:
+- PC server URL is correct (include port if needed)
+- Credentials 'pc-credentials' exist in Jenkins
+- You can login to PC web UI with these credentials
+- PC REST API is accessible
+"""
+                        }
+                        
+                        echo "✓ Authentication successful!"
+                    }
+                }
+            }
+        }
+        
+        stage('Trigger Performance Center Test') {
+            steps {
+                script {
+                    echo "Triggering Performance Center Test..."
+                    
+                    // Build the curl command with all possible auth headers
+                    def curlCmd = """
+                        curl -i -s -X POST \
+                        "http://${params.PC_SERVER}/LoadTest/rest/domains/${params.PC_DOMAIN}/projects/${params.PC_PROJECT}/test-runs" \
+                        -H "Content-Type: application/json" \
+                        -H "Accept: application/json"
+                    """
+                    
+                    // Add authentication headers if available
+                    if (env.PC_COOKIE) {
+                        curlCmd += """ \
+                        -H "Cookie: ${env.PC_COOKIE}"
+                    """
+                    }
+                    
+                    if (env.CSRF_TOKEN) {
+                        curlCmd += """ \
+                        -H "Authorization: Bearer ${env.CSRF_TOKEN}"
+                    """
+                    }
+                    
+                    curlCmd += """ \
+                        -d '{"testId":${params.TEST_ID},"timeslotDuration":${params.TEST_DURATION},"postRunAction":"${params.POST_RUN_ACTION}","vudsMode":false}'
+                    """
+                    
+                    echo "Executing trigger command..."
+                    def triggerResponse = sh(
+                        script: curlCmd,
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "Trigger response:"
+                    echo triggerResponse
+                    
+                    // Extract run ID from response
+                    def bodyStart = triggerResponse.indexOf('{')
+                    if (bodyStart >= 0) {
+                        def jsonBody = triggerResponse.substring(bodyStart)
+                        
+                        // Try different ID field names
+                        if (jsonBody.contains('"ID"')) {
+                            env.RUN_ID = jsonBody.replaceAll(/.*"ID"\s*:\s*"?([0-9]+)"?.*/, '$1')
+                        } else if (jsonBody.contains('"id"')) {
+                            env.RUN_ID = jsonBody.replaceAll(/.*"id"\s*:\s*"?([0-9]+)"?.*/, '$1')
+                        } else if (jsonBody.contains('"testRunId"')) {
+                            env.RUN_ID = jsonBody.replaceAll(/.*"testRunId"\s*:\s*"?([0-9]+)"?.*/, '$1')
+                        } else if (jsonBody.contains('"runId"')) {
+                            env.RUN_ID = jsonBody.replaceAll(/.*"runId"\s*:\s*"?([0-9]+)"?.*/, '$1')
+                        }
+                        
+                        if (env.RUN_ID && env.RUN_ID.isNumber()) {
+                            echo "✓ Test triggered successfully!"
+                            echo "Run ID: ${env.RUN_ID}"
+                        } else {
+                            echo "✗ Could not extract Run ID from response"
+                            echo "Response body: ${jsonBody}"
+                            error "Failed to get Run ID"
+                        }
+                    } else {
+                        error "No JSON response received from trigger request"
+                    }
+                }
+            }
+        }
+        
+        stage('Monitor Test Execution') {
+            steps {
+                script {
+                    echo "Monitoring test execution for Run ID: ${env.RUN_ID}"
+                    echo "Poll interval: ${params.POLL_INTERVAL} seconds"
+                    echo "-" * 50
+                    
+                    def maxAttempts = 200
+                    def attempt = 0
+                    def currentStatus = "INITIALIZING"
+                    
+                    while (attempt < maxAttempts) {
+                        attempt++
+                        
+                        // Build status check curl command
+                        def statusCmd = """
+                            curl -s \
+                            "http://${params.PC_SERVER}/LoadTest/rest/domains/${params.PC_DOMAIN}/projects/${params.PC_PROJECT}/runs/${env.RUN_ID}"
+                        """
+                        
+                        if (env.PC_COOKIE) {
+                            statusCmd += """ \
+                            -H "Cookie: ${env.PC_COOKIE}"
+                        """
+                        }
+                        
+                        if (env.CSRF_TOKEN) {
+                            statusCmd += """ \
+                            -H "Authorization: Bearer ${env.CSRF_TOKEN}"
+                        """
+                        }
+                        
+                        def statusResponse = sh(
+                            script: statusCmd,
+                            returnStdout: true
+                        ).trim()
+                        
+                        // Extract status
+                        if (statusResponse.contains('"status"')) {
+                            currentStatus = statusResponse.replaceAll(/.*"status"\s*:\s*"([^"]+)".*/, '$1')
+                        } else if (statusResponse.contains('"testState"')) {
+                            currentStatus = statusResponse.replaceAll(/.*"testState"\s*:\s*"([^"]+)".*/, '$1')
+                        }
+                        
+                        def timestamp = sh(script: "date '+%H:%M:%S'", returnStdout: true).trim()
+                        echo "[${timestamp}] Check #${attempt} - Status: ${currentStatus}"
+                        
+                        // Check if test is complete
+                        if (currentStatus ==~ /(?i).*(FINISHED|FAILED|STOPPED|RUN_FAILURE|COLLATING|ANALYZING).*/) {
+                            env.FINAL_STATUS = currentStatus
+                            
+                            // Wait a bit more if collating or analyzing
+                            if (currentStatus ==~ /(?i).*(COLLATING|ANALYZING).*/) {
+                                echo "Test is ${currentStatus}, waiting for completion..."
+                                sleep(time: 60, unit: 'SECONDS')
+                                continue
+                            }
+                            
+                            echo "-" * 50
+                            echo "✓ Test completed with status: ${env.FINAL_STATUS}"
+                            break
+                        }
+                        
+                        sleep(time: params.POLL_INTERVAL.toInteger(), unit: 'SECONDS')
+                    }
+                    
+                    if (!env.FINAL_STATUS || env.FINAL_STATUS == "INITIALIZING") {
+                        env.FINAL_STATUS = "TIMEOUT"
+                        echo "✗ Maximum wait time exceeded"
+                    }
+                }
+            }
+        }
+        
+        stage('Generate Report') {
+            when {
+                expression { env.FINAL_STATUS != null }
+            }
+            steps {
+                script {
+                    echo "Generating performance report..."
+                    
+                    def timestamp = new Date().format('yyyy-MM-dd HH:mm:ss')
+                    def statusColor = env.FINAL_STATUS ==~ /(?i).*FINISHED.*/ ? 'green' : 'orange'
+                    
+                    sh """
+cat > ${WORKSPACE}/results/performance_report.html << 'REPORTEOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Performance Test Report - Build #${BUILD_NUMBER}</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            margin: 0;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { 
+            color: #333; 
+            border-bottom: 4px solid #667eea; 
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .status-badge { 
+            font-size: 36px; 
+            font-weight: bold; 
+            color: white;
+            text-align: center; 
+            padding: 30px; 
+            background: ${statusColor};
+            border-radius: 12px;
+            margin: 30px 0;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 20px 0;
+        }
+        th { 
+            background: #667eea;
+            color: white; 
+            padding: 15px; 
+            text-align: left; 
+        }
+        td { 
+            padding: 15px; 
+            border-bottom: 1px solid #ddd;
+        }
+        tr:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Performance Test Report</h1>
+        <div class="status-badge">${env.FINAL_STATUS}</div>
+        
+        <h2>Test Details</h2>
+        <table>
+            <tr><th>Parameter</th><th>Value</th></tr>
+            <tr><td>Build Number</td><td>#${BUILD_NUMBER}</td></tr>
+            <tr><td>Test ID</td><td>${params.TEST_ID}</td></tr>
+            <tr><td>Run ID</td><td>${env.RUN_ID}</td></tr>
+            <tr><td>PC Server</td><td>${params.PC_SERVER}</td></tr>
+            <tr><td>Project</td><td>${params.PC_DOMAIN}/${params.PC_PROJECT}</td></tr>
+            <tr><td>Duration</td><td>${params.TEST_DURATION}s</td></tr>
+            <tr><td>Status</td><td>${env.FINAL_STATUS}</td></tr>
+            <tr><td>Generated</td><td>${timestamp}</td></tr>
+        </table>
+        
+        <h2>Links</h2>
+        <p><a href="${BUILD_URL}">Jenkins Build</a></p>
+        <p><a href="${BUILD_URL}console">Console Output</a></p>
+    </div>
+</body>
+</html>
+REPORTEOF
+"""
+                    
+                    sh """
+cat > ${WORKSPACE}/results/summary.txt << 'SUMMARYEOF'
+Performance Test Summary
+========================
+Build: ${BUILD_NUMBER}
+Test ID: ${params.TEST_ID}
+Run ID: ${env.RUN_ID}
+Status: ${env.FINAL_STATUS}
+Server: ${params.PC_SERVER}
+Duration: ${params.TEST_DURATION}s
+Generated: ${timestamp}
+SUMMARYEOF
+"""
+                    
+                    sh "ls -la ${WORKSPACE}/results/"
+                    echo "✓ Report generated!"
+                }
+            }
+        }
+        
+        stage('Archive Results') {
+            when {
+                expression { env.FINAL_STATUS != null }
+            }
+            steps {
+                script {
+                    echo "Archiving results..."
+                    archiveArtifacts artifacts: 'results/*', 
+                                   allowEmptyArchive: false,
+                                   fingerprint: true
+                    
+                    echo "✓ Results archived!"
+                    echo ""
+                    echo "📄 View report: ${BUILD_URL}artifact/results/performance_report.html"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo ""
+            echo "=========================================="
+            echo "✓ Pipeline Completed!"
+            echo "=========================================="
+            echo "Build: #${BUILD_NUMBER}"
+            echo "Run ID: ${env.RUN_ID}"
+            echo "Status: ${env.FINAL_STATUS}"
+            echo ""
+            echo "Report: ${BUILD_URL}artifact/results/performance_report.html"
+            echo "=========================================="
+        }
+        
+        failure {
+            echo ""
+            echo "=========================================="
+            echo "✗ Pipeline Failed!"
+            echo "=========================================="
+            echo "Console: ${BUILD_URL}console"
+            echo "=========================================="
+        }
+    }
+}
