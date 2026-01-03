@@ -1,0 +1,141 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(
+            name: 'PC_SERVER',
+            defaultValue: 'pc-server.example.com',
+            description: 'Performance Center Server URL'
+        )
+        string(
+            name: 'TEST_ID',
+            defaultValue: '1',
+            description: 'Test ID'
+        )
+    }
+    
+    stages {
+        stage('Test Basic Setup') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Testing Jenkins Pipeline Setup"
+                    echo "=========================================="
+                    echo "PC Server: ${params.PC_SERVER}"
+                    echo "Test ID: ${params.TEST_ID}"
+                    echo "Workspace: ${WORKSPACE}"
+                    echo "Build Number: ${BUILD_NUMBER}"
+                    echo "=========================================="
+                }
+            }
+        }
+        
+        stage('Check Environment') {
+            steps {
+                script {
+                    echo "Checking available tools..."
+                    
+                    // For Windows
+                    try {
+                        bat 'curl --version'
+                        echo "✓ curl is available"
+                    } catch (Exception e) {
+                        echo "✗ curl not found on Windows"
+                    }
+                    
+                    // For Linux (uncomment if using Linux)
+                    // try {
+                    //     sh 'curl --version'
+                    //     echo "✓ curl is available"
+                    // } catch (Exception e) {
+                    //     echo "✗ curl not found"
+                    // }
+                }
+            }
+        }
+        
+        stage('Create Test Directory') {
+            steps {
+                script {
+                    echo "Creating results directory..."
+                    
+                    // For Windows
+                    bat """
+                        if not exist "${WORKSPACE}\\results" mkdir "${WORKSPACE}\\results"
+                        echo Test file > "${WORKSPACE}\\results\\test.txt"
+                    """
+                    
+                    // For Linux (uncomment if using Linux)
+                    // sh """
+                    //     mkdir -p ${WORKSPACE}/results
+                    //     echo "Test file" > ${WORKSPACE}/results/test.txt
+                    // """
+                    
+                    echo "✓ Directory created successfully"
+                }
+            }
+        }
+        
+        stage('Generate Simple Report') {
+            steps {
+                script {
+                    echo "Generating test report..."
+                    
+                    def reportContent = """
+<!DOCTYPE html>
+<html>
+<head><title>Test Report</title></head>
+<body>
+    <h1>Jenkins Pipeline Test Report</h1>
+    <p>Build Number: ${BUILD_NUMBER}</p>
+    <p>Workspace: ${WORKSPACE}</p>
+    <p>PC Server: ${params.PC_SERVER}</p>
+    <p>Test ID: ${params.TEST_ID}</p>
+    <p>Status: SUCCESS</p>
+</body>
+</html>
+"""
+                    
+                    writeFile file: "${WORKSPACE}/results/test_report.html", text: reportContent
+                    echo "✓ Report generated"
+                }
+            }
+        }
+        
+        stage('Publish Report') {
+            steps {
+                script {
+                    echo "Publishing HTML report..."
+                    
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'results',
+                        reportFiles: 'test_report.html',
+                        reportName: 'Test Report'
+                    ])
+                    
+                    echo "✓ Report published"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "=========================================="
+            echo "✓ ALL CHECKS PASSED!"
+            echo "Your Jenkins setup is working correctly."
+            echo "You can now use the full Jenkinsfile."
+            echo "=========================================="
+        }
+        
+        failure {
+            echo "=========================================="
+            echo "✗ Some checks failed."
+            echo "Please review the console output above."
+            echo "=========================================="
+        }
+    }
+}

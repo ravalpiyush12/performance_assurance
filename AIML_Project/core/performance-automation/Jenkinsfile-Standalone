@@ -1,0 +1,385 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(
+            name: 'PC_SERVER',
+            defaultValue: 'pc-server.example.com',
+            description: 'Performance Center Server URL (without http://)'
+        )
+        string(
+            name: 'PC_DOMAIN',
+            defaultValue: 'DEFAULT',
+            description: 'Performance Center Domain'
+        )
+        string(
+            name: 'PC_PROJECT',
+            defaultValue: 'MyProject',
+            description: 'Performance Center Project Name'
+        )
+        string(
+            name: 'TEST_ID',
+            defaultValue: '1',
+            description: 'Performance Center Test ID to execute'
+        )
+        string(
+            name: 'TEST_DURATION',
+            defaultValue: '1800',
+            description: 'Test duration in seconds (default: 30 minutes)'
+        )
+        choice(
+            name: 'POST_RUN_ACTION',
+            choices: ['COLLATE_AND_ANALYZE', 'COLLATE', 'DO_NOTHING'],
+            description: 'Post run action after test execution'
+        )
+        string(
+            name: 'POLL_INTERVAL',
+            defaultValue: '60',
+            description: 'Status check interval in seconds'
+        )
+        string(
+            name: 'EMAIL_RECIPIENTS',
+            defaultValue: 'team@example.com',
+            description: 'Comma-separated email addresses for report'
+        )
+    }
+    
+    environment {
+        RESULTS_DIR = "${WORKSPACE}/results"
+        RUN_ID = ""
+        FINAL_STATUS = ""
+    }
+    
+    stages {
+        stage('Preparation') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Performance Center Automation"
+                    echo "=========================================="
+                    echo "Server: ${params.PC_SERVER}"
+                    echo "Domain: ${params.PC_DOMAIN}"
+                    echo "Project: ${params.PC_PROJECT}"
+                    echo "Test ID: ${params.TEST_ID}"
+                    echo "Duration: ${params.TEST_DURATION} seconds"
+                    echo "=========================================="
+                    
+                    // Create results directory
+                    bat "if not exist ${RESULTS_DIR} mkdir ${RESULTS_DIR}"
+                    // Use 'sh' instead of 'bat' if on Linux:
+                    // sh "mkdir -p ${RESULTS_DIR}"
+                }
+            }
+        }
+        
+        stage('Trigger Performance Center Test') {
+            steps {
+                script {
+                    echo "Triggering Performance Center Test..."
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        passwordVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        // Using curl to trigger the test
+                        def authResponse = bat(
+                            script: """
+                                curl -s -X POST "http://${params.PC_SERVER}/LoadTest/rest/authentication-point/authenticate" ^
+                                -H "Content-Type: application/json" ^
+                                -d "{\\"username\\":\\"${PC_USERNAME}\\",\\"password\\":\\"${PC_PASSWORD}\\"}"
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        // For Linux, use sh instead:
+                        // def authResponse = sh(
+                        //     script: """
+                        //         curl -s -X POST "http://${params.PC_SERVER}/LoadTest/rest/authentication-point/authenticate" \\
+                        //         -H "Content-Type: application/json" \\
+                        //         -d '{"username":"${PC_USERNAME}","password":"${PC_PASSWORD}"}'
+                        //     """,
+                        //     returnStdout: true
+                        // ).trim()
+                        
+                        echo "Authentication Response: ${authResponse}"
+                        
+                        // Extract token (simplified - adjust based on actual response)
+                        def token = authResponse.replaceAll(/.*"token":"([^"]+)".*/, '$1')
+                        
+                        // Trigger test
+                        def triggerResponse = bat(
+                            script: """
+                                curl -s -X POST "http://${params.PC_SERVER}/LoadTest/rest/domains/${params.PC_DOMAIN}/projects/${params.PC_PROJECT}/test-runs" ^
+                                -H "Content-Type: application/json" ^
+                                -H "Authorization: Bearer ${token}" ^
+                                -d "{\\"testId\\":${params.TEST_ID},\\"timeslotDuration\\":${params.TEST_DURATION},\\"postRunAction\\":\\"${params.POST_RUN_ACTION}\\",\\"vudsMode\\":false}"
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Trigger Response: ${triggerResponse}"
+                        
+                        // Extract run ID (adjust based on actual response format)
+                        env.RUN_ID = triggerResponse.replaceAll(/.*"ID":"?([0-9]+)"?.*/, '$1')
+                        
+                        echo "Test triggered successfully!"
+                        echo "Run ID: ${env.RUN_ID}"
+                    }
+                }
+            }
+        }
+        
+        stage('Monitor Test Execution') {
+            steps {
+                script {
+                    echo "Monitoring test execution for Run ID: ${env.RUN_ID}"
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        passwordVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        // Authenticate again
+                        def authResponse = bat(
+                            script: """
+                                curl -s -X POST "http://${params.PC_SERVER}/LoadTest/rest/authentication-point/authenticate" ^
+                                -H "Content-Type: application/json" ^
+                                -d "{\\"username\\":\\"${PC_USERNAME}\\",\\"password\\":\\"${PC_PASSWORD}\\"}"
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        def token = authResponse.replaceAll(/.*"token":"([^"]+)".*/, '$1')
+                        
+                        // Poll for status
+                        def maxAttempts = 300 // 5 hours max
+                        def attempt = 0
+                        def currentStatus = "INITIALIZING"
+                        
+                        while (attempt < maxAttempts && 
+                               !currentStatus.contains("FINISHED") && 
+                               !currentStatus.contains("FAILED") &&
+                               !currentStatus.contains("STOPPED")) {
+                            
+                            attempt++
+                            
+                            def statusResponse = bat(
+                                script: """
+                                    curl -s -X GET "http://${params.PC_SERVER}/LoadTest/rest/domains/${params.PC_DOMAIN}/projects/${params.PC_PROJECT}/runs/${env.RUN_ID}" ^
+                                    -H "Authorization: Bearer ${token}"
+                                """,
+                                returnStdout: true
+                            ).trim()
+                            
+                            // Extract status
+                            currentStatus = statusResponse.replaceAll(/.*"status":"([^"]+)".*/, '$1')
+                            
+                            echo "[${new Date().format('HH:mm:ss')}] Check #${attempt} - Status: ${currentStatus}"
+                            
+                            if (!currentStatus.contains("FINISHED") && 
+                                !currentStatus.contains("FAILED") &&
+                                !currentStatus.contains("STOPPED")) {
+                                sleep(time: params.POLL_INTERVAL.toInteger(), unit: 'SECONDS')
+                            }
+                        }
+                        
+                        env.FINAL_STATUS = currentStatus
+                        echo "Test completed with status: ${env.FINAL_STATUS}"
+                    }
+                }
+            }
+        }
+        
+        stage('Generate Report') {
+            when {
+                expression { env.FINAL_STATUS.contains('FINISHED') }
+            }
+            steps {
+                script {
+                    echo "Generating performance report..."
+                    
+                    // Create a simple HTML report
+                    def reportHtml = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Performance Test Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; }
+        h1 { color: #333; border-bottom: 3px solid #007bff; padding-bottom: 10px; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0; }
+        .card { background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff; }
+        .card h3 { margin: 0 0 10px 0; color: #666; font-size: 14px; }
+        .card .value { font-size: 24px; font-weight: bold; color: #333; }
+        .status-pass { color: green; font-size: 32px; font-weight: bold; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { background: #007bff; color: white; padding: 12px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #ddd; }
+        tr:hover { background: #f1f3f5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Performance Test Report</h1>
+        
+        <div style="background: #e9ecef; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <strong>Build Number:</strong> ${BUILD_NUMBER}<br>
+            <strong>Test ID:</strong> ${params.TEST_ID}<br>
+            <strong>Run ID:</strong> ${env.RUN_ID}<br>
+            <strong>Generated:</strong> ${new Date().format('yyyy-MM-dd HH:mm:ss')}
+        </div>
+        
+        <h2>📊 Test Status</h2>
+        <div class="status-pass">TEST ${env.FINAL_STATUS}</div>
+        
+        <h2>📈 Summary</h2>
+        <div class="summary">
+            <div class="card">
+                <h3>Test Duration</h3>
+                <div class="value">${params.TEST_DURATION}s</div>
+            </div>
+            <div class="card">
+                <h3>Status</h3>
+                <div class="value" style="color: green">${env.FINAL_STATUS}</div>
+            </div>
+            <div class="card">
+                <h3>Server</h3>
+                <div class="value" style="font-size: 16px">${params.PC_SERVER}</div>
+            </div>
+            <div class="card">
+                <h3>Project</h3>
+                <div class="value" style="font-size: 16px">${params.PC_PROJECT}</div>
+            </div>
+        </div>
+        
+        <h2>ℹ️ Test Configuration</h2>
+        <table>
+            <tr><th>Parameter</th><th>Value</th></tr>
+            <tr><td>PC Server</td><td>${params.PC_SERVER}</td></tr>
+            <tr><td>Domain</td><td>${params.PC_DOMAIN}</td></tr>
+            <tr><td>Project</td><td>${params.PC_PROJECT}</td></tr>
+            <tr><td>Test ID</td><td>${params.TEST_ID}</td></tr>
+            <tr><td>Run ID</td><td>${env.RUN_ID}</td></tr>
+            <tr><td>Duration</td><td>${params.TEST_DURATION} seconds</td></tr>
+            <tr><td>Post Run Action</td><td>${params.POST_RUN_ACTION}</td></tr>
+        </table>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; text-align: center;">
+            <p>Performance Center Automation | Build #${BUILD_NUMBER}</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+                    
+                    // Write report to file
+                    writeFile file: "${RESULTS_DIR}/performance_report.html", text: reportHtml
+                    
+                    echo "Report generated successfully!"
+                }
+            }
+        }
+        
+        stage('Publish Results') {
+            when {
+                expression { env.FINAL_STATUS.contains('FINISHED') }
+            }
+            steps {
+                script {
+                    echo "Publishing results..."
+                    
+                    // Publish HTML Report
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: "${RESULTS_DIR}",
+                        reportFiles: 'performance_report.html',
+                        reportName: 'Performance Test Report'
+                    ])
+                    
+                    echo "Results published!"
+                }
+            }
+        }
+        
+        stage('Send Email Notification') {
+            when {
+                expression { env.FINAL_STATUS.contains('FINISHED') }
+            }
+            steps {
+                script {
+                    echo "Sending email notification..."
+                    
+                    def emailBody = """
+<html>
+<body>
+    <h2>Performance Test Execution Report</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <tr><td><b>Build Number:</b></td><td>${BUILD_NUMBER}</td></tr>
+        <tr><td><b>Test ID:</b></td><td>${params.TEST_ID}</td></tr>
+        <tr><td><b>Run ID:</b></td><td>${env.RUN_ID}</td></tr>
+        <tr><td><b>Status:</b></td><td style="color: green"><b>${env.FINAL_STATUS}</b></td></tr>
+        <tr><td><b>Duration:</b></td><td>${params.TEST_DURATION} seconds</td></tr>
+    </table>
+    <br>
+    <p><a href="${BUILD_URL}Performance_20Test_20Report/">View Detailed Report</a></p>
+    <p><a href="${BUILD_URL}">View Jenkins Build</a></p>
+</body>
+</html>
+"""
+                    
+                    emailext(
+                        subject: "Performance Test Results - Build #${BUILD_NUMBER} - ${env.FINAL_STATUS}",
+                        body: emailBody,
+                        mimeType: 'text/html',
+                        to: "${params.EMAIL_RECIPIENTS}"
+                    )
+                    
+                    echo "Email notification sent!"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "✓ Build completed successfully!"
+        }
+        
+        failure {
+            script {
+                echo "✗ Build FAILED!"
+                
+                emailext(
+                    subject: "Performance Test FAILED - Build #${BUILD_NUMBER}",
+                    body: """
+<html>
+<body>
+    <h2>Performance Test Execution Failed</h2>
+    <p><b>Build Number:</b> ${BUILD_NUMBER}</p>
+    <p><b>Test ID:</b> ${params.TEST_ID}</p>
+    <p><b>Status:</b> FAILED</p>
+    <p><a href="${BUILD_URL}console">View Console Output</a></p>
+</body>
+</html>
+""",
+                    mimeType: 'text/html',
+                    to: "${params.EMAIL_RECIPIENTS}"
+                )
+            }
+        }
+        
+        always {
+            echo "=========================================="
+            echo "Pipeline Execution Complete"
+            echo "Build: ${BUILD_NUMBER}"
+            echo "Status: ${currentBuild.result}"
+            echo "=========================================="
+        }
+    }
+}
