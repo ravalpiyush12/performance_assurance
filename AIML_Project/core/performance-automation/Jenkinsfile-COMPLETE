@@ -1,0 +1,542 @@
+@NonCPS
+def extractCookies(response) {
+    def cookies = []
+    response.eachLine { line ->
+        if (line.toLowerCase().startsWith('set-cookie:')) {
+            def cookieValue = line.split(':', 2)[1].split(';')[0].trim()
+            if (cookieValue) {
+                cookies.add(cookieValue)
+            }
+        }
+    }
+    return cookies.join('; ')
+}
+
+pipeline {
+    agent any
+    
+    parameters {
+        string(
+            name: 'PC_HOST',
+            defaultValue: 'pc-server.example.com',
+            description: 'Performance Center Host (without https://)'
+        )
+        string(
+            name: 'PC_PORT',
+            defaultValue: '443',
+            description: 'Performance Center Port (443 for HTTPS, 8080 for HTTP)'
+        )
+        string(
+            name: 'PC_DOMAIN',
+            defaultValue: 'DEFAULT',
+            description: 'Performance Center Domain'
+        )
+        string(
+            name: 'PC_PROJECT',
+            defaultValue: 'MyProject',
+            description: 'Performance Center Project Name'
+        )
+        string(
+            name: 'TEST_ID',
+            defaultValue: '1',
+            description: 'Performance Center Test ID to execute'
+        )
+        string(
+            name: 'TEST_DURATION',
+            defaultValue: '600',
+            description: 'Test duration in seconds (default: 10 minutes for testing)'
+        )
+        choice(
+            name: 'POST_RUN_ACTION',
+            choices: ['COLLATE_AND_ANALYZE', 'COLLATE', 'DO_NOTHING'],
+            description: 'Post run action after test execution'
+        )
+        string(
+            name: 'POLL_INTERVAL',
+            defaultValue: '30',
+            description: 'Status check interval in seconds'
+        )
+    }
+    
+    stages {
+        stage('Preparation') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Performance Center Automation"
+                    echo "=========================================="
+                    echo "PC Host: ${params.PC_HOST}"
+                    echo "PC Port: ${params.PC_PORT}"
+                    echo "Domain: ${params.PC_DOMAIN}"
+                    echo "Project: ${params.PC_PROJECT}"
+                    echo "Test ID: ${params.TEST_ID}"
+                    echo "Duration: ${params.TEST_DURATION} seconds"
+                    echo "=========================================="
+                    
+                    sh "mkdir -p ${WORKSPACE}/results"
+                    echo "✓ Workspace prepared"
+                }
+            }
+        }
+        
+        stage('Authenticate with Performance Center') {
+            steps {
+                script {
+                    echo "Authenticating with Performance Center..."
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'PC_USERNAME',
+                        passwordVariable: 'PC_PASSWORD'
+                    )]) {
+                        
+                        echo "Generating Base64 token for user: ${PC_USERNAME}"
+                        
+                        // Create Base64 token
+                        def base64Token = sh(
+                            script: "printf '%s:%s' '${PC_USERNAME}' '${PC_PASSWORD}' | base64 -w 0",
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "✓ Base64 token generated"
+                        echo "Token length: ${base64Token.length()}"
+                        
+                        // Authenticate
+                        def authResponse = sh(
+                            script: """
+                                curl -k -i -s -X POST \
+                                https://${params.PC_HOST}:${params.PC_PORT}/LoadTest/rest/authentication-point/authenticate \
+                                -H "Content-Type: application/json" \
+                                --data-binary '{"Token":"${base64Token}"}'
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Authentication response received"
+                        
+                        // Check status code
+                        def statusCode = "000"
+                        if (authResponse.contains('HTTP/2 200') || authResponse.contains('HTTP/1.1 200')) {
+                            statusCode = "200"
+                        } else if (authResponse.contains('HTTP/2 201') || authResponse.contains('HTTP/1.1 201')) {
+                            statusCode = "201"
+                        }
+                        
+                        echo "HTTP Status Code: ${statusCode}"
+                        
+                        if (statusCode == "200" || statusCode == "201") {
+                            echo "✓ Authentication successful!"
+                            
+                            // Extract cookies using shell and save to file
+                            sh """
+                                echo '${authResponse}' | grep -i 'set-cookie:' | awk -F': ' '{print \$2}' | awk -F';' '{print \$1}' | tr '\\n' '; ' | sed 's/; \$//' > ${WORKSPACE}/results/pc_cookie.txt
+                            """
+                            
+                            def pcCookie = sh(
+                                script: "cat ${WORKSPACE}/results/pc_cookie.txt",
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (pcCookie && pcCookie.length() > 5) {
+                                echo "✓ Cookies extracted"
+                                echo "Cookie length: ${pcCookie.length()}"
+                                echo "Cookie preview: ${pcCookie.take(80)}..."
+                                
+                                // Save cookie to file for later use
+                                sh "echo '${pcCookie}' > ${WORKSPACE}/results/pc_cookie.txt"
+                            } else {
+                                // Fallback extraction
+                                echo "Trying fallback cookie extraction..."
+                                def cookies = extractCookies(authResponse)
+                                if (cookies) {
+                                    sh "echo '${cookies}' > ${WORKSPACE}/results/pc_cookie.txt"
+                                    echo "✓ Cookies extracted via fallback"
+                                } else {
+                                    error "Failed to extract cookies"
+                                }
+                            }
+                            
+                        } else {
+                            echo "✗ Authentication failed!"
+                            echo authResponse.take(500)
+                            error "Authentication failed"
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Trigger Performance Center Test') {
+            steps {
+                script {
+                    echo "Triggering Performance Center Test..."
+                    
+                    // Read cookie from file
+                    def pcCookie = sh(
+                        script: "cat ${WORKSPACE}/results/pc_cookie.txt",
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "Using cookie (length: ${pcCookie.length()})"
+                    
+                    def triggerResponse = sh(
+                        script: """
+                            curl -k -i -s -X POST \
+                            https://${params.PC_HOST}:${params.PC_PORT}/LoadTest/rest/domains/${params.PC_DOMAIN}/projects/${params.PC_PROJECT}/test-runs \
+                            -H "Content-Type: application/json" \
+                            -H "Accept: application/json" \
+                            -H "Cookie: ${pcCookie}" \
+                            --data-binary '{"testId":${params.TEST_ID},"timeslotDuration":${params.TEST_DURATION},"postRunAction":"${params.POST_RUN_ACTION}","vudsMode":false}'
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "Trigger response received"
+                    
+                    // Check status
+                    def statusCode = "000"
+                    if (triggerResponse.contains('HTTP/2 200') || triggerResponse.contains('HTTP/1.1 200')) {
+                        statusCode = "200"
+                    } else if (triggerResponse.contains('HTTP/2 201') || triggerResponse.contains('HTTP/1.1 201')) {
+                        statusCode = "201"
+                    }
+                    
+                    echo "HTTP Status Code: ${statusCode}"
+                    
+                    if (statusCode == "200" || statusCode == "201") {
+                        // Extract Run ID using shell
+                        sh """
+                            echo '${triggerResponse}' | grep -oE '"(ID|id|testRunId|runId)"[[:space:]]*:[[:space:]]*"?[0-9]+' | grep -o '[0-9]\\+' | head -1 > ${WORKSPACE}/results/run_id.txt
+                        """
+                        
+                        def runId = sh(
+                            script: "cat ${WORKSPACE}/results/run_id.txt",
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (runId && runId.isNumber()) {
+                            echo "✓ Test triggered successfully!"
+                            echo "Run ID: ${runId}"
+                            sh "echo '${runId}' > ${WORKSPACE}/results/run_id.txt"
+                        } else {
+                            echo "✗ Could not extract Run ID"
+                            echo "Response preview:"
+                            echo triggerResponse.take(500)
+                            error "Failed to get Run ID"
+                        }
+                    } else {
+                        echo "✗ Test trigger failed"
+                        echo triggerResponse.take(1000)
+                        error "Failed to trigger test - HTTP ${statusCode}"
+                    }
+                }
+            }
+        }
+        
+        stage('Monitor Test Execution') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "Monitoring Test Execution"
+                    echo "=========================================="
+                    
+                    // Read from files
+                    def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt", returnStdout: true).trim()
+                    def pcCookie = sh(script: "cat ${WORKSPACE}/results/pc_cookie.txt", returnStdout: true).trim()
+                    
+                    echo "Run ID: ${runId}"
+                    echo "Poll Interval: ${params.POLL_INTERVAL} seconds"
+                    echo "Starting monitoring..."
+                    echo "-" * 50
+                    
+                    def maxAttempts = 300
+                    def attempt = 0
+                    def currentStatus = "INITIALIZING"
+                    def startTime = System.currentTimeMillis()
+                    
+                    while (attempt < maxAttempts) {
+                        attempt++
+                        
+                        def statusResponse = sh(
+                            script: """
+                                curl -k -s \
+                                https://${params.PC_HOST}:${params.PC_PORT}/LoadTest/rest/domains/${params.PC_DOMAIN}/projects/${params.PC_PROJECT}/runs/${runId} \
+                                -H "Cookie: ${pcCookie}"
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        // Extract status
+                        currentStatus = sh(
+                            script: """
+                                echo '${statusResponse}' | grep -oE '"(status|testState)"[[:space:]]*:[[:space:]]*"[^"]+' | grep -o '"[^"]*"\$' | tr -d '"' || echo 'UNKNOWN'
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (!currentStatus || currentStatus == 'UNKNOWN') {
+                            currentStatus = "RUNNING"
+                        }
+                        
+                        // Calculate elapsed time
+                        def elapsed = (System.currentTimeMillis() - startTime) / 1000
+                        def elapsedMins = (elapsed / 60).intValue()
+                        def elapsedSecs = (elapsed % 60).intValue()
+                        
+                        def timestamp = sh(script: "date '+%H:%M:%S'", returnStdout: true).trim()
+                        echo "[${timestamp}] Check #${attempt} (${elapsedMins}m ${elapsedSecs}s) - Status: ${currentStatus}"
+                        
+                        // Check if test is complete
+                        if (currentStatus ==~ /(?i).*(FINISHED|FAILED|STOPPED|RUN_FAILURE).*/) {
+                            if (currentStatus ==~ /(?i).*(COLLATING|ANALYZING).*/) {
+                                echo "  → Test is ${currentStatus}, waiting..."
+                                sleep(time: 60, unit: 'SECONDS')
+                                continue
+                            }
+                            
+                            echo "-" * 50
+                            echo "✓ Test execution completed!"
+                            echo "Final Status: ${currentStatus}"
+                            echo "Total Time: ${elapsedMins}m ${elapsedSecs}s"
+                            echo "-" * 50
+                            
+                            // Save final status to file
+                            sh "echo '${currentStatus}' > ${WORKSPACE}/results/final_status.txt"
+                            break
+                        }
+                        
+                        sleep(time: params.POLL_INTERVAL.toInteger(), unit: 'SECONDS')
+                    }
+                    
+                    if (attempt >= maxAttempts) {
+                        sh "echo 'TIMEOUT' > ${WORKSPACE}/results/final_status.txt"
+                        echo "✗ Maximum monitoring time exceeded"
+                    }
+                }
+            }
+        }
+        
+        stage('Download Test Results') {
+            steps {
+                script {
+                    def finalStatus = sh(script: "cat ${WORKSPACE}/results/final_status.txt 2>/dev/null || echo 'UNKNOWN'", returnStdout: true).trim()
+                    
+                    if (finalStatus ==~ /(?i).*(FINISHED|STOPPED).*/) {
+                        echo "Downloading test results..."
+                        
+                        def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt", returnStdout: true).trim()
+                        def pcCookie = sh(script: "cat ${WORKSPACE}/results/pc_cookie.txt", returnStdout: true).trim()
+                        
+                        try {
+                            sh """
+                                curl -k -s \
+                                https://${params.PC_HOST}:${params.PC_PORT}/LoadTest/rest/domains/${params.PC_DOMAIN}/projects/${params.PC_PROJECT}/runs/${runId}/report \
+                                -H "Cookie: ${pcCookie}" \
+                                -o ${WORKSPACE}/results/pc_report_${runId}.html
+                            """
+                            
+                            def reportSize = sh(
+                                script: "stat -c%s ${WORKSPACE}/results/pc_report_${runId}.html 2>/dev/null || echo 0",
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (reportSize.toInteger() > 100) {
+                                echo "✓ PC report downloaded (${reportSize} bytes)"
+                            }
+                        } catch (Exception e) {
+                            echo "⚠ Could not download PC report: ${e.message}"
+                        }
+                    } else {
+                        echo "Skipping download - test status: ${finalStatus}"
+                    }
+                }
+            }
+        }
+        
+        stage('Generate Summary Report') {
+            steps {
+                script {
+                    echo "Generating summary report..."
+                    
+                    def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt 2>/dev/null || echo 'N/A'", returnStdout: true).trim()
+                    def finalStatus = sh(script: "cat ${WORKSPACE}/results/final_status.txt 2>/dev/null || echo 'UNKNOWN'", returnStdout: true).trim()
+                    
+                    def timestamp = new Date().format('yyyy-MM-dd HH:mm:ss')
+                    def statusColor = finalStatus ==~ /(?i).*FINISHED.*/ ? 'green' : 'orange'
+                    def statusIcon = finalStatus ==~ /(?i).*FINISHED.*/ ? '✓' : '⚠'
+                    
+                    sh """
+cat > ${WORKSPACE}/results/performance_report.html << 'REPORTEOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Performance Test Report - Build #${BUILD_NUMBER}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { 
+            color: #333; 
+            border-bottom: 4px solid #667eea; 
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .header-info { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px; 
+            border-radius: 8px; 
+            margin-bottom: 30px;
+            line-height: 2;
+        }
+        .status-badge { 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px; 
+            font-weight: bold; 
+            color: white;
+            padding: 40px; 
+            background: ${statusColor};
+            border-radius: 12px;
+            margin: 30px 0;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 20px 0;
+        }
+        th { 
+            background: #667eea;
+            color: white; 
+            padding: 15px; 
+            text-align: left;
+        }
+        td { 
+            padding: 15px; 
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .links a {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Performance Test Report</h1>
+        
+        <div class="header-info">
+            <div><strong>Build:</strong> #${BUILD_NUMBER}</div>
+            <div><strong>Test ID:</strong> ${params.TEST_ID}</div>
+            <div><strong>Run ID:</strong> ${runId}</div>
+            <div><strong>Generated:</strong> ${timestamp}</div>
+        </div>
+        
+        <div class="status-badge">${statusIcon} ${finalStatus}</div>
+        
+        <h2>Configuration</h2>
+        <table>
+            <tr><th>Parameter</th><th>Value</th></tr>
+            <tr><td>PC Host</td><td>${params.PC_HOST}:${params.PC_PORT}</td></tr>
+            <tr><td>Project</td><td>${params.PC_DOMAIN}/${params.PC_PROJECT}</td></tr>
+            <tr><td>Test ID</td><td>${params.TEST_ID}</td></tr>
+            <tr><td>Run ID</td><td>${runId}</td></tr>
+            <tr><td>Duration</td><td>${params.TEST_DURATION}s</td></tr>
+            <tr><td>Status</td><td>${finalStatus}</td></tr>
+        </table>
+        
+        <h2>Links</h2>
+        <div class="links">
+            <a href="${BUILD_URL}">Jenkins Build</a>
+            <a href="${BUILD_URL}console">Console</a>
+            <a href="${BUILD_URL}artifact/results/">Artifacts</a>
+        </div>
+    </div>
+</body>
+</html>
+REPORTEOF
+"""
+                    
+                    sh """
+cat > ${WORKSPACE}/results/summary.txt << 'SUMMARYEOF'
+Performance Test Summary
+========================
+Build: ${BUILD_NUMBER}
+Test ID: ${params.TEST_ID}
+Run ID: ${runId}
+Status: ${finalStatus}
+Server: ${params.PC_HOST}:${params.PC_PORT}
+Duration: ${params.TEST_DURATION}s
+Generated: ${timestamp}
+SUMMARYEOF
+"""
+                    
+                    echo "✓ Reports generated!"
+                }
+            }
+        }
+        
+        stage('Archive Results') {
+            steps {
+                script {
+                    archiveArtifacts artifacts: 'results/*', 
+                                   allowEmptyArchive: false,
+                                   fingerprint: true
+                    
+                    def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt 2>/dev/null || echo 'N/A'", returnStdout: true).trim()
+                    
+                    echo "✓ Results archived!"
+                    echo "📄 HTML Report: ${BUILD_URL}artifact/results/performance_report.html"
+                    echo "📄 Text Summary: ${BUILD_URL}artifact/results/summary.txt"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            script {
+                def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt 2>/dev/null || echo 'N/A'", returnStdout: true).trim()
+                def finalStatus = sh(script: "cat ${WORKSPACE}/results/final_status.txt 2>/dev/null || echo 'UNKNOWN'", returnStdout: true).trim()
+                
+                echo ""
+                echo "=========================================="
+                echo "✓ PIPELINE COMPLETED!"
+                echo "=========================================="
+                echo "Build: #${BUILD_NUMBER}"
+                echo "Run ID: ${runId}"
+                echo "Status: ${finalStatus}"
+                echo "Report: ${BUILD_URL}artifact/results/performance_report.html"
+                echo "=========================================="
+            }
+        }
+        
+        failure {
+            echo ""
+            echo "=========================================="
+            echo "✗ PIPELINE FAILED!"
+            echo "=========================================="
+            echo "Console: ${BUILD_URL}console"
+            echo "=========================================="
+        }
+    }
+}
