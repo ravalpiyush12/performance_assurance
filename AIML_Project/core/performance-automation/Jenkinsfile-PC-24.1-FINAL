@@ -174,12 +174,22 @@ pipeline {
                     echo "Duration: ${params.TEST_DURATION}s"
                     echo "Post Run Action: ${params.POST_RUN_ACTION}"
                     
-                    // PC 24.1 payload - PostRunAction as string
+                    // PC 24.1 payload - PostRunAction as string, Duration in Hours/Minutes format
+                    // Convert seconds to hours and minutes
+                    def totalSeconds = params.TEST_DURATION.toInteger()
+                    def hours = (totalSeconds / 3600).intValue()
+                    def minutes = ((totalSeconds % 3600) / 60).intValue()
+                    
+                    echo "Duration: ${totalSeconds} seconds = ${hours} hours, ${minutes} minutes"
+                    
                     def payload = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Run xmlns="http://www.hp.com/PC/REST/API">
     <TestID>${params.TEST_ID}</TestID>
     <TestInstanceID>AUTO</TestInstanceID>
-    <TimeslotDuration>${params.TEST_DURATION}</TimeslotDuration>
+    <Duration>
+        <Hours>${hours}</Hours>
+        <Minutes>${minutes}</Minutes>
+    </Duration>
     <PostRunAction>${params.POST_RUN_ACTION}</PostRunAction>
     <VudsMode>false</VudsMode>
 </Run>"""
