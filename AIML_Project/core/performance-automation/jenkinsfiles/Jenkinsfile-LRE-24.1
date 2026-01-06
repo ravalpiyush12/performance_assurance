@@ -1,0 +1,581 @@
+@NonCPS
+def extractCookies(response) {
+    def cookies = []
+    response.eachLine { line ->
+        if (line.toLowerCase().startsWith('set-cookie:')) {
+            def cookieValue = line.split(':', 2)[1].split(';')[0].trim()
+            if (cookieValue) {
+                cookies.add(cookieValue)
+            }
+        }
+    }
+    return cookies.join('; ')
+}
+
+pipeline {
+    agent any
+    
+    parameters {
+        string(
+            name: 'LRE_HOST',
+            defaultValue: 'lre-server.example.com',
+            description: 'LoadRunner Enterprise Host (without https://)'
+        )
+        string(
+            name: 'LRE_PORT',
+            defaultValue: '443',
+            description: 'LoadRunner Enterprise Port (443 for HTTPS)'
+        )
+        string(
+            name: 'LRE_TENANT',
+            defaultValue: 'DEFAULT',
+            description: 'LRE Tenant ID (use DEFAULT if not using multi-tenancy)'
+        )
+        string(
+            name: 'LRE_PROJECT',
+            defaultValue: '1',
+            description: 'LRE Project ID (numeric ID, not name)'
+        )
+        string(
+            name: 'TEST_ID',
+            defaultValue: '1',
+            description: 'LRE Test ID to execute (numeric ID)'
+        )
+        string(
+            name: 'TEST_DURATION',
+            defaultValue: '600',
+            description: 'Test duration in seconds'
+        )
+        choice(
+            name: 'POST_RUN_ACTION',
+            choices: ['COLLATE_AND_ANALYZE', 'COLLATE', 'DO_NOTHING'],
+            description: 'Post run action after test execution'
+        )
+        string(
+            name: 'POLL_INTERVAL',
+            defaultValue: '30',
+            description: 'Status check interval in seconds'
+        )
+    }
+    
+    stages {
+        stage('Preparation') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "LoadRunner Enterprise 24.1 Automation"
+                    echo "=========================================="
+                    echo "LRE Host: ${params.LRE_HOST}"
+                    echo "LRE Port: ${params.LRE_PORT}"
+                    echo "Tenant: ${params.LRE_TENANT}"
+                    echo "Project ID: ${params.LRE_PROJECT}"
+                    echo "Test ID: ${params.TEST_ID}"
+                    echo "Duration: ${params.TEST_DURATION} seconds"
+                    echo "=========================================="
+                    
+                    sh "mkdir -p ${WORKSPACE}/results"
+                    
+                    // LRE 24.1 uses /loadtest/rest API base
+                    sh "echo '/loadtest/rest' > ${WORKSPACE}/results/api_base.txt"
+                    
+                    echo "✓ Workspace prepared for LRE 24.1"
+                }
+            }
+        }
+        
+        stage('Authenticate with LRE') {
+            steps {
+                script {
+                    echo "Authenticating with LoadRunner Enterprise 24.1..."
+                    
+                    withCredentials([usernamePassword(
+                        credentialsId: 'pc-credentials',
+                        usernameVariable: 'LRE_USERNAME',
+                        passwordVariable: 'LRE_PASSWORD'
+                    )]) {
+                        
+                        echo "Authenticating user: ${LRE_USERNAME}"
+                        
+                        // Create Base64 token
+                        def base64Token = sh(
+                            script: "printf '%s:%s' '${LRE_USERNAME}' '${LRE_PASSWORD}' | base64 -w 0",
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "✓ Base64 token generated (length: ${base64Token.length()})"
+                        
+                        // LRE 24.1 authentication endpoint
+                        def authResponse = sh(
+                            script: """
+                                curl -k -i -s -X POST \
+                                https://${params.LRE_HOST}:${params.LRE_PORT}/loadtest/rest/authentication-point/authenticate \
+                                -H "Content-Type: application/json" \
+                                --data-binary '{"Token":"${base64Token}"}'
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Authentication response received (length: ${authResponse.length()})"
+                        
+                        // Check status
+                        def statusCode = "000"
+                        if (authResponse.contains('HTTP/2 200') || authResponse.contains('HTTP/1.1 200')) {
+                            statusCode = "200"
+                        } else if (authResponse.contains('HTTP/2 201') || authResponse.contains('HTTP/1.1 201')) {
+                            statusCode = "201"
+                        }
+                        
+                        echo "HTTP Status Code: ${statusCode}"
+                        
+                        if (statusCode == "200" || statusCode == "201") {
+                            echo "✓ Authentication successful!"
+                            
+                            // Extract cookies
+                            sh """
+                                echo '${authResponse}' | grep -i 'set-cookie:' | awk -F': ' '{print \$2}' | awk -F';' '{print \$1}' | tr '\\n' '; ' | sed 's/; \$//' > ${WORKSPACE}/results/lre_cookie.txt
+                            """
+                            
+                            def lreCookie = sh(
+                                script: "cat ${WORKSPACE}/results/lre_cookie.txt",
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (lreCookie && lreCookie.length() > 5) {
+                                echo "✓ Cookies extracted (length: ${lreCookie.length()})"
+                                echo "Cookie preview: ${lreCookie.take(60)}..."
+                            } else {
+                                echo "Trying fallback cookie extraction..."
+                                def cookies = extractCookies(authResponse)
+                                if (cookies && cookies.length() > 5) {
+                                    sh "echo '${cookies}' > ${WORKSPACE}/results/lre_cookie.txt"
+                                    echo "✓ Cookies extracted via fallback (length: ${cookies.length()})"
+                                } else {
+                                    error "Failed to extract authentication cookies"
+                                }
+                            }
+                        } else {
+                            echo "✗ Authentication failed!"
+                            echo "Response preview:"
+                            echo authResponse.take(800)
+                            error "Authentication failed with status: ${statusCode}"
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Get Project Details') {
+            steps {
+                script {
+                    echo "Retrieving project information..."
+                    
+                    def lreCookie = sh(script: "cat ${WORKSPACE}/results/lre_cookie.txt", returnStdout: true).trim()
+                    
+                    // LRE 24.1 projects endpoint: /loadtest/rest/projects/{projectId}
+                    def projectResponse = sh(
+                        script: """
+                            curl -k -s \
+                            https://${params.LRE_HOST}:${params.LRE_PORT}/loadtest/rest/projects/${params.LRE_PROJECT} \
+                            -H "Cookie: ${lreCookie}" \
+                            -H "Accept: application/json"
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (projectResponse.contains('"id"') || projectResponse.contains('"ID"')) {
+                        echo "✓ Project verified (ID: ${params.LRE_PROJECT})"
+                        echo "Project info: ${projectResponse.take(200)}"
+                    } else {
+                        echo "⚠ Warning: Could not verify project. Response:"
+                        echo projectResponse.take(300)
+                    }
+                }
+            }
+        }
+        
+        stage('Trigger LoadRunner Enterprise Test') {
+            steps {
+                script {
+                    echo "Triggering LRE Test..."
+                    echo "Test ID: ${params.TEST_ID}"
+                    echo "Duration: ${params.TEST_DURATION} seconds"
+                    echo "Post-run action: ${params.POST_RUN_ACTION}"
+                    
+                    def lreCookie = sh(script: "cat ${WORKSPACE}/results/lre_cookie.txt", returnStdout: true).trim()
+                    
+                    // LRE 24.1 test run endpoint structure:
+                    // POST /loadtest/rest/projects/{projectId}/tests/{testId}/test-runs
+                    
+                    def endpoint = "/loadtest/rest/projects/${params.LRE_PROJECT}/tests/${params.TEST_ID}/test-runs"
+                    echo "Using endpoint: ${endpoint}"
+                    
+                    // LRE 24.1 payload structure
+                    def payload = """
+{
+    "Duration": ${params.TEST_DURATION},
+    "PostRunAction": "${params.POST_RUN_ACTION}",
+    "VudsMode": false
+}
+""".trim()
+                    
+                    echo "Request payload:"
+                    echo payload
+                    
+                    sh """
+cat > ${WORKSPACE}/results/trigger_payload.json << 'JSONEOF'
+${payload}
+JSONEOF
+"""
+                    
+                    def triggerResponse = sh(
+                        script: """
+                            curl -k -i -s -X POST \
+                            https://${params.LRE_HOST}:${params.LRE_PORT}${endpoint} \
+                            -H "Content-Type: application/json" \
+                            -H "Accept: application/json" \
+                            -H "Cookie: ${lreCookie}" \
+                            --data-binary @${WORKSPACE}/results/trigger_payload.json
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "Trigger response received (length: ${triggerResponse.length()})"
+                    
+                    // Check status
+                    def statusCode = "000"
+                    if (triggerResponse.contains('HTTP/2 200') || triggerResponse.contains('HTTP/1.1 200')) {
+                        statusCode = "200"
+                    } else if (triggerResponse.contains('HTTP/2 201') || triggerResponse.contains('HTTP/1.1 201')) {
+                        statusCode = "201"
+                    } else if (triggerResponse.contains('HTTP/2 202') || triggerResponse.contains('HTTP/1.1 202')) {
+                        statusCode = "202"
+                    } else if (triggerResponse.contains('HTTP/2 404') || triggerResponse.contains('HTTP/1.1 404')) {
+                        statusCode = "404"
+                    } else if (triggerResponse.contains('HTTP/2 400') || triggerResponse.contains('HTTP/1.1 400')) {
+                        statusCode = "400"
+                    }
+                    
+                    echo "HTTP Status Code: ${statusCode}"
+                    
+                    if (statusCode == "404") {
+                        echo "✗ 404 Error - Test not found!"
+                        echo "Full response:"
+                        echo triggerResponse
+                        error """
+404 Error - Test Not Found
+
+Please verify in LRE Web UI:
+1. Project ID: ${params.LRE_PROJECT} (must be numeric ID, not name)
+2. Test ID: ${params.TEST_ID} (must be numeric ID, not name)
+
+To find these IDs in LRE:
+- Projects: Check URL when viewing project
+- Tests: Check URL when viewing test details
+"""
+                    }
+                    
+                    if (statusCode == "400") {
+                        echo "✗ 400 Error - Bad Request"
+                        echo "Full response:"
+                        echo triggerResponse
+                        error "Invalid request. Check payload format and test configuration."
+                    }
+                    
+                    if (statusCode == "200" || statusCode == "201" || statusCode == "202") {
+                        echo "✓ Test trigger accepted!"
+                        
+                        // Extract Run ID - LRE 24.1 typically returns "ID" or "RunId"
+                        def bodyStart = triggerResponse.indexOf('{')
+                        if (bodyStart >= 0) {
+                            def jsonBody = triggerResponse.substring(bodyStart)
+                            echo "Response body:"
+                            echo jsonBody.take(500)
+                            
+                            // Try to extract run ID
+                            sh """
+                                echo '${jsonBody}' | grep -oE '"(ID|RunId|id|TestRunID)"[[:space:]]*:[[:space:]]*"?[0-9]+' | grep -o '[0-9]\\+' | head -1 > ${WORKSPACE}/results/run_id.txt
+                            """
+                            
+                            def runId = sh(
+                                script: "cat ${WORKSPACE}/results/run_id.txt 2>/dev/null || echo ''",
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (runId && runId.isNumber()) {
+                                echo "✓ Test triggered successfully!"
+                                echo "Run ID: ${runId}"
+                            } else {
+                                echo "⚠ Warning: Could not extract Run ID from response"
+                                echo "Attempting alternative extraction..."
+                                
+                                // Alternative: use the whole response to find any number after "ID"
+                                runId = sh(
+                                    script: """
+                                        echo '${triggerResponse}' | grep -oE '"ID":[[:space:]]*[0-9]+' | grep -o '[0-9]\\+' | head -1
+                                    """,
+                                    returnStdout: true
+                                ).trim()
+                                
+                                if (runId && runId.isNumber()) {
+                                    sh "echo '${runId}' > ${WORKSPACE}/results/run_id.txt"
+                                    echo "✓ Run ID extracted: ${runId}"
+                                } else {
+                                    echo "Could not extract Run ID. Test may still be running."
+                                    sh "echo 'UNKNOWN' > ${WORKSPACE}/results/run_id.txt"
+                                }
+                            }
+                        } else {
+                            echo "⚠ No JSON body in response"
+                            sh "echo 'UNKNOWN' > ${WORKSPACE}/results/run_id.txt"
+                        }
+                    } else {
+                        echo "✗ Unexpected status code: ${statusCode}"
+                        echo "Full response:"
+                        echo triggerResponse
+                        error "Failed to trigger test"
+                    }
+                }
+            }
+        }
+        
+        stage('Monitor Test Execution') {
+            steps {
+                script {
+                    def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt 2>/dev/null || echo ''", returnStdout: true).trim()
+                    
+                    if (!runId || runId == 'UNKNOWN' || !runId.isNumber()) {
+                        echo "⚠ No valid Run ID available for monitoring"
+                        echo "Test may be running but cannot monitor status automatically"
+                        sh "echo 'TRIGGERED' > ${WORKSPACE}/results/final_status.txt"
+                        return
+                    }
+                    
+                    echo "=========================================="
+                    echo "Monitoring Test Execution"
+                    echo "=========================================="
+                    echo "Run ID: ${runId}"
+                    echo "Poll Interval: ${params.POLL_INTERVAL} seconds"
+                    echo "-" * 50
+                    
+                    def lreCookie = sh(script: "cat ${WORKSPACE}/results/lre_cookie.txt", returnStdout: true).trim()
+                    
+                    def maxAttempts = 300
+                    def attempt = 0
+                    def currentStatus = "INITIALIZING"
+                    def startTime = System.currentTimeMillis()
+                    
+                    // LRE 24.1 run status endpoint: /loadtest/rest/projects/{projectId}/runs/{runId}
+                    def statusEndpoint = "/loadtest/rest/projects/${params.LRE_PROJECT}/runs/${runId}"
+                    
+                    while (attempt < maxAttempts) {
+                        attempt++
+                        
+                        def statusResponse = sh(
+                            script: """
+                                curl -k -s \
+                                https://${params.LRE_HOST}:${params.LRE_PORT}${statusEndpoint} \
+                                -H "Cookie: ${lreCookie}" \
+                                -H "Accept: application/json"
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        // Extract status
+                        currentStatus = sh(
+                            script: """
+                                echo '${statusResponse}' | grep -oE '"(State|Status|RunState)"[[:space:]]*:[[:space:]]*"[^"]+' | grep -o '"[^"]*"\$' | tr -d '"' || echo 'RUNNING'
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (!currentStatus || currentStatus == '') {
+                            currentStatus = "RUNNING"
+                        }
+                        
+                        def elapsed = (System.currentTimeMillis() - startTime) / 1000
+                        def elapsedMins = (elapsed / 60).intValue()
+                        def elapsedSecs = (elapsed % 60).intValue()
+                        
+                        def timestamp = sh(script: "date '+%H:%M:%S'", returnStdout: true).trim()
+                        echo "[${timestamp}] Check #${attempt} (${elapsedMins}m ${elapsedSecs}s) - Status: ${currentStatus}"
+                        
+                        // LRE 24.1 status values: RUNNING, FINISHED, FAILED, STOPPED, etc.
+                        if (currentStatus ==~ /(?i).*(FINISHED|COMPLETE|PASSED).*/) {
+                            echo "-" * 50
+                            echo "✓ Test completed successfully!"
+                            echo "Final Status: ${currentStatus}"
+                            echo "Total Time: ${elapsedMins}m ${elapsedSecs}s"
+                            echo "-" * 50
+                            sh "echo '${currentStatus}' > ${WORKSPACE}/results/final_status.txt"
+                            break
+                        } else if (currentStatus ==~ /(?i).*(FAILED|ERROR|STOPPED).*/) {
+                            echo "-" * 50
+                            echo "⚠ Test ended with status: ${currentStatus}"
+                            echo "Total Time: ${elapsedMins}m ${elapsedSecs}s"
+                            echo "-" * 50
+                            sh "echo '${currentStatus}' > ${WORKSPACE}/results/final_status.txt"
+                            break
+                        } else if (currentStatus ==~ /(?i).*(COLLATING|ANALYZING).*/) {
+                            echo "  → Post-processing: ${currentStatus}"
+                        }
+                        
+                        sleep(time: params.POLL_INTERVAL.toInteger(), unit: 'SECONDS')
+                    }
+                    
+                    if (attempt >= maxAttempts) {
+                        sh "echo 'TIMEOUT' > ${WORKSPACE}/results/final_status.txt"
+                        echo "✗ Monitoring timeout reached"
+                    }
+                }
+            }
+        }
+        
+        stage('Generate Summary Report') {
+            steps {
+                script {
+                    def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt 2>/dev/null || echo 'N/A'", returnStdout: true).trim()
+                    def finalStatus = sh(script: "cat ${WORKSPACE}/results/final_status.txt 2>/dev/null || echo 'UNKNOWN'", returnStdout: true).trim()
+                    def timestamp = new Date().format('yyyy-MM-dd HH:mm:ss')
+                    
+                    def statusColor = 'orange'
+                    if (finalStatus ==~ /(?i).*(FINISHED|COMPLETE|PASSED).*/) {
+                        statusColor = 'green'
+                    } else if (finalStatus ==~ /(?i).*(FAILED|ERROR).*/) {
+                        statusColor = 'red'
+                    }
+                    
+                    sh """
+cat > ${WORKSPACE}/results/lre_report.html << 'REPORTEOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>LRE Test Report - Build #${BUILD_NUMBER}</title>
+    <style>
+        body { font-family: Arial; background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; margin: 0; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        h1 { color: #333; border-bottom: 4px solid #667eea; padding-bottom: 15px; margin-bottom: 30px; }
+        .header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 25px; border-radius: 8px; margin-bottom: 30px; line-height: 2; }
+        .status { font-size: 48px; font-weight: bold; color: ${statusColor}; text-align: center; padding: 40px; background: #f5f5f5; border-radius: 12px; margin: 30px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { background: #667eea; color: white; padding: 15px; text-align: left; }
+        td { padding: 15px; border-bottom: 1px solid #ddd; }
+        tr:hover { background: #f8f9fa; }
+        .links { margin: 30px 0; }
+        .links a { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 5px; }
+        .links a:hover { background: #764ba2; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #e0e0e0; text-align: center; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 LoadRunner Enterprise Test Report</h1>
+        
+        <div class="header">
+            <div><strong>Build Number:</strong> #${BUILD_NUMBER}</div>
+            <div><strong>LRE Version:</strong> 24.1</div>
+            <div><strong>Test ID:</strong> ${params.TEST_ID}</div>
+            <div><strong>Run ID:</strong> ${runId}</div>
+            <div><strong>Generated:</strong> ${timestamp}</div>
+        </div>
+        
+        <div class="status">${finalStatus}</div>
+        
+        <h2>Test Configuration</h2>
+        <table>
+            <tr><th>Parameter</th><th>Value</th></tr>
+            <tr><td>LRE Host</td><td>${params.LRE_HOST}:${params.LRE_PORT}</td></tr>
+            <tr><td>Tenant</td><td>${params.LRE_TENANT}</td></tr>
+            <tr><td>Project ID</td><td>${params.LRE_PROJECT}</td></tr>
+            <tr><td>Test ID</td><td>${params.TEST_ID}</td></tr>
+            <tr><td>Run ID</td><td>${runId}</td></tr>
+            <tr><td>Duration</td><td>${params.TEST_DURATION} seconds</td></tr>
+            <tr><td>Post-Run Action</td><td>${params.POST_RUN_ACTION}</td></tr>
+            <tr><td>Final Status</td><td>${finalStatus}</td></tr>
+        </table>
+        
+        <h2>Quick Links</h2>
+        <div class="links">
+            <a href="${BUILD_URL}">View Jenkins Build</a>
+            <a href="${BUILD_URL}console">Console Output</a>
+            <a href="${BUILD_URL}artifact/results/">Download Artifacts</a>
+            <a href="https://${params.LRE_HOST}:${params.LRE_PORT}">Open LRE Web UI</a>
+        </div>
+        
+        <div class="footer">
+            <p><strong>LoadRunner Enterprise 24.1 Automation</strong></p>
+            <p>Build #${BUILD_NUMBER} | ${timestamp}</p>
+        </div>
+    </div>
+</body>
+</html>
+REPORTEOF
+"""
+                    
+                    sh """
+cat > ${WORKSPACE}/results/summary.txt << 'SUMMARYEOF'
+LoadRunner Enterprise Test Summary
+===================================
+LRE Version: 24.1
+Build: ${BUILD_NUMBER}
+Test ID: ${params.TEST_ID}
+Run ID: ${runId}
+Status: ${finalStatus}
+Host: ${params.LRE_HOST}:${params.LRE_PORT}
+Project: ${params.LRE_PROJECT}
+Duration: ${params.TEST_DURATION}s
+Generated: ${timestamp}
+===================================
+SUMMARYEOF
+"""
+                    echo "✓ Summary report generated"
+                }
+            }
+        }
+        
+        stage('Archive Results') {
+            steps {
+                script {
+                    archiveArtifacts artifacts: 'results/*', allowEmptyArchive: false, fingerprint: true
+                    
+                    def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt 2>/dev/null || echo 'N/A'", returnStdout: true).trim()
+                    
+                    echo "✓ Results archived!"
+                    echo "📄 HTML Report: ${BUILD_URL}artifact/results/lre_report.html"
+                    echo "📄 Text Summary: ${BUILD_URL}artifact/results/summary.txt"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            script {
+                def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt 2>/dev/null || echo 'N/A'", returnStdout: true).trim()
+                def status = sh(script: "cat ${WORKSPACE}/results/final_status.txt 2>/dev/null || echo 'COMPLETED'", returnStdout: true).trim()
+                
+                echo ""
+                echo "=========================================="
+                echo "✓ PIPELINE COMPLETED!"
+                echo "=========================================="
+                echo "Build: #${BUILD_NUMBER}"
+                echo "LRE Version: 24.1"
+                echo "Test ID: ${params.TEST_ID}"
+                echo "Run ID: ${runId}"
+                echo "Status: ${status}"
+                echo ""
+                echo "Report: ${BUILD_URL}artifact/results/lre_report.html"
+                echo "=========================================="
+            }
+        }
+        
+        failure {
+            echo ""
+            echo "=========================================="
+            echo "✗ PIPELINE FAILED!"
+            echo "=========================================="
+            echo "Check console: ${BUILD_URL}console"
+            echo "=========================================="
+        }
+    }
+}
