@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# PC 24.1 Report Download Debug Script
+# Run this manually to test report download
+
+echo "==========================================="
+echo "PC 24.1 Report Download Debug"
+echo "==========================================="
+
+# Set these values
+PC_HOST="your-pc-server.com"
+PC_PORT="443"
+DOMAIN="DEFAULT"
+PROJECT="MyProject"
+RUN_ID="12345"
+RESULT_ID="67890"
+COOKIE="LWSSO_COOKIE_KEY=your-cookie-value"
+
+echo "Configuration:"
+echo "  PC Host: $PC_HOST"
+echo "  Domain: $DOMAIN"
+echo "  Project: $PROJECT"
+echo "  Run ID: $RUN_ID"
+echo "  Result ID: $RESULT_ID"
+echo ""
+
+# Test endpoints
+ENDPOINTS=(
+    "/LoadTest/rest/domains/$DOMAIN/projects/$PROJECT/Runs/$RUN_ID/Results/$RESULT_ID/data"
+    "/LoadTest/rest/domains/$DOMAIN/projects/$PROJECT/Runs/$RUN_ID/Results/$RESULT_ID"
+    "/LoadTest/rest/domains/$DOMAIN/projects/$PROJECT/Results/$RESULT_ID/data"
+    "/LoadTest/rest/domains/$DOMAIN/projects/$PROJECT/Results/$RESULT_ID/Report.zip"
+)
+
+for endpoint in "${ENDPOINTS[@]}"; do
+    echo "==========================================="
+    echo "Testing: $endpoint"
+    echo "==========================================="
+    
+    # Test with HEAD
+    echo "HEAD request:"
+    curl -k -I "https://$PC_HOST:$PC_PORT$endpoint" \
+        -H "Cookie: $COOKIE" \
+        -H "Accept: application/octet-stream" 2>&1 | head -20
+    
+    echo ""
+    echo "-------------------------------------------"
+    echo ""
+done
+
+echo "==========================================="
+echo "Now trying actual download from first endpoint..."
+echo "==========================================="
+
+ENDPOINT="${ENDPOINTS[0]}"
+echo "Endpoint: $ENDPOINT"
+echo "Full URL: https://$PC_HOST:$PC_PORT$ENDPOINT"
+echo ""
+
+curl -k -v "https://$PC_HOST:$PC_PORT$ENDPOINT" \
+    -H "Cookie: $COOKIE" \
+    -H "Accept: application/octet-stream" \
+    -o Report.zip 2>&1 | tee download.log
+
+echo ""
+echo "==========================================="
+echo "Results:"
+echo "==========================================="
+
+if [ -f "Report.zip" ]; then
+    SIZE=$(stat -c%s Report.zip 2>/dev/null || stat -f%z Report.zip 2>/dev/null)
+    echo "File size: $SIZE bytes"
+    
+    FILE_TYPE=$(file -b Report.zip)
+    echo "File type: $FILE_TYPE"
+    
+    if [ $SIZE -gt 1000 ]; then
+        echo "✓ File downloaded successfully"
+        echo ""
+        echo "Contents:"
+        unzip -l Report.zip 2>&1 | head -30
+    else
+        echo "⚠ File too small"
+        echo "Content:"
+        cat Report.zip
+    fi
+else
+    echo "✗ File not created"
+fi
+
+echo ""
+echo "==========================================="
+echo "Check download.log for detailed curl output"
+echo "==========================================="
