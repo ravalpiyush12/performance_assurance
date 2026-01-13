@@ -1,0 +1,196 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(name: 'PC_TEST_ID', defaultValue: '', description: 'Performance Center Test ID')
+        string(name: 'TEST_DURATION', defaultValue: '60', description: 'Test duration in minutes')
+        string(name: 'TEST_NAME', defaultValue: '', description: 'Test Name')
+        string(name: 'APPD_APP_NAME', defaultValue: 'YourApp', description: 'AppDynamics Application Name')
+        string(name: 'APPD_TIER_NAME', defaultValue: 'YourTier', description: 'AppDynamics Tier Name')
+        string(name: 'APPD_NODE_NAME', defaultValue: 'YourNode', description: 'AppDynamics Node Name')
+        string(name: 'KIBANA_VIZ_IDS', defaultValue: '', description: 'Comma-separated Kibana Visualization IDs')
+    }
+    
+    environment {
+        // Performance Center credentials
+        PC_URL = credentials('pc-url')
+        PC_USERNAME = credentials('pc-username')
+        PC_PASSWORD = credentials('pc-password')
+        PC_DOMAIN = credentials('pc-domain')
+        PC_PROJECT = credentials('pc-project')
+        
+        // AppDynamics credentials
+        APPD_CONTROLLER = credentials('appd-controller-url')
+        APPD_ACCOUNT = credentials('appd-account-name')
+        APPD_USERNAME = credentials('appd-username')
+        APPD_PASSWORD = credentials('appd-password')
+        
+        // Kibana credentials
+        KIBANA_URL = credentials('kibana-url')
+        KIBANA_USERNAME = credentials('kibana-username')
+        KIBANA_PASSWORD = credentials('kibana-password')
+        
+        // Oracle Database credentials
+        ORACLE_USER = credentials('oracle-username')
+        ORACLE_PASSWORD = credentials('oracle-password')
+        ORACLE_DSN = credentials('oracle-dsn')
+        
+        // Email configuration
+        EMAIL_RECIPIENTS = credentials('email-recipients')
+        
+        // Python environment
+        PYTHONUNBUFFERED = '1'
+    }
+    
+    stages {
+        stage('Setup') {
+            steps {
+                script {
+                    // Generate unique test run ID
+                    env.TEST_RUN_ID = "TEST_${currentBuild.number}_${new Date().format('yyyyMMdd_HHmmss')}"
+                    echo "Test Run ID: ${env.TEST_RUN_ID}"
+                    
+                    // Save to file for persistence
+                    writeFile file: 'test_run_id.txt', text: env.TEST_RUN_ID
+                    
+                    // Install Python dependencies
+                    sh '''
+                        python3 -m pip install --user -r requirements.txt
+                    '''
+                }
+            }
+        }
+        
+        stage('Parallel Execution') {
+            parallel {
+                stage('Performance Center Test') {
+                    steps {
+                        script {
+                            echo "Starting Performance Center test..."
+                            
+                            // Your existing PC automation script
+                            sh '''
+                                python3 pc_automation.py \
+                                    --url ${PC_URL} \
+                                    --username ${PC_USERNAME} \
+                                    --password ${PC_PASSWORD} \
+                                    --domain ${PC_DOMAIN} \
+                                    --project ${PC_PROJECT} \
+                                    --test-id ${PC_TEST_ID} \
+                                    --duration ${TEST_DURATION} \
+                                    --run-id ${TEST_RUN_ID}
+                            '''
+                        }
+                    }
+                }
+                
+                stage('Monitoring Data Collection') {
+                    steps {
+                        script {
+                            echo "Starting monitoring data collection..."
+                            
+                            sh '''
+                                python3 monitoring_main.py \
+                                    --run-id ${TEST_RUN_ID} \
+                                    --test-name "${TEST_NAME}" \
+                                    --duration ${TEST_DURATION} \
+                                    --kibana-url ${KIBANA_URL} \
+                                    --kibana-user ${KIBANA_USERNAME} \
+                                    --kibana-pass ${KIBANA_PASSWORD} \
+                                    --kibana-viz-ids "${KIBANA_VIZ_IDS}" \
+                                    --appd-controller ${APPD_CONTROLLER} \
+                                    --appd-account ${APPD_ACCOUNT} \
+                                    --appd-user ${APPD_USERNAME} \
+                                    --appd-pass ${APPD_PASSWORD} \
+                                    --appd-app ${APPD_APP_NAME} \
+                                    --appd-tier ${APPD_TIER_NAME} \
+                                    --appd-node ${APPD_NODE_NAME} \
+                                    --db-user ${ORACLE_USER} \
+                                    --db-pass ${ORACLE_PASSWORD} \
+                                    --db-dsn ${ORACLE_DSN} \
+                                    --collection-interval 300
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Generate Reports') {
+            steps {
+                script {
+                    echo "Generating consolidated performance reports..."
+                    
+                    sh '''
+                        python3 generate_report_main.py \
+                            --run-id ${TEST_RUN_ID} \
+                            --db-user ${ORACLE_USER} \
+                            --db-pass ${ORACLE_PASSWORD} \
+                            --db-dsn ${ORACLE_DSN} \
+                            --output-dir ${WORKSPACE}/reports
+                    '''
+                    
+                    // Archive the reports
+                    archiveArtifacts artifacts: 'reports/**/*', fingerprint: true
+                    archiveArtifacts artifacts: '*.log', fingerprint: true
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                // Generate report URLs
+                def consolidatedReportUrl = "${env.BUILD_URL}artifact/reports/consolidated_report.html"
+                def appdReportUrl = "${env.BUILD_URL}artifact/reports/appd_metrics.html"
+                def kibanaReportUrl = "${env.BUILD_URL}artifact/reports/kibana_data.html"
+                
+                // Send email with links to reports
+                emailext (
+                    subject: "Performance Test Results - ${env.TEST_RUN_ID} - ${currentBuild.result}",
+                    body: """
+                        <html>
+                        <body style="font-family: Arial, sans-serif;">
+                            <h2 style="color: #2c3e50;">Performance Test Execution Complete</h2>
+                            
+                            <div style="background-color: #ecf0f1; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                                <p><strong>Test Run ID:</strong> ${env.TEST_RUN_ID}</p>
+                                <p><strong>Test Name:</strong> ${params.TEST_NAME}</p>
+                                <p><strong>Build Number:</strong> ${currentBuild.number}</p>
+                                <p><strong>Duration:</strong> ${params.TEST_DURATION} minutes</p>
+                                <p><strong>Status:</strong> <span style="color: ${currentBuild.result == 'SUCCESS' ? 'green' : 'red'};">${currentBuild.result}</span></p>
+                            </div>
+                            
+                            <h3>Reports:</h3>
+                            <ul style="line-height: 2;">
+                                <li><a href="${consolidatedReportUrl}">Consolidated Report</a></li>
+                                <li><a href="${appdReportUrl}">AppDynamics Metrics Report</a></li>
+                                <li><a href="${kibanaReportUrl}">Kibana Data Report</a></li>
+                                <li><a href="${env.BUILD_URL}">View Full Build Results</a></li>
+                            </ul>
+                            
+                            <hr style="margin: 30px 0;">
+                            <p style="color: #7f8c8d; font-size: 12px;">
+                                This is an automated email from Jenkins Pipeline.<br>
+                                Generated at ${new Date().format('yyyy-MM-dd HH:mm:ss')}
+                            </p>
+                        </body>
+                        </html>
+                    """,
+                    to: "${env.EMAIL_RECIPIENTS}",
+                    mimeType: 'text/html',
+                    attachmentsPattern: 'reports/*.html'
+                )
+            }
+        }
+        
+        success {
+            echo '✓ Pipeline completed successfully!'
+        }
+        
+        failure {
+            echo '✗ Pipeline failed!'
+        }
+    }
+}
