@@ -1,5 +1,6 @@
 """
 AppDynamics Data Fetcher using REST API - Auto Dashboard Discovery
+Fixed for Custom Dashboard Export and PieWidget support
 """
 import requests
 from datetime import datetime, timedelta
@@ -48,7 +49,7 @@ class AppDynamicsDataFetcher:
     
     def get_dashboard_details(self, dashboard_id: int) -> Optional[Dict]:
         """
-        Get dashboard details including all widgets and their configurations
+        Get dashboard details using CustomDashboardImportExportServlet
         
         Args:
             dashboard_id: Dashboard ID
@@ -56,16 +57,32 @@ class AppDynamicsDataFetcher:
         Returns:
             Dashboard configuration or None
         """
-        url = f"{self.controller_url}/controller/restui/dashboards/dashboardIfModified/{dashboard_id}"
+        # Use the correct URL for custom dashboard export
+        url = f"{self.controller_url}/controller/CustomDashboardImportExportServlet"
+        
+        params = {
+            'dashboardId': dashboard_id
+        }
         
         try:
-            response = self.session.get(url, verify=False, timeout=30)
+            response = self.session.get(url, params=params, verify=False, timeout=30)
             response.raise_for_status()
             
             dashboard = response.json()
-            self.logger.info(f"✓ Fetched dashboard: {dashboard.get('name', 'Unknown')}")
+            dashboard_name = dashboard.get('name', 'Unknown Dashboard')
+            
+            self.logger.info(f"✓ Fetched dashboard: {dashboard_name} (ID: {dashboard_id})")
+            self.logger.info(f"  Dashboard Type: {dashboard.get('dashboardFormatVersion', 'Unknown')}")
+            
             return dashboard
             
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"✗ HTTP error fetching dashboard {dashboard_id}: {e}")
+            self.logger.error(f"  Response: {e.response.text if hasattr(e, 'response') else 'N/A'}")
+            return None
+        except json.JSONDecodeError as e:
+            self.logger.error(f"✗ JSON decode error: {e}")
+            return None
         except Exception as e:
             self.logger.error(f"✗ Error fetching dashboard {dashboard_id}: {e}")
             return None
@@ -85,11 +102,23 @@ class AppDynamicsDataFetcher:
             return []
         
         dashboard_name = dashboard.get('name', 'Unknown Dashboard')
-        widgets = dashboard.get('widgetTemplates', [])
+        
+        # Different dashboard formats use different structures
+        widgets = []
+        
+        # Try different possible widget locations in the JSON structure
+        if 'widgetTemplates' in dashboard:
+            widgets = dashboard.get('widgetTemplates', [])
+        elif 'widgets' in dashboard:
+            widgets = dashboard.get('widgets', [])
+        elif 'rows' in dashboard:
+            # Some dashboards organize widgets in rows
+            for row in dashboard.get('rows', []):
+                widgets.extend(row.get('widgets', []))
         
         self.logger.info("=" * 80)
         self.logger.info(f"Parsing Dashboard: {dashboard_name} (ID: {dashboard_id})")
-        self.logger.info(f"Total Widgets: {len(widgets)}")
+        self.logger.info(f"Total Widgets Found: {len(widgets)}")
         self.logger.info("=" * 80)
         
         widget_configs = []
@@ -98,9 +127,10 @@ class AppDynamicsDataFetcher:
             widget_config = self._parse_widget(widget, idx, dashboard_name)
             if widget_config:
                 widget_configs.append(widget_config)
-                self.logger.info(f"  [{idx}] ✓ {widget_config['widget_name']}")
+                self.logger.info(f"  [{idx}] ✓ {widget_config['widget_name']} (Type: {widget_config.get('widget_type', 'Unknown')})")
             else:
-                self.logger.warning(f"  [{idx}] ⚠ Skipped widget (unsupported type)")
+                widget_type = widget.get('type', widget.get('widgetType', 'UNKNOWN'))
+                self.logger.warning(f"  [{idx}] ⚠ Skipped widget (Type: {widget_type})")
         
         self.logger.info("=" * 80)
         self.logger.info(f"Successfully parsed {len(widget_configs)} widgets")
@@ -111,6 +141,7 @@ class AppDynamicsDataFetcher:
     def _parse_widget(self, widget: Dict, widget_idx: int, dashboard_name: str) -> Optional[Dict]:
         """
         Parse individual widget and extract metric configuration
+        Supports: PieWidget, MetricLabelWidget, TimeSeriesWidget, etc.
         
         Args:
             widget: Widget data from dashboard
@@ -120,14 +151,13 @@ class AppDynamicsDataFetcher:
         Returns:
             Widget configuration or None
         """
-        widget_type = widget.get('type', 'UNKNOWN')
-        widget_name = widget.get('title', f'Widget_{widget_idx}')
+        # Get widget type from different possible fields
+        widget_type = widget.get('type') or widget.get('widgetType') or 'UNKNOWN'
+        widget_name = widget.get('title') or widget.get('name') or f'Widget_{widget_idx}'
         
-        # Get widget data structure
-        widget_data = widget.get('dataFetchInfos', [])
-        
-        if not widget_data:
-            return None
+        self.logger.debug(f"\nParsing Widget {widget_idx}:")
+        self.logger.debug(f"  Name: {widget_name}")
+        self.logger.debug(f"  Type: {widget_type}")
         
         # Initialize config
         config = {
@@ -137,83 +167,260 @@ class AppDynamicsDataFetcher:
             'apps_tiers_nodes': []
         }
         
-        # Parse data sources
-        for data_info in widget_data:
-            metric_info = self._extract_metric_info(data_info)
+        # Different parsing based on widget type
+        if widget_type == 'PieWidget':
+            metric_info = self._parse_pie_widget(widget)
             if metric_info:
-                config['apps_tiers_nodes'].append(metric_info)
+                config['apps_tiers_nodes'].extend(metric_info)
         
-        # Determine metric type based on widget type and metric paths
-        config['metric_type'] = self._determine_metric_type(config, widget_type)
+        elif widget_type == 'MetricLabelWidget':
+            metric_info = self._parse_metric_label_widget(widget)
+            if metric_info:
+                config['apps_tiers_nodes'].extend(metric_info)
         
-        return config if config['apps_tiers_nodes'] else None
+        elif widget_type == 'TimeSeriesWidget':
+            metric_info = self._parse_timeseries_widget(widget)
+            if metric_info:
+                config['apps_tiers_nodes'].extend(metric_info)
+        
+        elif widget_type == 'HealthListWidget':
+            metric_info = self._parse_health_list_widget(widget)
+            if metric_info:
+                config['apps_tiers_nodes'].extend(metric_info)
+        
+        else:
+            # Generic parsing for unknown widget types
+            metric_info = self._parse_generic_widget(widget)
+            if metric_info:
+                config['apps_tiers_nodes'].extend(metric_info)
+        
+        # Determine metric type based on collected information
+        if config['apps_tiers_nodes']:
+            config['metric_type'] = self._determine_metric_type(config, widget_type)
+            return config
+        
+        return None
     
-    def _extract_metric_info(self, data_info: Dict) -> Optional[Dict]:
+    def _parse_pie_widget(self, widget: Dict) -> List[Dict]:
         """
-        Extract application, tier, node, and metric information from widget data
+        Parse PieWidget to extract metric configurations
         
         Args:
-            data_info: Widget data fetch info
+            widget: PieWidget data
             
         Returns:
-            Metric information dictionary or None
+            List of metric information dictionaries
         """
+        metric_infos = []
+        
+        # PieWidget structure usually has dataSeriesTemplates or series
+        data_series = widget.get('dataSeriesTemplates', []) or widget.get('series', [])
+        
+        for series in data_series:
+            # Extract metric expression or metric path
+            metric_expression = series.get('metricExpression', '')
+            metric_path = series.get('metricPath', '')
+            
+            if not metric_expression and not metric_path:
+                continue
+            
+            # Get application name
+            app_name = series.get('applicationName', '') or series.get('appName', '')
+            
+            # Parse the metric expression/path
+            metric_info = self._parse_metric_expression(
+                metric_expression or metric_path,
+                app_name
+            )
+            
+            if metric_info:
+                metric_infos.append(metric_info)
+        
+        return metric_infos
+    
+    def _parse_metric_label_widget(self, widget: Dict) -> List[Dict]:
+        """Parse MetricLabelWidget"""
+        metric_infos = []
+        
+        data_series = widget.get('dataSeriesTemplates', [])
+        
+        for series in data_series:
+            metric_path = series.get('metricPath', '')
+            app_name = series.get('applicationName', '')
+            
+            if metric_path and app_name:
+                metric_info = self._parse_metric_expression(metric_path, app_name)
+                if metric_info:
+                    metric_infos.append(metric_info)
+        
+        return metric_infos
+    
+    def _parse_timeseries_widget(self, widget: Dict) -> List[Dict]:
+        """Parse TimeSeriesWidget"""
+        metric_infos = []
+        
+        data_series = widget.get('dataSeriesTemplates', [])
+        
+        for series in data_series:
+            metric_path = series.get('metricPath', '')
+            app_name = series.get('applicationName', '')
+            
+            if metric_path and app_name:
+                metric_info = self._parse_metric_expression(metric_path, app_name)
+                if metric_info:
+                    metric_infos.append(metric_info)
+        
+        return metric_infos
+    
+    def _parse_health_list_widget(self, widget: Dict) -> List[Dict]:
+        """Parse HealthListWidget"""
+        metric_infos = []
+        
+        # Health list widgets may reference entities directly
+        entity_refs = widget.get('entityReferences', [])
+        
+        for entity_ref in entity_refs:
+            entity_type = entity_ref.get('entityType', '')
+            app_name = entity_ref.get('applicationName', '')
+            tier_name = entity_ref.get('tierName', '')
+            node_name = entity_ref.get('nodeName', '')
+            
+            if app_name:
+                metric_info = {
+                    'app_name': app_name,
+                    'tier_name': tier_name,
+                    'node_name': node_name,
+                    'metric_path': '',
+                    'metric_category': 'health'
+                }
+                metric_infos.append(metric_info)
+        
+        return metric_infos
+    
+    def _parse_generic_widget(self, widget: Dict) -> List[Dict]:
+        """Generic parser for unknown widget types"""
+        metric_infos = []
+        
+        # Try to find dataSeriesTemplates, dataFetchInfos, or similar structures
+        possible_data_fields = [
+            'dataSeriesTemplates',
+            'dataFetchInfos',
+            'series',
+            'metrics',
+            'dataSources'
+        ]
+        
+        for field in possible_data_fields:
+            if field in widget:
+                data_items = widget[field]
+                if isinstance(data_items, list):
+                    for item in data_items:
+                        metric_path = item.get('metricPath', '') or item.get('metricExpression', '')
+                        app_name = item.get('applicationName', '') or item.get('appName', '')
+                        
+                        if metric_path and app_name:
+                            metric_info = self._parse_metric_expression(metric_path, app_name)
+                            if metric_info:
+                                metric_infos.append(metric_info)
+        
+        return metric_infos
+    
+    def _parse_metric_expression(self, metric_expression: str, app_name: str) -> Optional[Dict]:
+        """
+        Parse metric expression/path to extract tier, node, and category information
+        
+        Args:
+            metric_expression: Metric path or expression
+            app_name: Application name
+            
+        Returns:
+            Dictionary with parsed metric information or None
+        """
+        if not metric_expression or not app_name:
+            return None
+        
+        # Clean up metric expression
+        metric_path = metric_expression.strip()
+        
+        # Parse metric path components
+        parts = metric_path.split('|')
+        
+        tier_name = None
+        node_name = None
+        metric_category = None
+        
         try:
-            # Get metric path
-            metric_path = data_info.get('metricPath', '')
-            
-            if not metric_path:
-                return None
-            
-            # Parse metric path to extract app, tier, node
-            # Example paths:
-            # "Application Infrastructure Performance|Tier1|Individual Nodes|Node1|JVM|Memory|Heap|Used %"
-            # "Overall Application Performance|Tier1|Calls per Minute"
-            
-            app_name = data_info.get('applicationName', '')
-            
-            # Parse from metric path
-            parts = metric_path.split('|')
-            
-            tier_name = None
-            node_name = None
-            metric_category = None
-            
+            # Pattern 1: Application Infrastructure Performance|Tier|Individual Nodes|Node|...
             if 'Application Infrastructure Performance' in metric_path:
-                # Node-level metrics
-                if len(parts) >= 4:
-                    tier_name = parts[1]
-                    if 'Individual Nodes' in parts[2]:
-                        node_name = parts[3]
-                    
-                # Determine category
-                if 'JVM' in metric_path:
-                    metric_category = 'jvm'
-                elif 'Hardware Resources' in metric_path:
-                    metric_category = 'hardware'
+                if len(parts) >= 2:
+                    tier_name = parts[1].strip()
                 
-            elif 'Overall Application Performance' in metric_path:
-                # Tier-level transaction metrics
-                if len(parts) >= 2:
-                    tier_name = parts[1]
-                metric_category = 'transaction'
+                if 'Individual Nodes' in metric_path and len(parts) >= 4:
+                    node_name = parts[3].strip()
+                
+                # Determine category from metric path
+                if 'JVM' in metric_path:
+                    if 'Memory' in metric_path:
+                        metric_category = 'jvm_memory'
+                    elif 'Garbage Collection' in metric_path or 'GC' in metric_path:
+                        metric_category = 'jvm_gc'
+                    elif 'CPU' in metric_path:
+                        metric_category = 'jvm_cpu'
+                    else:
+                        metric_category = 'jvm'
+                
+                elif 'Hardware Resources' in metric_path:
+                    if 'CPU' in metric_path:
+                        metric_category = 'hardware_cpu'
+                    elif 'Memory' in metric_path:
+                        metric_category = 'hardware_memory'
+                    else:
+                        metric_category = 'hardware'
             
-            elif 'Business Transaction Performance' in metric_path:
-                # Business transaction metrics
+            # Pattern 2: Overall Application Performance|Tier|...
+            elif 'Overall Application Performance' in metric_path:
                 if len(parts) >= 2:
-                    tier_name = parts[1]
+                    tier_name = parts[1].strip()
+                
+                # Determine transaction metric type
+                if 'Calls per Minute' in metric_path:
+                    metric_category = 'transaction_throughput'
+                elif 'Response Time' in metric_path:
+                    metric_category = 'transaction_response'
+                elif 'Errors' in metric_path:
+                    metric_category = 'transaction_errors'
+                elif 'Exceptions' in metric_path:
+                    metric_category = 'transaction_exceptions'
+                elif 'Stall' in metric_path:
+                    metric_category = 'transaction_stall'
+                else:
+                    metric_category = 'transaction'
+            
+            # Pattern 3: Business Transaction Performance|Tier|BT Name|...
+            elif 'Business Transaction Performance' in metric_path:
+                if len(parts) >= 2:
+                    tier_name = parts[1].strip()
                 metric_category = 'business_transaction'
+            
+            # Pattern 4: End User Experience|...
+            elif 'End User Experience' in metric_path:
+                metric_category = 'end_user'
+            
+            # Default category
+            if not metric_category:
+                metric_category = 'custom'
             
             return {
                 'app_name': app_name,
                 'tier_name': tier_name,
                 'node_name': node_name,
                 'metric_path': metric_path,
-                'metric_category': metric_category
+                'metric_category': metric_category,
+                'metric_expression': metric_expression
             }
             
         except Exception as e:
-            self.logger.error(f"Error extracting metric info: {e}")
+            self.logger.error(f"Error parsing metric expression '{metric_expression}': {e}")
             return None
     
     def _determine_metric_type(self, config: Dict, widget_type: str) -> str:
@@ -228,90 +435,32 @@ class AppDynamicsDataFetcher:
             Metric type: 'jvm', 'transaction', 'combined', 'custom'
         """
         categories = set()
+        has_nodes = False
         
         for metric_info in config['apps_tiers_nodes']:
-            category = metric_info.get('metric_category')
+            category = metric_info.get('metric_category', '')
+            
             if category:
-                categories.add(category)
+                # Simplify categories for grouping
+                if 'jvm' in category or 'hardware' in category:
+                    categories.add('jvm')
+                elif 'transaction' in category:
+                    categories.add('transaction')
+                else:
+                    categories.add('custom')
+            
+            if metric_info.get('node_name'):
+                has_nodes = True
         
+        # Determine overall type
         if 'jvm' in categories and 'transaction' in categories:
             return 'combined'
-        elif 'jvm' in categories or 'hardware' in categories:
+        elif 'jvm' in categories:
             return 'jvm'
-        elif 'transaction' in categories or 'business_transaction' in categories:
+        elif 'transaction' in categories:
             return 'transaction'
         else:
             return 'custom'
-    
-    def get_dashboard_metrics_by_id(self, dashboard_id: int, duration_mins: int = 5) -> Dict[str, Dict]:
-        """
-        Automatically fetch all metrics from a dashboard using its ID
-        
-        Args:
-            dashboard_id: Dashboard ID
-            duration_mins: Duration in minutes to look back
-            
-        Returns:
-            Dictionary of widget data organized by widget name
-        """
-        # Parse dashboard to get widget configurations
-        widget_configs = self.parse_dashboard_to_config(dashboard_id)
-        
-        if not widget_configs:
-            self.logger.error(f"No widgets found in dashboard {dashboard_id}")
-            return {}
-        
-        # Reorganize configs for metric collection
-        organized_configs = self._organize_widget_configs(widget_configs)
-        
-        # Collect metrics using standard dashboard collection
-        return self.get_dashboard_metrics(organized_configs, duration_mins)
-    
-    def _organize_widget_configs(self, widget_configs: List[Dict]) -> List[Dict]:
-        """
-        Organize parsed widget configs into format expected by get_dashboard_metrics
-        
-        Args:
-            widget_configs: List of parsed widget configurations
-            
-        Returns:
-            List of organized configurations
-        """
-        organized = []
-        
-        for widget in widget_configs:
-            widget_name = widget['widget_name']
-            metric_type = widget['metric_type']
-            
-            # Group by application and tier
-            app_tier_map = {}
-            
-            for metric_info in widget['apps_tiers_nodes']:
-                app_name = metric_info.get('app_name')
-                tier_name = metric_info.get('tier_name')
-                node_name = metric_info.get('node_name')
-                
-                if not app_name or not tier_name:
-                    continue
-                
-                key = (app_name, tier_name)
-                
-                if key not in app_tier_map:
-                    app_tier_map[key] = {
-                        'widget_name': widget_name,
-                        'app_name': app_name,
-                        'tier_name': tier_name,
-                        'metric_type': metric_type,
-                        'nodes': []
-                    }
-                
-                if node_name and node_name not in app_tier_map[key]['nodes']:
-                    app_tier_map[key]['nodes'].append(node_name)
-            
-            # Add to organized list
-            organized.extend(app_tier_map.values())
-        
-        return organized
     
     def get_applications(self) -> Optional[List[Dict]]:
         """Get list of all applications"""
@@ -393,17 +542,15 @@ class AppDynamicsDataFetcher:
             parsed_data = self._parse_metric_data(data)
             
             if parsed_data:
-                self.logger.debug(f"✓ Fetched metric: {metric_path} ({len(parsed_data)} data points)")
-            else:
-                self.logger.debug(f"⚠ No data for metric: {metric_path}")
+                self.logger.debug(f"✓ Fetched metric: {metric_path[-50:]} ({len(parsed_data)} data points)")
             
             return parsed_data
             
         except requests.exceptions.HTTPError as e:
-            self.logger.error(f"✗ HTTP error fetching metric {metric_path}: {e}")
+            self.logger.warning(f"⚠ HTTP error fetching metric: {e}")
             return None
         except Exception as e:
-            self.logger.error(f"✗ Error fetching metric {metric_path}: {e}")
+            self.logger.error(f"✗ Error fetching metric: {e}")
             return None
     
     def _parse_metric_data(self, raw_data: List[Dict]) -> List[Dict]:
@@ -512,6 +659,84 @@ class AppDynamicsDataFetcher:
         self.logger.debug(f"→ Fetching transaction metrics: {app_name}/{tier_name}")
         return self.get_multiple_metrics(app_name, metric_paths, duration_mins)
     
+    def get_dashboard_metrics_by_id(self, dashboard_id: int, duration_mins: int = 5) -> Dict[str, Dict]:
+        """
+        Automatically fetch all metrics from a dashboard using its ID
+        
+        Args:
+            dashboard_id: Dashboard ID
+            duration_mins: Duration in minutes to look back
+            
+        Returns:
+            Dictionary of widget data organized by widget name
+        """
+        # Parse dashboard to get widget configurations
+        widget_configs = self.parse_dashboard_to_config(dashboard_id)
+        
+        if not widget_configs:
+            self.logger.error(f"No widgets found in dashboard {dashboard_id}")
+            return {}
+        
+        # Reorganize configs for metric collection
+        organized_configs = self._organize_widget_configs(widget_configs)
+        
+        # Collect metrics using standard dashboard collection
+        return self.get_dashboard_metrics(organized_configs, duration_mins)
+    
+    def _organize_widget_configs(self, widget_configs: List[Dict]) -> List[Dict]:
+        """
+        Organize parsed widget configs into format expected by get_dashboard_metrics
+        
+        Args:
+            widget_configs: List of parsed widget configurations
+            
+        Returns:
+            List of organized configurations
+        """
+        organized = []
+        
+        for widget in widget_configs:
+            widget_name = widget['widget_name']
+            metric_type = widget['metric_type']
+            
+            # Group by application and tier
+            app_tier_map = {}
+            
+            for metric_info in widget['apps_tiers_nodes']:
+                app_name = metric_info.get('app_name')
+                tier_name = metric_info.get('tier_name')
+                node_name = metric_info.get('node_name')
+                
+                if not app_name:
+                    continue
+                
+                # Use app_name as key if no tier
+                key = (app_name, tier_name if tier_name else 'ALL_TIERS')
+                
+                if key not in app_tier_map:
+                    app_tier_map[key] = {
+                        'widget_name': widget_name,
+                        'app_name': app_name,
+                        'tier_name': tier_name if tier_name else None,
+                        'metric_type': metric_type,
+                        'nodes': [],
+                        'metric_paths': []
+                    }
+                
+                # Add node if specified
+                if node_name and node_name not in app_tier_map[key]['nodes']:
+                    app_tier_map[key]['nodes'].append(node_name)
+                
+                # Store metric path for custom collection
+                metric_path = metric_info.get('metric_path', '')
+                if metric_path and metric_path not in app_tier_map[key]['metric_paths']:
+                    app_tier_map[key]['metric_paths'].append(metric_path)
+            
+            # Add to organized list
+            organized.extend(app_tier_map.values())
+        
+        return organized
+    
     def get_dashboard_metrics(self, dashboard_config: List[Dict], 
                              duration_mins: int = 5) -> Dict[str, Dict]:
         """
@@ -536,6 +761,7 @@ class AppDynamicsDataFetcher:
             tier_name = widget.get('tier_name')
             metric_type = widget.get('metric_type', 'jvm')
             nodes = widget.get('nodes', [])
+            metric_paths = widget.get('metric_paths', [])
             
             self.logger.info(f"\n[{widget_idx}/{len(dashboard_config)}] Processing: {widget_name}")
             self.logger.info(f"  App: {app_name}, Tier: {tier_name}, Type: {metric_type}")
@@ -551,65 +777,101 @@ class AppDynamicsDataFetcher:
             try:
                 if metric_type == 'jvm':
                     # Collect JVM metrics for specified nodes
-                    if not nodes:
-                        # Auto-discover nodes if not specified
+                    if not nodes and tier_name:
+                        # Auto-discover nodes if not specified and tier exists
                         discovered_nodes = self.get_nodes_for_tier(app_name, tier_name)
                         if discovered_nodes:
                             nodes = [node.get('name') for node in discovered_nodes]
                             self.logger.info(f"  Auto-discovered {len(nodes)} nodes")
                     
-                    for node_name in nodes:
-                        node_metrics = self.get_jvm_metrics_for_node(
-                            app_name, tier_name, node_name, duration_mins
-                        )
-                        widget_data['metrics'][node_name] = node_metrics
-                        
-                        # Count data points
-                        total_points = sum(len(values) for values in node_metrics.values())
-                        self.logger.info(f"    ✓ {node_name}: {total_points} data points")
+                    if nodes and tier_name:
+                        for node_name in nodes:
+                            node_metrics = self.get_jvm_metrics_for_node(
+                                app_name, tier_name, node_name, duration_mins
+                            )
+                            widget_data['metrics'][node_name] = node_metrics
+                            
+                            # Count data points
+                            total_points = sum(len(values) for values in node_metrics.values())
+                            self.logger.info(f"    ✓ {node_name}: {total_points} data points")
+                    elif metric_paths:
+                        # Use direct metric paths
+                        custom_metrics = {}
+                        for idx, metric_path in enumerate(metric_paths):
+                            data = self.get_metric_data(app_name, metric_path, duration_mins)
+                            if data:
+                                custom_metrics[f'metric_{idx}'] = data
+                        widget_data['metrics']['custom_metrics'] = custom_metrics
+                        total_points = sum(len(v) for v in custom_metrics.values())
+                        self.logger.info(f"    ✓ Custom metrics: {total_points} data points")
                 
                 elif metric_type == 'transaction':
                     # Collect transaction metrics for tier
-                    tier_metrics = self.get_transaction_metrics_for_tier(
-                        app_name, tier_name, duration_mins
-                    )
-                    widget_data['metrics']['tier_metrics'] = tier_metrics
-                    
-                    total_points = sum(len(values) for values in tier_metrics.values())
-                    self.logger.info(f"    ✓ Transaction metrics: {total_points} data points")
+                    if tier_name:
+                        tier_metrics = self.get_transaction_metrics_for_tier(
+                            app_name, tier_name, duration_mins
+                        )
+                        widget_data['metrics']['tier_metrics'] = tier_metrics
+                        
+                        total_points = sum(len(values) for values in tier_metrics.values())
+                        self.logger.info(f"    ✓ Transaction metrics: {total_points} data points")
+                    elif metric_paths:
+                        # Use direct metric paths
+                        custom_metrics = {}
+                        for idx, metric_path in enumerate(metric_paths):
+                            data = self.get_metric_data(app_name, metric_path, duration_mins)
+                            if data:
+                                custom_metrics[f'metric_{idx}'] = data
+                        widget_data['metrics']['custom_metrics'] = custom_metrics
+                        total_points = sum(len(v) for v in custom_metrics.values())
+                        self.logger.info(f"    ✓ Custom metrics: {total_points} data points")
                 
                 elif metric_type == 'combined':
                     # Collect both JVM and transaction metrics
-                    # JVM metrics for nodes
-                    if not nodes:
-                        discovered_nodes = self.get_nodes_for_tier(app_name, tier_name)
-                        if discovered_nodes:
-                            nodes = [node.get('name') for node in discovered_nodes]
-                    
-                    jvm_data = {}
-                    for node_name in nodes:
-                        node_metrics = self.get_jvm_metrics_for_node(
-                            app_name, tier_name, node_name, duration_mins
+                    if tier_name:
+                        # JVM metrics for nodes
+                        if not nodes:
+                            discovered_nodes = self.get_nodes_for_tier(app_name, tier_name)
+                            if discovered_nodes:
+                                nodes = [node.get('name') for node in discovered_nodes]
+                        
+                        jvm_data = {}
+                        for node_name in nodes:
+                            node_metrics = self.get_jvm_metrics_for_node(
+                                app_name, tier_name, node_name, duration_mins
+                            )
+                            jvm_data[node_name] = node_metrics
+                        
+                        # Transaction metrics for tier
+                        transaction_data = self.get_transaction_metrics_for_tier(
+                            app_name, tier_name, duration_mins
                         )
-                        jvm_data[node_name] = node_metrics
-                    
-                    # Transaction metrics for tier
-                    transaction_data = self.get_transaction_metrics_for_tier(
-                        app_name, tier_name, duration_mins
-                    )
-                    
-                    widget_data['metrics'] = {
-                        'jvm': jvm_data,
-                        'transaction': transaction_data
-                    }
-                    
-                    jvm_points = sum(
-                        sum(len(v) for v in node_metrics.values()) 
-                        for node_metrics in jvm_data.values()
-                    )
-                    trans_points = sum(len(values) for values in transaction_data.values())
-                    
-                    self.logger.info(f"    ✓ JVM: {jvm_points} points, Transaction: {trans_points} points")
+                        
+                        widget_data['metrics'] = {
+                            'jvm': jvm_data,
+                            'transaction': transaction_data
+                        }
+                        
+                        jvm_points = sum(
+                            sum(len(v) for v in node_metrics.values()) 
+                            for node_metrics in jvm_data.values()
+                        )
+                        trans_points = sum(len(values) for values in transaction_data.values())
+                        
+                        self.logger.info(f"    ✓ JVM: {jvm_points} points, Transaction: {trans_points} points")
+                
+                elif metric_type == 'custom':
+                    # Use direct metric paths from widget
+                    if metric_paths:
+                        custom_metrics = {}
+                        for idx, metric_path in enumerate(metric_paths):
+                            data = self.get_metric_data(app_name, metric_path, duration_mins)
+                            if data:
+                                custom_metrics[f'metric_{idx}'] = data
+                        
+                        widget_data['metrics']['custom_metrics'] = custom_metrics
+                        total_points = sum(len(v) for v in custom_metrics.values())
+                        self.logger.info(f"    ✓ Custom metrics: {total_points} data points")
                 
                 all_dashboard_data[widget_name] = widget_data
                 
