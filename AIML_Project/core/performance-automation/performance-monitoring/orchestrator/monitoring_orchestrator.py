@@ -230,3 +230,59 @@ class MonitoringOrchestrator:
             'appdynamics_enabled': self.enable_appdynamics,
             'collection_interval': self.collection_interval
         }
+
+    def _collect_appdynamics_data(self):
+        """Collect AppDynamics metrics from dashboard ID"""
+        try:
+            self.logger.info("→ Collecting AppDynamics metrics from dashboard...")
+            
+            # Get dashboard ID from app_config
+            dashboard_id = self.app_config.get('appdynamics_dashboard_id')
+            
+            if not dashboard_id:
+                self.logger.warning("  ⚠ No AppDynamics dashboard ID provided")
+                return
+            
+            # Automatically fetch all metrics from dashboard
+            dashboard_data = self.appdynamics_fetcher.get_dashboard_metrics_by_id(
+                dashboard_id=dashboard_id,
+                duration_mins=5
+            )
+            
+            # Count total data points
+            total_points = 0
+            for widget_name, widget_data in dashboard_data.items():
+                if 'error' not in widget_data:
+                    metrics = widget_data.get('metrics', {})
+                    
+                    # Count based on metric type
+                    if widget_data.get('metric_type') == 'jvm':
+                        for node_metrics in metrics.values():
+                            total_points += sum(len(v) for v in node_metrics.values())
+                    elif widget_data.get('metric_type') == 'transaction':
+                        tier_metrics = metrics.get('tier_metrics', {})
+                        total_points += sum(len(v) for v in tier_metrics.values())
+                    elif widget_data.get('metric_type') == 'combined':
+                        jvm_data = metrics.get('jvm', {})
+                        trans_data = metrics.get('transaction', {})
+                        total_points += sum(
+                            sum(len(v) for v in node_metrics.values()) 
+                            for node_metrics in jvm_data.values()
+                        )
+                        total_points += sum(len(v) for v in trans_data.values())
+            
+            if total_points > 0:
+                # Insert into database using dashboard method
+                self.db_handler.insert_appdynamics_dashboard_metrics(
+                    test_run_id=self.test_run_id,
+                    dashboard_data=dashboard_data
+                )
+                
+                widget_count = len([w for w in dashboard_data.values() if 'error' not in w])
+                self.logger.info(f"  ✓ AppDynamics: {total_points} data points collected from {widget_count} widgets")
+            else:
+                self.logger.warning(f"  ⚠ AppDynamics: No data points returned")
+            
+        except Exception as e:
+            self.logger.error(f"  ✗ AppDynamics collection error: {e}")
+                

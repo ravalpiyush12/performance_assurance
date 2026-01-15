@@ -5,9 +5,7 @@ pipeline {
         string(name: 'PC_TEST_ID', defaultValue: '', description: 'Performance Center Test ID')
         string(name: 'TEST_DURATION', defaultValue: '60', description: 'Test duration in minutes')
         string(name: 'TEST_NAME', defaultValue: '', description: 'Test Name')
-        string(name: 'APPD_APP_NAME', defaultValue: 'YourApp', description: 'AppDynamics Application Name')
-        string(name: 'APPD_TIER_NAME', defaultValue: 'YourTier', description: 'AppDynamics Tier Name')
-        string(name: 'APPD_NODE_NAME', defaultValue: 'YourNode', description: 'AppDynamics Node Name')
+        string(name: 'APPD_DASHBOARD_ID', defaultValue: '123', description: 'AppDynamics Dashboard ID')
         string(name: 'KIBANA_VIZ_IDS', defaultValue: '', description: 'Comma-separated Kibana Visualization IDs')
     }
     
@@ -88,6 +86,7 @@ pipeline {
                     steps {
                         script {
                             echo "Starting monitoring data collection..."
+                            echo "AppDynamics Dashboard ID: ${params.APPD_DASHBOARD_ID}"
                             
                             sh '''
                                 python3 monitoring_main.py \
@@ -102,9 +101,7 @@ pipeline {
                                     --appd-account ${APPD_ACCOUNT} \
                                     --appd-user ${APPD_USERNAME} \
                                     --appd-pass ${APPD_PASSWORD} \
-                                    --appd-app ${APPD_APP_NAME} \
-                                    --appd-tier ${APPD_TIER_NAME} \
-                                    --appd-node ${APPD_NODE_NAME} \
+                                    --appd-dashboard-id ${APPD_DASHBOARD_ID} \
                                     --db-user ${ORACLE_USER} \
                                     --db-pass ${ORACLE_PASSWORD} \
                                     --db-dsn ${ORACLE_DSN} \
@@ -141,56 +138,25 @@ pipeline {
     post {
         always {
             script {
-                // Generate report URLs
-                def consolidatedReportUrl = "${env.BUILD_URL}artifact/reports/consolidated_report.html"
-                def appdReportUrl = "${env.BUILD_URL}artifact/reports/appd_metrics.html"
-                def kibanaReportUrl = "${env.BUILD_URL}artifact/reports/kibana_data.html"
+                def reportUrl = "${env.BUILD_URL}artifact/reports/consolidated_report.html"
                 
-                // Send email with links to reports
                 emailext (
-                    subject: "Performance Test Results - ${env.TEST_RUN_ID} - ${currentBuild.result}",
+                    subject: "Performance Test Results - ${env.TEST_RUN_ID}",
                     body: """
                         <html>
-                        <body style="font-family: Arial, sans-serif;">
-                            <h2 style="color: #2c3e50;">Performance Test Execution Complete</h2>
-                            
-                            <div style="background-color: #ecf0f1; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                                <p><strong>Test Run ID:</strong> ${env.TEST_RUN_ID}</p>
-                                <p><strong>Test Name:</strong> ${params.TEST_NAME}</p>
-                                <p><strong>Build Number:</strong> ${currentBuild.number}</p>
-                                <p><strong>Duration:</strong> ${params.TEST_DURATION} minutes</p>
-                                <p><strong>Status:</strong> <span style="color: ${currentBuild.result == 'SUCCESS' ? 'green' : 'red'};">${currentBuild.result}</span></p>
-                            </div>
-                            
-                            <h3>Reports:</h3>
-                            <ul style="line-height: 2;">
-                                <li><a href="${consolidatedReportUrl}">Consolidated Report</a></li>
-                                <li><a href="${appdReportUrl}">AppDynamics Metrics Report</a></li>
-                                <li><a href="${kibanaReportUrl}">Kibana Data Report</a></li>
-                                <li><a href="${env.BUILD_URL}">View Full Build Results</a></li>
-                            </ul>
-                            
-                            <hr style="margin: 30px 0;">
-                            <p style="color: #7f8c8d; font-size: 12px;">
-                                This is an automated email from Jenkins Pipeline.<br>
-                                Generated at ${new Date().format('yyyy-MM-dd HH:mm:ss')}
-                            </p>
+                        <body>
+                            <h2>Performance Test Complete</h2>
+                            <p><b>Test Run ID:</b> ${env.TEST_RUN_ID}</p>
+                            <p><b>Status:</b> ${currentBuild.result}</p>
+                            <p><b>AppDynamics Dashboard ID:</b> ${params.APPD_DASHBOARD_ID}</p>
+                            <p><a href="${reportUrl}">View Report</a></p>
                         </body>
                         </html>
                     """,
                     to: "${env.EMAIL_RECIPIENTS}",
-                    mimeType: 'text/html',
-                    attachmentsPattern: 'reports/*.html'
+                    mimeType: 'text/html'
                 )
             }
-        }
-        
-        success {
-            echo '✓ Pipeline completed successfully!'
-        }
-        
-        failure {
-            echo '✗ Pipeline failed!'
         }
     }
 }

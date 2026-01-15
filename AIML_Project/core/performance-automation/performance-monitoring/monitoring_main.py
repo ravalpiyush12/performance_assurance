@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main entry point for monitoring data collection
+Main entry point for monitoring data collection - Dashboard ID Mode
 """
 import argparse
 import sys
@@ -33,9 +33,8 @@ def parse_arguments():
     parser.add_argument('--appd-account', required=True, help='AppDynamics account name')
     parser.add_argument('--appd-user', required=True, help='AppDynamics username')
     parser.add_argument('--appd-pass', required=True, help='AppDynamics password')
-    parser.add_argument('--appd-app', required=True, help='AppDynamics application name')
-    parser.add_argument('--appd-tier', required=True, help='AppDynamics tier name')
-    parser.add_argument('--appd-node', required=True, help='AppDynamics node name')
+    parser.add_argument('--appd-dashboard-id', type=int, required=True, 
+                       help='AppDynamics Dashboard ID (auto-discovers widgets)')
     
     # Oracle Database configuration
     parser.add_argument('--db-user', required=True, help='Oracle username')
@@ -61,7 +60,8 @@ def main():
     logger = setup_logger('MainMonitoring', log_file=log_file)
     
     logger.info("=" * 80)
-    logger.info("Performance Monitoring System - Starting")
+    logger.info("Performance Monitoring System - Starting (Dashboard ID Mode)")
+    logger.info(f"AppDynamics Dashboard ID: {args.appd_dashboard_id}")
     logger.info("=" * 80)
     
     try:
@@ -97,6 +97,11 @@ def main():
             )
             if not appdynamics_fetcher.test_connection():
                 logger.warning("AppDynamics connection test failed - continuing anyway")
+            
+            # Parse dashboard configuration automatically
+            logger.info(f"Parsing AppDynamics Dashboard ID: {args.appd_dashboard_id}")
+            widget_configs = appdynamics_fetcher.parse_dashboard_to_config(args.appd_dashboard_id)
+            logger.info(f"Discovered {len(widget_configs)} widgets in dashboard")
         
         # Create monitoring configuration
         monitoring_config = MonitoringConfig(
@@ -116,11 +121,9 @@ def main():
                     'name': f'Visualization_{viz_id}'
                 })
         
-        # Application configuration
+        # Application configuration with dashboard ID
         app_config = {
-            'app_name': args.appd_app,
-            'tier_name': args.appd_tier,
-            'node_name': args.appd_node,
+            'appdynamics_dashboard_id': args.appd_dashboard_id,
             'kibana_visualizations': kibana_visualizations
         }
         
