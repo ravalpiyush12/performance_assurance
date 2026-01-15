@@ -385,3 +385,149 @@ class MonitoringDataDB:
         if self.connection:
             self.connection.close()
             self.logger.info("✓ Oracle database connection closed")
+    def insert_appdynamics_dashboard_metrics(self, test_run_id: str, 
+                                             dashboard_data: Dict[str, Dict]):
+        """
+        Insert AppDynamics dashboard metrics data with widget organization
+        
+        Args:
+            test_run_id: Test run identifier
+            dashboard_data: Dictionary from get_dashboard_metrics()
+        """
+        cursor = self.connection.cursor()
+        inserted_count = 0
+        
+        try:
+            for widget_name, widget_data in dashboard_data.items():
+                if 'error' in widget_data:
+                    self.logger.warning(f"Skipping widget {widget_name} due to error: {widget_data['error']}")
+                    continue
+                
+                app_name = widget_data.get('app_name')
+                tier_name = widget_data.get('tier_name')
+                metric_type = widget_data.get('metric_type')
+                metrics = widget_data.get('metrics', {})
+                
+                if metric_type == 'jvm':
+                    # JVM metrics organized by node
+                    for node_name, node_metrics in metrics.items():
+                        for metric_name, values in node_metrics.items():
+                            for value_point in values:
+                                cursor.execute('''
+                                    INSERT INTO appdynamics_metrics 
+                                    (id, test_run_id, app_name, tier_name, node_name, metric_category,
+                                     metric_name, metric_path, metric_value, metric_count, 
+                                     metric_min, metric_max, metric_sum, timestamp)
+                                    VALUES (appdynamics_metrics_seq.NEXTVAL, :1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13)
+                                ''', (
+                                    test_run_id,
+                                    app_name,
+                                    tier_name,
+                                    node_name,
+                                    'jvm',
+                                    metric_name,
+                                    value_point.get('metric_path', ''),
+                                    value_point.get('value'),
+                                    value_point.get('count'),
+                                    value_point.get('min'),
+                                    value_point.get('max'),
+                                    value_point.get('sum'),
+                                    value_point.get('timestamp')
+                                ))
+                                inserted_count += 1
+                
+                elif metric_type == 'transaction':
+                    # Transaction metrics for tier
+                    tier_metrics = metrics.get('tier_metrics', {})
+                    for metric_name, values in tier_metrics.items():
+                        for value_point in values:
+                            cursor.execute('''
+                                INSERT INTO appdynamics_metrics 
+                                (id, test_run_id, app_name, tier_name, node_name, metric_category,
+                                 metric_name, metric_path, metric_value, metric_count, 
+                                 metric_min, metric_max, metric_sum, timestamp)
+                                VALUES (appdynamics_metrics_seq.NEXTVAL, :1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13)
+                            ''', (
+                                test_run_id,
+                                app_name,
+                                tier_name,
+                                'TIER_LEVEL',  # No specific node for tier-level metrics
+                                'transaction',
+                                metric_name,
+                                value_point.get('metric_path', ''),
+                                value_point.get('value'),
+                                value_point.get('count'),
+                                value_point.get('min'),
+                                value_point.get('max'),
+                                value_point.get('sum'),
+                                value_point.get('timestamp')
+                            ))
+                            inserted_count += 1
+                
+                elif metric_type == 'combined':
+                    # Both JVM and transaction metrics
+                    jvm_data = metrics.get('jvm', {})
+                    transaction_data = metrics.get('transaction', {})
+                    
+                    # Insert JVM metrics
+                    for node_name, node_metrics in jvm_data.items():
+                        for metric_name, values in node_metrics.items():
+                            for value_point in values:
+                                cursor.execute('''
+                                    INSERT INTO appdynamics_metrics 
+                                    (id, test_run_id, app_name, tier_name, node_name, metric_category,
+                                     metric_name, metric_path, metric_value, metric_count, 
+                                     metric_min, metric_max, metric_sum, timestamp)
+                                    VALUES (appdynamics_metrics_seq.NEXTVAL, :1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13)
+                                ''', (
+                                    test_run_id,
+                                    app_name,
+                                    tier_name,
+                                    node_name,
+                                    'jvm',
+                                    metric_name,
+                                    value_point.get('metric_path', ''),
+                                    value_point.get('value'),
+                                    value_point.get('count'),
+                                    value_point.get('min'),
+                                    value_point.get('max'),
+                                    value_point.get('sum'),
+                                    value_point.get('timestamp')
+                                ))
+                                inserted_count += 1
+                    
+                    # Insert transaction metrics
+                    for metric_name, values in transaction_data.items():
+                        for value_point in values:
+                            cursor.execute('''
+                                INSERT INTO appdynamics_metrics 
+                                (id, test_run_id, app_name, tier_name, node_name, metric_category,
+                                 metric_name, metric_path, metric_value, metric_count, 
+                                 metric_min, metric_max, metric_sum, timestamp)
+                                VALUES (appdynamics_metrics_seq.NEXTVAL, :1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13)
+                            ''', (
+                                test_run_id,
+                                app_name,
+                                tier_name,
+                                'TIER_LEVEL',
+                                'transaction',
+                                metric_name,
+                                value_point.get('metric_path', ''),
+                                value_point.get('value'),
+                                value_point.get('count'),
+                                value_point.get('min'),
+                                value_point.get('max'),
+                                value_point.get('sum'),
+                                value_point.get('timestamp')
+                            ))
+                            inserted_count += 1
+            
+            self.connection.commit()
+            self.logger.info(f"✓ Inserted {inserted_count} AppDynamics dashboard metric records")
+            
+        except Exception as e:
+            error_msg = str(e)
+            if hasattr(e, 'args'):
+                error_msg = e.args[0].message if hasattr(e.args[0], 'message') else str(e)
+            self.logger.error(f"✗ Error inserting AppDynamics dashboard metrics: {error_msg}")
+            self.connection.rollback()        
