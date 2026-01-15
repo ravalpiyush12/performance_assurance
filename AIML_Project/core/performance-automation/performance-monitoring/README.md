@@ -49,3 +49,30 @@ COLLECTION_INTERVAL=300
 TEST_DURATION=3600
 ENABLE_KIBANA=true
 ENABLE_APPDYNAMICS=true
+
+
+15Jan Updates:
+Test Dashboard Discovery:
+bashpython3 test_dashboard_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --dashboard-id 123 \
+    --output dashboard_config.json
+Run Monitoring with Dashboard ID:
+bashpython3 monitoring_main.py \
+    --run-id "TEST_001" \
+    --test-name "Load Test" \
+    --duration 60 \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --appd-controller "http://controller:8090" \
+    --appd-account "customer1" \
+    --appd-user "monitor@customer1" \
+    --appd-pass "password" \
+    --appd-dashboard-id 123 \
+    --db-user "monitoring" \
+    --db-pass "password" \
+    --db-dsn "dbhost:1521/ORCL"
