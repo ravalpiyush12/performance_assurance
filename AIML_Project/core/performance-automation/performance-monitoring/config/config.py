@@ -84,3 +84,5 @@ class MonitoringConfig:
             enable_kibana=os.getenv('ENABLE_KIBANA', 'true').lower() == 'true',
             enable_appdynamics=os.getenv('ENABLE_APPDYNAMICS', 'true').lower() == 'true'
         )
+
+        
