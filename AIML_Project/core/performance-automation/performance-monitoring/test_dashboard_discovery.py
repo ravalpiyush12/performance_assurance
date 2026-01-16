@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Test script to discover and test AppDynamics metrics collection
+Enhanced with metric path discovery
 """
 import argparse
 import json
@@ -24,11 +25,15 @@ def main():
                        help='Discover all apps/tiers/nodes')
     parser.add_argument('--discover-app', help='Discover tiers/nodes for specific app')
     parser.add_argument('--discover-tier', help='Discover nodes for specific tier (requires --app-name)')
+    parser.add_argument('--discover-metrics', action='store_true',
+                       help='Discover available metric paths (requires --app-name)')
     
     # Output
     parser.add_argument('--output', help='Output JSON file path')
     parser.add_argument('--test-metrics', action='store_true', 
                        help='Test actual metrics collection')
+    parser.add_argument('--duration', type=int, default=15,
+                       help='Duration in minutes for metric collection (default: 15)')
     
     args = parser.parse_args()
     
@@ -48,29 +53,142 @@ def main():
         logger.error("✗ Connection test failed!")
         return 1
     
-    # Mode 1: Test single app/tier/node
-    if args.app_name and args.tier_name and args.node_name:
+    # Mode 1: Discover available metrics
+    if args.discover_metrics and args.app_name:
+        return discover_available_metrics(fetcher, args.app_name, args.tier_name, 
+                                         args.node_name, logger)
+    
+    # Mode 2: Test single app/tier/node
+    elif args.app_name and args.tier_name and args.node_name:
         return test_single_config(fetcher, args, logger)
     
-    # Mode 2: Discover specific tier's nodes
+    # Mode 3: Discover specific tier's nodes
     elif args.discover_tier and args.app_name:
         return discover_tier_nodes(fetcher, args.app_name, args.discover_tier, logger)
     
-    # Mode 3: Discover specific app's tiers and nodes
+    # Mode 4: Discover specific app's tiers and nodes
     elif args.discover_app:
         return discover_app_tiers(fetcher, args.discover_app, args.output, logger)
     
-    # Mode 4: Discover all applications
+    # Mode 5: Discover all applications
     elif args.discover_all:
         return discover_all_apps(fetcher, args.output, logger)
     
     else:
         logger.error("Please specify one of the following modes:")
-        logger.error("  1. Test single: --app-name --tier-name --node-name")
-        logger.error("  2. Discover tier: --discover-tier <tier> --app-name <app>")
-        logger.error("  3. Discover app: --discover-app <app>")
-        logger.error("  4. Discover all: --discover-all")
+        logger.error("  1. Test single: --app-name --tier-name --node-name [--test-metrics]")
+        logger.error("  2. Discover metrics: --discover-metrics --app-name [--tier-name] [--node-name]")
+        logger.error("  3. Discover tier: --discover-tier <tier> --app-name <app>")
+        logger.error("  4. Discover app: --discover-app <app>")
+        logger.error("  5. Discover all: --discover-all")
         return 1
+
+def discover_available_metrics(fetcher, app_name, tier_name=None, node_name=None, logger=None):
+    """Discover what metrics are actually available"""
+    
+    logger.info("\n" + "=" * 80)
+    logger.info("DISCOVERING AVAILABLE METRICS")
+    logger.info("=" * 80)
+    logger.info(f"Application: {app_name}")
+    if tier_name:
+        logger.info(f"Tier: {tier_name}")
+    if node_name:
+        logger.info(f"Node: {node_name}")
+    logger.info("=" * 80)
+    
+    # Discover metrics at different levels
+    metric_browser_paths = []
+    
+    # Root level
+    if tier_name and node_name:
+        # Node level metrics
+        metric_browser_paths = [
+            f"Application Infrastructure Performance|{tier_name}|Individual Nodes|{node_name}",
+            f"Application Infrastructure Performance|{tier_name}|Individual Nodes|{node_name}|JVM",
+            f"Application Infrastructure Performance|{tier_name}|Individual Nodes|{node_name}|Hardware Resources",
+        ]
+    elif tier_name:
+        # Tier level metrics
+        metric_browser_paths = [
+            f"Overall Application Performance|{tier_name}",
+            f"Application Infrastructure Performance|{tier_name}",
+        ]
+    else:
+        # Application level
+        metric_browser_paths = [
+            "Overall Application Performance",
+            "Application Infrastructure Performance",
+        ]
+    
+    all_discovered = {}
+    
+    for base_path in metric_browser_paths:
+        logger.info(f"\n→ Exploring: {base_path}")
+        
+        discovered = discover_metrics_recursive(fetcher, app_name, base_path, logger, depth=0, max_depth=3)
+        if discovered:
+            all_discovered[base_path] = discovered
+            logger.info(f"  ✓ Found {len(discovered)} metric paths")
+    
+    # Display summary
+    logger.info("\n" + "=" * 80)
+    logger.info("DISCOVERED METRIC PATHS")
+    logger.info("=" * 80)
+    
+    total_metrics = 0
+    for base_path, metrics in all_discovered.items():
+        logger.info(f"\n{base_path}:")
+        for metric_path in metrics[:10]:  # Show first 10
+            logger.info(f"  - {metric_path}")
+        if len(metrics) > 10:
+            logger.info(f"  ... and {len(metrics) - 10} more")
+        total_metrics += len(metrics)
+    
+    logger.info(f"\n✓ Total discovered metrics: {total_metrics}")
+    
+    return 0
+
+def discover_metrics_recursive(fetcher, app_name, metric_path, logger, depth=0, max_depth=3):
+    """Recursively discover available metrics"""
+    
+    if depth > max_depth:
+        return []
+    
+    url = f"{fetcher.controller_url}/controller/rest/applications/{app_name}/metrics"
+    
+    params = {
+        'metric-path': metric_path,
+        'output': 'JSON'
+    }
+    
+    try:
+        response = fetcher.session.get(url, params=params, verify=False, timeout=30)
+        response.raise_for_status()
+        
+        metrics = response.json()
+        discovered = []
+        
+        for metric in metrics:
+            metric_name = metric.get('name', '')
+            metric_type = metric.get('type', '')
+            
+            full_path = f"{metric_path}|{metric_name}"
+            
+            if metric_type == 'leaf':
+                # This is an actual metric
+                discovered.append(full_path)
+            elif metric_type == 'folder' and depth < max_depth:
+                # Recurse into folder
+                sub_metrics = discover_metrics_recursive(
+                    fetcher, app_name, full_path, logger, depth + 1, max_depth
+                )
+                discovered.extend(sub_metrics)
+        
+        return discovered
+        
+    except Exception as e:
+        logger.debug(f"Error discovering metrics at {metric_path}: {e}")
+        return []
 
 def test_single_config(fetcher, args, logger):
     """Test metrics collection for single app/tier/node"""
@@ -78,6 +196,7 @@ def test_single_config(fetcher, args, logger):
     app_name = args.app_name
     tier_name = args.tier_name
     node_name = args.node_name
+    duration = args.duration
     
     logger.info("\n" + "=" * 80)
     logger.info("TESTING SINGLE CONFIGURATION")
@@ -85,6 +204,7 @@ def test_single_config(fetcher, args, logger):
     logger.info(f"Application: {app_name}")
     logger.info(f"Tier: {tier_name}")
     logger.info(f"Node: {node_name}")
+    logger.info(f"Duration: {duration} minutes")
     logger.info("=" * 80)
     
     # Verify application exists
@@ -129,66 +249,125 @@ def test_single_config(fetcher, args, logger):
         logger.info("TESTING METRICS COLLECTION")
         logger.info("=" * 80)
         
+        # First, try to discover what metrics are actually available
+        logger.info("\n→ Discovering available metrics first...")
+        
+        # Test a simple metric path to see if we can get any data
+        test_paths = [
+            f"Application Infrastructure Performance|{tier_name}|Individual Nodes|{node_name}|Agent|Availability",
+            f"Application Infrastructure Performance|{tier_name}|Individual Nodes|{node_name}|JVM|Process CPU Usage %",
+            f"Overall Application Performance|{tier_name}|Calls per Minute",
+        ]
+        
+        logger.info("\n→ Testing sample metric paths...")
+        for test_path in test_paths:
+            logger.info(f"\n  Testing: {test_path}")
+            data = fetcher.get_metric_data(app_name, test_path, duration_mins=duration)
+            if data:
+                logger.info(f"    ✓ Success! Got {len(data)} data points")
+                logger.info(f"    Sample: {data[0]}")
+            else:
+                logger.warning(f"    ⚠ No data returned")
+        
         # Test Server Metrics
         logger.info("\n→ Testing Server Metrics...")
-        server_metrics = fetcher.get_server_metrics(app_name, tier_name, node_name, duration_mins=5)
+        server_metrics = fetcher.get_server_metrics(app_name, tier_name, node_name, duration_mins=duration)
         
-        if server_metrics:
-            total_server_points = sum(len(values) for values in server_metrics.values())
-            logger.info(f"  ✓ Server Metrics: {len(server_metrics)} metrics, {total_server_points} data points")
-            
-            for metric_name, values in server_metrics.items():
+        total_server_points = 0
+        successful_server_metrics = []
+        failed_server_metrics = []
+        
+        for metric_name, values in server_metrics.items():
+            if values:
+                total_server_points += len(values)
+                successful_server_metrics.append(metric_name)
+                logger.info(f"  ✓ {metric_name}: {len(values)} data points")
                 if values:
-                    logger.info(f"    - {metric_name}: {len(values)} data points")
-                    if values:
-                        latest = values[-1]
-                        logger.info(f"      Latest value: {latest.get('value')}")
-        else:
-            logger.warning("  ⚠ No server metrics returned")
+                    latest = values[-1]
+                    logger.info(f"      Latest: {latest.get('value')} at {latest.get('timestamp')}")
+            else:
+                failed_server_metrics.append(metric_name)
+        
+        if failed_server_metrics:
+            logger.warning(f"\n  ⚠ No data for these server metrics:")
+            for metric_name in failed_server_metrics:
+                logger.warning(f"    - {metric_name}")
+        
+        logger.info(f"\n  Server Metrics Summary: {len(successful_server_metrics)}/{len(server_metrics)} successful, {total_server_points} total data points")
         
         # Test JVM Metrics
         logger.info("\n→ Testing JVM Metrics...")
-        jvm_metrics = fetcher.get_jvm_metrics(app_name, tier_name, node_name, duration_mins=5)
+        jvm_metrics = fetcher.get_jvm_metrics(app_name, tier_name, node_name, duration_mins=duration)
         
-        if jvm_metrics:
-            total_jvm_points = sum(len(values) for values in jvm_metrics.values())
-            logger.info(f"  ✓ JVM Metrics: {len(jvm_metrics)} metrics, {total_jvm_points} data points")
-            
-            for metric_name, values in jvm_metrics.items():
+        total_jvm_points = 0
+        successful_jvm_metrics = []
+        failed_jvm_metrics = []
+        
+        for metric_name, values in jvm_metrics.items():
+            if values:
+                total_jvm_points += len(values)
+                successful_jvm_metrics.append(metric_name)
+                logger.info(f"  ✓ {metric_name}: {len(values)} data points")
                 if values:
-                    logger.info(f"    - {metric_name}: {len(values)} data points")
-                    if values:
-                        latest = values[-1]
-                        logger.info(f"      Latest value: {latest.get('value')}")
-        else:
-            logger.warning("  ⚠ No JVM metrics returned")
+                    latest = values[-1]
+                    logger.info(f"      Latest: {latest.get('value')} at {latest.get('timestamp')}")
+            else:
+                failed_jvm_metrics.append(metric_name)
+        
+        if failed_jvm_metrics:
+            logger.warning(f"\n  ⚠ No data for these JVM metrics:")
+            for metric_name in failed_jvm_metrics:
+                logger.warning(f"    - {metric_name}")
+        
+        logger.info(f"\n  JVM Metrics Summary: {len(successful_jvm_metrics)}/{len(jvm_metrics)} successful, {total_jvm_points} total data points")
         
         # Test Application Metrics
         logger.info("\n→ Testing Application Metrics...")
-        app_metrics = fetcher.get_application_metrics(app_name, tier_name, duration_mins=5)
+        app_metrics = fetcher.get_application_metrics(app_name, tier_name, duration_mins=duration)
         
-        if app_metrics:
-            total_app_points = sum(len(values) for values in app_metrics.values())
-            logger.info(f"  ✓ Application Metrics: {len(app_metrics)} metrics, {total_app_points} data points")
-            
-            for metric_name, values in app_metrics.items():
+        total_app_points = 0
+        successful_app_metrics = []
+        failed_app_metrics = []
+        
+        for metric_name, values in app_metrics.items():
+            if values:
+                total_app_points += len(values)
+                successful_app_metrics.append(metric_name)
+                logger.info(f"  ✓ {metric_name}: {len(values)} data points")
                 if values:
-                    logger.info(f"    - {metric_name}: {len(values)} data points")
-                    if values:
-                        latest = values[-1]
-                        logger.info(f"      Latest value: {latest.get('value')}")
-        else:
-            logger.warning("  ⚠ No application metrics returned")
+                    latest = values[-1]
+                    logger.info(f"      Latest: {latest.get('value')} at {latest.get('timestamp')}")
+            else:
+                failed_app_metrics.append(metric_name)
         
-        # Summary
+        if failed_app_metrics:
+            logger.warning(f"\n  ⚠ No data for these application metrics:")
+            for metric_name in failed_app_metrics:
+                logger.warning(f"    - {metric_name}")
+        
+        logger.info(f"\n  Application Metrics Summary: {len(successful_app_metrics)}/{len(app_metrics)} successful, {total_app_points} total data points")
+        
+        # Overall Summary
         logger.info("\n" + "=" * 80)
         logger.info("METRICS COLLECTION SUMMARY")
         logger.info("=" * 80)
         total_all = total_server_points + total_jvm_points + total_app_points
         logger.info(f"Total Data Points Collected: {total_all}")
-        logger.info(f"  - Server Metrics: {total_server_points}")
-        logger.info(f"  - JVM Metrics: {total_jvm_points}")
-        logger.info(f"  - Application Metrics: {total_app_points}")
+        logger.info(f"  - Server Metrics: {total_server_points} ({len(successful_server_metrics)}/{len(server_metrics)} metrics)")
+        logger.info(f"  - JVM Metrics: {total_jvm_points} ({len(successful_jvm_metrics)}/{len(jvm_metrics)} metrics)")
+        logger.info(f"  - Application Metrics: {total_app_points} ({len(successful_app_metrics)}/{len(app_metrics)} metrics)")
+        
+        if total_all == 0:
+            logger.error("\n✗ NO DATA COLLECTED!")
+            logger.error("\nPossible reasons:")
+            logger.error("  1. The node/tier may not be actively reporting metrics")
+            logger.error("  2. The metric paths may not match your AppDynamics version")
+            logger.error("  3. The time range may have no data")
+            logger.error("\nTroubleshooting steps:")
+            logger.error("  1. Verify the node is active in AppDynamics UI")
+            logger.error("  2. Try increasing --duration (e.g., --duration 60)")
+            logger.error("  3. Run with --discover-metrics to see available metric paths")
+            return 1
     
     # Generate configuration file
     if args.output:
@@ -213,7 +392,7 @@ def test_single_config(fetcher, args, logger):
         logger.info(f"\n✓ Configuration saved to: {args.output}")
     
     logger.info("\n" + "=" * 80)
-    logger.info("✓ TEST COMPLETED SUCCESSFULLY")
+    logger.info("✓ TEST COMPLETED")
     logger.info("=" * 80)
     
     return 0
@@ -239,10 +418,12 @@ def discover_tier_nodes(fetcher, app_name, tier_name, logger):
         node_name = node.get('name')
         node_type = node.get('type', 'Unknown')
         machine_name = node.get('machineName', 'Unknown')
+        agent_type = node.get('agentType', 'Unknown')
         
         logger.info(f"\n[{idx}] {node_name}")
         logger.info(f"    Type: {node_type}")
         logger.info(f"    Machine: {machine_name}")
+        logger.info(f"    Agent: {agent_type}")
     
     logger.info("\n" + "=" * 80)
     logger.info(f"Total Nodes: {len(nodes)}")
