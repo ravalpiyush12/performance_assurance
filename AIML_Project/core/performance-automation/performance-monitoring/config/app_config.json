@@ -1,0 +1,36 @@
+{
+  "description": "AppDynamics Monitoring Configuration",
+  "applications": [
+    {
+      "app_name": "Application1",
+      "tiers": [
+        {
+          "tier_name": "WebTier",
+          "nodes": ["WebNode1", "WebNode2", "WebNode3"]
+        },
+        {
+          "tier_name": "AppTier",
+          "nodes": []
+        }
+      ]
+    },
+    {
+      "app_name": "Application2",
+      "tiers": [
+        {
+          "tier_name": "ServiceTier",
+          "nodes": ["ServiceNode1", "ServiceNode2"]
+        }
+      ]
+    },
+    {
+      "app_name": "Application3",
+      "tiers": [
+        {
+          "tier_name": "APITier",
+          "nodes": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Main entry point for monitoring data collection - Dashboard ID Mode
+Main entry point for monitoring data collection
 """
 import argparse
 import sys
 import os
+import json
 from datetime import datetime
-from config.config import KibanaConfig, AppDynamicsConfig, DatabaseConfig, MonitoringConfig
+from config.config import MonitoringConfig
 from fetchers.kibana_fetcher import KibanaDataFetcher
 from fetchers.appdynamics_fetcher import AppDynamicsDataFetcher
 from database.db_handler import MonitoringDataDB
@@ -23,9 +24,9 @@ def parse_arguments():
     parser.add_argument('--duration', type=int, required=True, help='Duration in minutes')
     
     # Kibana configuration
-    parser.add_argument('--kibana-url', required=True, help='Kibana URL')
-    parser.add_argument('--kibana-user', required=True, help='Kibana username')
-    parser.add_argument('--kibana-pass', required=True, help='Kibana password')
+    parser.add_argument('--kibana-url', help='Kibana URL')
+    parser.add_argument('--kibana-user', help='Kibana username')
+    parser.add_argument('--kibana-pass', help='Kibana password')
     parser.add_argument('--kibana-viz-ids', help='Comma-separated visualization IDs')
     
     # AppDynamics configuration
@@ -33,8 +34,8 @@ def parse_arguments():
     parser.add_argument('--appd-account', required=True, help='AppDynamics account name')
     parser.add_argument('--appd-user', required=True, help='AppDynamics username')
     parser.add_argument('--appd-pass', required=True, help='AppDynamics password')
-    parser.add_argument('--appd-dashboard-id', type=int, required=True, 
-                       help='AppDynamics Dashboard ID (auto-discovers widgets)')
+    parser.add_argument('--appd-config', required=True, 
+                       help='Path to AppDynamics configuration JSON file')
     
     # Oracle Database configuration
     parser.add_argument('--db-user', required=True, help='Oracle username')
@@ -51,6 +52,26 @@ def parse_arguments():
     
     return parser.parse_args()
 
+def load_appd_config(config_file: str) -> list:
+    """Load AppDynamics configuration from JSON file"""
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+        
+        apps = config.get('applications', [])
+        print(f"✓ Loaded AppDynamics configuration: {len(apps)} applications")
+        return apps
+        
+    except FileNotFoundError:
+        print(f"✗ AppDynamics configuration file not found: {config_file}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"✗ Invalid JSON in AppDynamics configuration: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"✗ Error loading AppDynamics configuration: {e}")
+        sys.exit(1)
+
 def main():
     """Main execution function"""
     args = parse_arguments()
@@ -60,11 +81,14 @@ def main():
     logger = setup_logger('MainMonitoring', log_file=log_file)
     
     logger.info("=" * 80)
-    logger.info("Performance Monitoring System - Starting (Dashboard ID Mode)")
-    logger.info(f"AppDynamics Dashboard ID: {args.appd_dashboard_id}")
+    logger.info("Performance Monitoring System - Starting")
     logger.info("=" * 80)
     
     try:
+        # Load AppDynamics configuration
+        appd_apps = load_appd_config(args.appd_config)
+        logger.info(f"AppDynamics Applications: {len(appd_apps)}")
+        
         # Initialize database
         logger.info("Initializing Oracle database connection...")
         db_handler = MonitoringDataDB(
@@ -75,7 +99,7 @@ def main():
         
         # Initialize Kibana fetcher
         kibana_fetcher = None
-        if not args.disable_kibana:
+        if not args.disable_kibana and args.kibana_url:
             logger.info("Initializing Kibana fetcher...")
             kibana_fetcher = KibanaDataFetcher(
                 kibana_url=args.kibana_url,
@@ -97,17 +121,12 @@ def main():
             )
             if not appdynamics_fetcher.test_connection():
                 logger.warning("AppDynamics connection test failed - continuing anyway")
-            
-            # Parse dashboard configuration automatically
-            logger.info(f"Parsing AppDynamics Dashboard ID: {args.appd_dashboard_id}")
-            widget_configs = appdynamics_fetcher.parse_dashboard_to_config(args.appd_dashboard_id)
-            logger.info(f"Discovered {len(widget_configs)} widgets in dashboard")
         
         # Create monitoring configuration
         monitoring_config = MonitoringConfig(
             collection_interval=args.collection_interval,
             test_duration=args.duration * 60,
-            enable_kibana=not args.disable_kibana,
+            enable_kibana=not args.disable_kibana and kibana_fetcher is not None,
             enable_appdynamics=not args.disable_appdynamics
         )
         
@@ -121,9 +140,9 @@ def main():
                     'name': f'Visualization_{viz_id}'
                 })
         
-        # Application configuration with dashboard ID
+        # Application configuration
         app_config = {
-            'appdynamics_dashboard_id': args.appd_dashboard_id,
+            'appdynamics_apps': appd_apps,
             'kibana_visualizations': kibana_visualizations
         }
         

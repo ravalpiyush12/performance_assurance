@@ -104,3 +104,183 @@ bashpython3 monitoring_main.py \
     --db-user "monitoring" \
     --db-pass "password" \
     --db-dsn "dbhost:1521/ORCL"
+
+
+
+16Jan.
+    1. Discover Applications/Tiers/Nodes:
+bashpython3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --output appd_config.json
+2. Run Monitoring:
+bashpython3 monitoring_main.py \
+    --run-id "TEST_001" \
+    --test-name "Load Test" \
+    --duration 60 \
+    --appd-controller "http://controller:8090" \
+    --appd-account "customer1" \
+    --appd-user "monitor@customer1" \
+    --appd-pass "password" \
+    --appd-config "./appd_config.json" \
+    --db-user "monitoring" \
+    --db-pass "password" \
+    --db-dsn "dbhost:1521/ORCL" \
+    --collection-interval 300
+3. Jenkins Pipeline Parameter:
+groovyparameters {
+    string(name: 'APPD_CONFIG_FILE', defaultValue: 'config/appd_config.json', 
+           description: 'AppDynamics Configuration File')
+}
+This simplified approach:
+
+✅ Clear Input Format - JSON configuration for apps/tiers/nodes
+✅ Auto-Discovery - Automatically discovers nodes if not specified
+✅ Three Metric Types - Server, JVM, and Application metrics
+✅ 5-Minute Collection - Collects metrics every 5 minutes
+✅ Multiple Apps Support - Handles multiple applications, tiers, and nodes
+✅ Easy Testing - Discovery script to generate configuration
+✅ No Dashboard Dependency - Direct metric collection via REST API
+
+
+
+
+1. Test Single App/Tier/Node (Basic):
+bashpython3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-name "MyApplication" \
+    --tier-name "WebTier" \
+    --node-name "WebNode1"
+2. Test Single App/Tier/Node with Metrics Collection:
+bashpython3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-name "MyApplication" \
+    --tier-name "WebTier" \
+    --node-name "WebNode1" \
+    --test-metrics
+3. Test Single Config and Generate Config File:
+bashpython3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-name "MyApplication" \
+    --tier-name "WebTier" \
+    --node-name "WebNode1" \
+    --test-metrics \
+    --output test_config.json
+4. Discover Nodes for Specific Tier:
+bashpython3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-name "MyApplication" \
+    --discover-tier "WebTier"
+5. Discover All Tiers/Nodes for Specific App:
+bashpython3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --discover-app "MyApplication" \
+    --output myapp_config.json
+6. Discover All Applications:
+bashpython3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --discover-all \
+    --output full_config.json
+```
+
+## Example Output (Test Single Config with Metrics):
+```
+================================================================================
+TESTING SINGLE CONFIGURATION
+================================================================================
+Application: MyApplication
+Tier: WebTier
+Node: WebNode1
+================================================================================
+
+→ Verifying application exists...
+  ✓ Application 'MyApplication' found
+
+→ Verifying tier exists...
+  ✓ Tier 'WebTier' found
+
+→ Verifying node exists...
+  ✓ Node 'WebNode1' found
+
+================================================================================
+TESTING METRICS COLLECTION
+================================================================================
+
+→ Testing Server Metrics...
+  ✓ Server Metrics: 13 metrics, 65 data points
+    - cpu_busy: 5 data points
+      Latest value: 45.2
+    - memory_used_pct: 5 data points
+      Latest value: 72.8
+    - network_incoming_kb: 5 data points
+      Latest value: 1024.5
+
+→ Testing JVM Metrics...
+  ✓ JVM Metrics: 13 metrics, 65 data points
+    - heap_used_pct: 5 data points
+      Latest value: 68.5
+    - gc_time_spent_per_min: 5 data points
+      Latest value: 450.2
+    - process_cpu_usage_pct: 5 data points
+      Latest value: 35.7
+
+→ Testing Application Metrics...
+  ✓ Application Metrics: 11 metrics, 55 data points
+    - calls_per_min: 5 data points
+      Latest value: 1250.0
+    - avg_response_time_ms: 5 data points
+      Latest value: 125.5
+    - errors_per_min: 5 data points
+      Latest value: 2.0
+
+================================================================================
+METRICS COLLECTION SUMMARY
+================================================================================
+Total Data Points Collected: 185
+  - Server Metrics: 65
+  - JVM Metrics: 65
+  - Application Metrics: 55
+
+✓ Configuration saved to: test_config.json
+
+================================================================================
+✓ TEST COMPLETED SUCCESSFULLY
+================================================================================
+Generated Config File (test_config.json):
+json{
+  "description": "Test Configuration",
+  "applications": [
+    {
+      "app_name": "MyApplication",
+      "tiers": [
+        {
+          "tier_name": "WebTier",
+          "nodes": [
+            "WebNode1"
+          ]
+        }
+      ]
+    }
+  ]
+}
+Now you can easily test with a single app/tier/node combination and verify that metrics are being collected correctly before running the full monitoring!Claude is AI and can make mistakes. Please double-check responses.
