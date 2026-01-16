@@ -533,7 +533,7 @@ class MonitoringDataDB:
             self.connection.rollback()  
 
 
-  def insert_appdynamics_metrics_batch(self, test_run_id: str, metrics_data: Dict):
+    def insert_appdynamics_metrics_batch(self, test_run_id: str, metrics_data: Dict):
         """
         Insert AppDynamics metrics from collect_all_metrics format
         

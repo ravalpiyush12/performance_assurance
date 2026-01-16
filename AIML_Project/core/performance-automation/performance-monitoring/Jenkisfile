@@ -7,8 +7,9 @@ pipeline {
         string(name: 'TEST_NAME', defaultValue: '', description: 'Test Name')
         string(name: 'APPD_DASHBOARD_ID', defaultValue: '123', description: 'AppDynamics Dashboard ID')
         string(name: 'KIBANA_VIZ_IDS', defaultValue: '', description: 'Comma-separated Kibana Visualization IDs')
+        string(name: 'APPD_APP_NAMES', defaultValue: 'App1,App2', description: 'Comma-separated AppDynamics application names')
     }
-    
+     
     environment {
         // Performance Center credentials
         PC_URL = credentials('pc-url')
@@ -82,30 +83,41 @@ pipeline {
                     }
                 }
                 
+                stage('Generate AppDynamics Config') {
+                    steps {
+                        script {
+                            echo "Generating AppDynamics configuration..."
+                            
+                            sh '''
+                                python3 generate_appd_config.py \
+                                    --controller ${APPD_CONTROLLER} \
+                                    --account ${APPD_ACCOUNT} \
+                                    --username ${APPD_USERNAME} \
+                                    --password ${APPD_PASSWORD} \
+                                    --app-names "${APPD_APP_NAMES}" \
+                                    --output ${WORKSPACE}/appd_config.json \
+                                    --verify
+                            '''
+                        }
+                    }
+                }
+
                 stage('Monitoring Data Collection') {
                     steps {
                         script {
-                            echo "Starting monitoring data collection..."
-                            echo "AppDynamics Dashboard ID: ${params.APPD_DASHBOARD_ID}"
-                            
                             sh '''
                                 python3 monitoring_main.py \
                                     --run-id ${TEST_RUN_ID} \
                                     --test-name "${TEST_NAME}" \
                                     --duration ${TEST_DURATION} \
-                                    --kibana-url ${KIBANA_URL} \
-                                    --kibana-user ${KIBANA_USERNAME} \
-                                    --kibana-pass ${KIBANA_PASSWORD} \
-                                    --kibana-viz-ids "${KIBANA_VIZ_IDS}" \
                                     --appd-controller ${APPD_CONTROLLER} \
                                     --appd-account ${APPD_ACCOUNT} \
                                     --appd-user ${APPD_USERNAME} \
                                     --appd-pass ${APPD_PASSWORD} \
-                                    --appd-dashboard-id ${APPD_DASHBOARD_ID} \
+                                    --appd-config ${WORKSPACE}/appd_config.json \
                                     --db-user ${ORACLE_USER} \
                                     --db-pass ${ORACLE_PASSWORD} \
-                                    --db-dsn ${ORACLE_DSN} \
-                                    --collection-interval 300
+                                    --db-dsn ${ORACLE_DSN}
                             '''
                         }
                     }
