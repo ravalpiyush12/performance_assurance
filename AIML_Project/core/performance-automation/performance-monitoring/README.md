@@ -347,3 +347,191 @@ This will help us identify:
 Whether any metrics are returning data
 Which specific metrics are failing
 What the actual available metric paths are
+
+
+
+
+
+
+
+Usage Examples
+1. Simple - Generate config for single app:
+bashpython3 generate_appd_config.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-names "MyApplication" \
+    --output appd_config.json
+2. Multiple apps:
+bashpython3 generate_appd_config.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-names "App1,App2,App3" \
+    --output appd_config.json
+3. With verification:
+bashpython3 generate_appd_config.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-names "MyApplication" \
+    --output appd_config.json \
+    --verify
+4. Exclude specific tiers or nodes:
+bashpython3 generate_appd_config.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-names "App1,App2" \
+    --exclude-tiers "TestTier,DevTier" \
+    --exclude-nodes "TestNode1,DevNode1" \
+    --output appd_config.json
+5. Complete workflow:
+bash# Step 1: Generate config
+python3 generate_appd_config.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-names "Production-App1,Production-App2" \
+    --output production_config.json \
+    --verify
+
+# Step 2: Run monitoring
+python3 monitoring_main.py \
+    --run-id "PROD_TEST_001" \
+    --test-name "Production Load Test" \
+    --duration 60 \
+    --appd-controller "http://controller:8090" \
+    --appd-account "customer1" \
+    --appd-user "monitor@customer1" \
+    --appd-pass "password" \
+    --appd-config "production_config.json" \
+    --db-user "monitoring" \
+    --db-pass "password" \
+    --db-dsn "dbhost:1521/ORCL"
+```
+
+## Example Output
+```
+================================================================================
+AppDynamics Configuration Generator
+================================================================================
+Applications to process: 2
+  - Application1
+  - Application2
+
+→ Connecting to AppDynamics...
+✓ AppDynamics connection successful
+
+→ Fetching available applications...
+✓ Found 5 total applications in AppDynamics
+
+================================================================================
+GENERATING CONFIGURATION
+================================================================================
+
+[1/2] Processing: Application1
+--------------------------------------------------------------------------------
+  Found 3 tiers
+  [1/3] WebTier
+      - WebNode1
+      - WebNode2
+      - WebNode3
+  [2/3] AppTier
+      - AppNode1
+      - AppNode2
+  [3/3] DatabaseTier
+      - DBNode1
+
+[2/2] Processing: Application2
+--------------------------------------------------------------------------------
+  Found 2 tiers
+  [1/2] ServiceTier
+      - ServiceNode1
+      - ServiceNode2
+  [2/2] APITier
+      - APINode1
+
+================================================================================
+CONFIGURATION SUMMARY
+================================================================================
+Applications: 2
+Total Tiers: 5
+Total Nodes: 9
+
+→ Saving configuration...
+✓ Configuration saved to: appd_config.json
+
+================================================================================
+✓ CONFIGURATION GENERATED SUCCESSFULLY
+================================================================================
+
+To use this configuration with monitoring:
+
+python3 monitoring_main.py \
+    --run-id "TEST_001" \
+    --duration 60 \
+    --appd-controller "http://controller:8090" \
+    --appd-account "customer1" \
+    --appd-user "monitor@customer1" \
+    --appd-pass "YOUR_PASSWORD" \
+    --appd-config "appd_config.json" \
+    --db-user "oracle_user" \
+    --db-pass "oracle_pass" \
+    --db-dsn "host:1521/ORCL"
+Generated Config File (appd_config.json):
+json{
+  "description": "Auto-generated configuration for 2 application(s)",
+  "generated_at": "2025-01-17 10:30:45.123456",
+  "applications": [
+    {
+      "app_name": "Application1",
+      "tiers": [
+        {
+          "tier_name": "WebTier",
+          "nodes": [
+            "WebNode1",
+            "WebNode2",
+            "WebNode3"
+          ]
+        },
+        {
+          "tier_name": "AppTier",
+          "nodes": [
+            "AppNode1",
+            "AppNode2"
+          ]
+        },
+        {
+          "tier_name": "DatabaseTier",
+          "nodes": [
+            "DBNode1"
+          ]
+        }
+      ]
+    },
+    {
+      "app_name": "Application2",
+      "tiers": [
+        {
+          "tier_name": "ServiceTier",
+          "nodes": [
+            "ServiceNode1",
+            "ServiceNode2"
+          ]
+        },
+        {
+          "tier_name": "APITier",
+          "nodes": [
+            "APINode1"
+          ]
+        }
+      ]
+    }
+  ]
+}
