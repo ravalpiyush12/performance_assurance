@@ -284,3 +284,66 @@ json{
   ]
 }
 Now you can easily test with a single app/tier/node combination and verify that metrics are being collected correctly before running the full monitoring!Claude is AI and can make mistakes. Please double-check responses.
+
+
+
+
+New Usage Commands
+1. Discover Available Metrics (Most Important for Troubleshooting):
+bashpython3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-name "MyApplication" \
+    --tier-name "WebTier" \
+    --node-name "WebNode1" \
+    --discover-metrics
+2. Test with Longer Duration (Try 60 minutes):
+bashpython3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-name "MyApplication" \
+    --tier-name "WebTier" \
+    --node-name "WebNode1" \
+    --test-metrics \
+    --duration 60
+3. Quick Diagnostic Command:
+bash# This will show you exactly what's wrong
+python3 test_appd_discovery.py \
+    --controller "http://controller:8090" \
+    --account "customer1" \
+    --username "monitor@customer1" \
+    --password "password" \
+    --app-name "MyApplication" \
+    --tier-name "WebTier" \
+    --node-name "WebNode1" \
+    --test-metrics \
+    --duration 15
+Common Issues and Solutions:
+Issue 1: Metric Paths Don't Match
+Solution: Run the discover-metrics command to see actual available paths, then update the metric paths in appdynamics_fetcher.py
+Issue 2: No Recent Data
+Solution: Increase --duration to 60 or more minutes
+Issue 3: Node Not Reporting
+Solution: Check if the node is showing as "Active" in AppDynamics UI
+Issue 4: Wrong Tier/Node Names
+Solution: Use the discover commands to get exact names (case-sensitive)
+Please run this command and share the output:
+bashpython3 test_appd_discovery.py \
+    --controller "YOUR_CONTROLLER" \
+    --account "YOUR_ACCOUNT" \
+    --username "YOUR_USERNAME" \
+    --password "YOUR_PASSWORD" \
+    --app-name "MyApplication" \
+    --tier-name "WebTier" \
+    --node-name "WebNode1" \
+    --test-metrics \
+    --duration 60
+This will help us identify:
+
+Whether any metrics are returning data
+Which specific metrics are failing
+What the actual available metric paths are
