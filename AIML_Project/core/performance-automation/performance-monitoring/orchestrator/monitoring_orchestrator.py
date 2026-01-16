@@ -232,54 +232,33 @@ class MonitoringOrchestrator:
         }
 
     def _collect_appdynamics_data(self):
-        """Collect AppDynamics metrics from dashboard ID"""
+        """Collect AppDynamics metrics from configuration"""
         try:
-            self.logger.info("→ Collecting AppDynamics metrics from dashboard...")
+            self.logger.info("→ Collecting AppDynamics metrics...")
             
-            # Get dashboard ID from app_config
-            dashboard_id = self.app_config.get('appdynamics_dashboard_id')
+            # Get app configurations from app_config
+            app_configs = self.app_config.get('appdynamics_apps', [])
             
-            if not dashboard_id:
-                self.logger.warning("  ⚠ No AppDynamics dashboard ID provided")
+            if not app_configs:
+                self.logger.warning("  ⚠ No AppDynamics configuration provided")
                 return
             
-            # Automatically fetch all metrics from dashboard
-            dashboard_data = self.appdynamics_fetcher.get_dashboard_metrics_by_id(
-                dashboard_id=dashboard_id,
+            # Collect all metrics
+            all_metrics = self.appdynamics_fetcher.collect_all_metrics(
+                app_configs=app_configs,
                 duration_mins=5
             )
             
             # Count total data points
-            total_points = 0
-            for widget_name, widget_data in dashboard_data.items():
-                if 'error' not in widget_data:
-                    metrics = widget_data.get('metrics', {})
-                    
-                    # Count based on metric type
-                    if widget_data.get('metric_type') == 'jvm':
-                        for node_metrics in metrics.values():
-                            total_points += sum(len(v) for v in node_metrics.values())
-                    elif widget_data.get('metric_type') == 'transaction':
-                        tier_metrics = metrics.get('tier_metrics', {})
-                        total_points += sum(len(v) for v in tier_metrics.values())
-                    elif widget_data.get('metric_type') == 'combined':
-                        jvm_data = metrics.get('jvm', {})
-                        trans_data = metrics.get('transaction', {})
-                        total_points += sum(
-                            sum(len(v) for v in node_metrics.values()) 
-                            for node_metrics in jvm_data.values()
-                        )
-                        total_points += sum(len(v) for v in trans_data.values())
+            total_points = self.appdynamics_fetcher._count_total_data_points(all_metrics)
             
             if total_points > 0:
-                # Insert into database using dashboard method
-                self.db_handler.insert_appdynamics_dashboard_metrics(
+                # Insert into database
+                self.db_handler.insert_appdynamics_metrics_batch(
                     test_run_id=self.test_run_id,
-                    dashboard_data=dashboard_data
+                    metrics_data=all_metrics
                 )
-                
-                widget_count = len([w for w in dashboard_data.values() if 'error' not in w])
-                self.logger.info(f"  ✓ AppDynamics: {total_points} data points collected from {widget_count} widgets")
+                self.logger.info(f"  ✓ AppDynamics: {total_points} data points collected")
             else:
                 self.logger.warning(f"  ⚠ AppDynamics: No data points returned")
             
