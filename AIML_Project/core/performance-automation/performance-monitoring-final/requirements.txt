@@ -1,0 +1,23 @@
+# Oracle Database
+cx-Oracle>=8.3.0
+
+# HTTP Requests
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Data Processing
+pandas>=2.0.0
+
+# HTML Report Generation
+jinja2>=3.1.2
+
+# Selenium (for Kibana fallback - optional)
+selenium>=4.15.0
+webdriver-manager>=4.0.1
+
+# Utilities
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# For .env file support (optional - for local development only)
+python-dotenv>=1.0.0
