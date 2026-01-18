@@ -535,3 +535,137 @@ json{
     }
   ]
 }
+
+
+
+
+
+18Jan: Kibana:
+
+Usage Examples
+1. Test Connection:
+bashpython3 test_kibana.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --test-connection
+2. List All Index Patterns:
+bashpython3 test_kibana.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --list-index-patterns
+3. List All Visualizations:
+bashpython3 test_kibana.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --list-visualizations \
+    --output kibana_visualizations.json
+4. List All Dashboards:
+bashpython3 test_kibana.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --list-dashboards \
+    --output kibana_dashboards.json
+5. Test Specific Visualization:
+bashpython3 test_kibana.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --test-visualization "your-viz-id-here"
+6. Test Specific Dashboard:
+bashpython3 test_kibana.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --test-dashboard "your-dashboard-id-here"
+7. Test Index Search:
+bashpython3 test_kibana.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --test-index-search "logstash-*"
+8. Test Time Series Aggregation:
+bashpython3 test_kibana.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --test-timeseries \
+    --index-name "metricbeat-*" \
+    --metric-field "system.cpu.user.pct" \
+    --time-field "@timestamp"
+9. Complete Discovery (All in One):
+bashpython3 test_kibana.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --test-connection \
+    --list-index-patterns \
+    --list-visualizations \
+    --list-dashboards \
+    --verbose
+
+
+
+
+
+   Step 1: Test Connection
+bashpython3 test_kibana.py \
+    --kibana-url "http://your-kibana:5601" \
+    --kibana-user "your-user" \
+    --kibana-pass "your-password" \
+    --test-connection
+Step 2: Discover What's Available
+bashpython3 test_kibana.py \
+    --kibana-url "http://your-kibana:5601" \
+    --kibana-user "your-user" \
+    --kibana-pass "your-password" \
+    --list-dashboards \
+    --list-visualizations \
+    --output kibana_items.json
+Step 3: Test Specific Items
+bash# Test a visualization
+python3 test_kibana.py \
+    --kibana-url "http://your-kibana:5601" \
+    --kibana-user "your-user" \
+    --kibana-pass "your-password" \
+    --test-visualization "viz-id-from-step-2"
+
+# Test a dashboard
+python3 test_kibana.py \
+    --kibana-url "http://your-kibana:5601" \
+    --kibana-user "your-user" \
+    --kibana-pass "your-password" \
+    --test-dashboard "dashboard-id-from-step-2"
+Step 4: Generate Configuration
+bash# From specific visualizations
+python3 generate_kibana_config.py \
+    --kibana-url "http://your-kibana:5601" \
+    --kibana-user "your-user" \
+    --kibana-pass "your-password" \
+    --viz-ids "viz1,viz2,viz3" \
+    --output kibana_config.json
+
+# OR from a dashboard
+python3 generate_kibana_config.py \
+    --kibana-url "http://your-kibana:5601" \
+    --kibana-user "your-user" \
+    --kibana-pass "your-password" \
+    --dashboard-id "your-dashboard-id" \
+    --output kibana_config.json
+Step 5: Use in Monitoring
+bashpython3 monitoring_main.py \
+    --run-id "TEST_001" \
+    --duration 60 \
+    --kibana-url "http://your-kibana:5601" \
+    --kibana-user "your-user" \
+    --kibana-pass "your-password" \
+    --kibana-viz-ids "viz1,viz2,viz3" \
+    --appd-config "appd_config.json" \
+    ... other parameters ...
+
+
+    
+     
