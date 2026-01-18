@@ -1,0 +1,614 @@
+pipeline {
+    agent any
+    
+    parameters {
+        // Performance Center Parameters
+        string(name: 'PC_TEST_ID', defaultValue: '', description: 'Performance Center Test ID')
+        string(name: 'TEST_DURATION', defaultValue: '60', description: 'Test duration in minutes')
+        string(name: 'TEST_NAME', defaultValue: '', description: 'Test Name/Description')
+        
+        // AppDynamics Parameters
+        string(name: 'APPD_APP_NAMES', defaultValue: 'App1,App2', 
+               description: 'Comma-separated AppDynamics application names')
+        
+        // Kibana Parameters
+        string(name: 'KIBANA_INDEX_PATTERN', defaultValue: 'api-logs-*', 
+               description: 'Kibana index pattern for API logs')
+        string(name: 'KIBANA_API_FIELD', defaultValue: 'api_name.keyword', 
+               description: 'Field name for API/endpoint')
+        string(name: 'KIBANA_STATUS_FIELD', defaultValue: 'status', 
+               description: 'Field name for status (pass/fail)')
+        string(name: 'KIBANA_RESPONSE_FIELD', defaultValue: 'response_time', 
+               description: 'Field name for response time')
+        
+        // Optional flags
+        booleanParam(name: 'DISABLE_KIBANA', defaultValue: false, 
+                    description: 'Disable Kibana monitoring')
+        booleanParam(name: 'DISABLE_APPDYNAMICS', defaultValue: false, 
+                    description: 'Disable AppDynamics monitoring')
+        booleanParam(name: 'GENERATE_REPORT', defaultValue: true, 
+                    description: 'Generate consolidated report after test')
+    }
+    
+    environment {
+        // Performance Center credentials
+        PC_URL = credentials('pc-url')
+        PC_USERNAME = credentials('pc-username')
+        PC_PASSWORD = credentials('pc-password')
+        PC_DOMAIN = credentials('pc-domain')
+        PC_PROJECT = credentials('pc-project')
+        
+        // AppDynamics credentials
+        APPD_CONTROLLER = credentials('appd-controller-url')
+        APPD_ACCOUNT = credentials('appd-account-name')
+        APPD_USERNAME = credentials('appd-username')
+        APPD_PASSWORD = credentials('appd-password')
+        
+        // Kibana credentials
+        KIBANA_URL = credentials('kibana-url')
+        KIBANA_USERNAME = credentials('kibana-username')
+        KIBANA_PASSWORD = credentials('kibana-password')
+        
+        // Oracle Database credentials
+        ORACLE_USER = credentials('oracle-username')
+        ORACLE_PASSWORD = credentials('oracle-password')
+        ORACLE_DSN = credentials('oracle-dsn')
+        
+        // Email configuration
+        EMAIL_RECIPIENTS = credentials('email-recipients')
+        
+        // Python environment
+        PYTHONUNBUFFERED = '1'
+        
+        // Workspace paths
+        MONITORING_DIR = "${WORKSPACE}/monitoring"
+        CONFIG_DIR = "${WORKSPACE}/config"
+        REPORTS_DIR = "${WORKSPACE}/reports"
+    }
+    
+    stages {
+        stage('Initialize') {
+            steps {
+                script {
+                    echo "=" * 80
+                    echo "Performance Test Execution with Monitoring"
+                    echo "=" * 80
+                    
+                    // Generate unique test run ID
+                    env.TEST_RUN_ID = "TEST_${currentBuild.number}_${new Date().format('yyyyMMdd_HHmmss')}"
+                    echo "Test Run ID: ${env.TEST_RUN_ID}"
+                    
+                    // Create directories
+                    sh """
+                        mkdir -p ${CONFIG_DIR}
+                        mkdir -p ${REPORTS_DIR}
+                        mkdir -p ${MONITORING_DIR}/logs
+                    """
+                    
+                    // Save test run ID to file for persistence
+                    writeFile file: "${WORKSPACE}/test_run_id.txt", text: env.TEST_RUN_ID
+                    
+                    echo "Test Configuration:"
+                    echo "  - Test Name: ${params.TEST_NAME}"
+                    echo "  - Duration: ${params.TEST_DURATION} minutes"
+                    echo "  - PC Test ID: ${params.PC_TEST_ID}"
+                    echo "  - AppD Apps: ${params.APPD_APP_NAMES}"
+                }
+            }
+        }
+        
+        stage('Setup Python Environment') {
+            steps {
+                script {
+                    echo "Setting up Python environment..."
+                    
+                    sh """
+                        # Install Python dependencies
+                        python3 -m pip install --user --upgrade pip
+                        python3 -m pip install --user -r ${MONITORING_DIR}/requirements.txt
+                        
+                        # Verify installations
+                        python3 -c "import cx_Oracle; print('cx_Oracle version:', cx_Oracle.version)"
+                        python3 -c "import requests; print('requests version:', requests.__version__)"
+                    """
+                }
+            }
+        }
+        
+        stage('Generate Configurations') {
+            parallel {
+                stage('Generate AppDynamics Config') {
+                    when {
+                        expression { params.DISABLE_APPDYNAMICS == false }
+                    }
+                    steps {
+                        script {
+                            echo "Generating AppDynamics configuration..."
+                            
+                            sh """
+                                cd ${MONITORING_DIR}
+                                
+                                python3 generate_appd_config.py \
+                                    --controller ${APPD_CONTROLLER} \
+                                    --account ${APPD_ACCOUNT} \
+                                    --username ${APPD_USERNAME} \
+                                    --password ${APPD_PASSWORD} \
+                                    --app-names "${params.APPD_APP_NAMES}" \
+                                    --output ${CONFIG_DIR}/appd_config.json
+                            """
+                            
+                            // Verify config was created
+                            if (fileExists("${CONFIG_DIR}/appd_config.json")) {
+                                echo "✓ AppDynamics configuration generated"
+                                
+                                // Display config summary
+                                def appdConfig = readJSON file: "${CONFIG_DIR}/appd_config.json"
+                                echo "  Applications: ${appdConfig.applications.size()}"
+                            } else {
+                                error "✗ Failed to generate AppDynamics configuration"
+                            }
+                        }
+                    }
+                }
+                
+                stage('Generate Kibana Config') {
+                    when {
+                        expression { params.DISABLE_KIBANA == false }
+                    }
+                    steps {
+                        script {
+                            echo "Generating Kibana configuration..."
+                            
+                            sh """
+                                cd ${MONITORING_DIR}
+                                
+                                python3 generate_kibana_config.py \
+                                    --kibana-url ${KIBANA_URL} \
+                                    --kibana-user ${KIBANA_USERNAME} \
+                                    --kibana-pass ${KIBANA_PASSWORD} \
+                                    --output ${CONFIG_DIR}/kibana_config.json
+                            """
+                            
+                            // Verify config was created
+                            if (fileExists("${CONFIG_DIR}/kibana_config.json")) {
+                                echo "✓ Kibana configuration generated"
+                                
+                                // Display config summary
+                                def kibanaConfig = readJSON file: "${CONFIG_DIR}/kibana_config.json"
+                                echo "  Dashboards: ${kibanaConfig.dashboards.size()}"
+                            } else {
+                                error "✗ Failed to generate Kibana configuration"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Verify Configurations') {
+            steps {
+                script {
+                    echo "Verifying generated configurations..."
+                    
+                    def configValid = true
+                    
+                    // Check AppDynamics config
+                    if (!params.DISABLE_APPDYNAMICS) {
+                        if (!fileExists("${CONFIG_DIR}/appd_config.json")) {
+                            echo "✗ AppDynamics config missing"
+                            configValid = false
+                        } else {
+                            def appdConfig = readJSON file: "${CONFIG_DIR}/appd_config.json"
+                            if (appdConfig.applications.isEmpty()) {
+                                echo "✗ AppDynamics config has no applications"
+                                configValid = false
+                            } else {
+                                echo "✓ AppDynamics config valid"
+                            }
+                        }
+                    }
+                    
+                    // Check Kibana config
+                    if (!params.DISABLE_KIBANA) {
+                        if (!fileExists("${CONFIG_DIR}/kibana_config.json")) {
+                            echo "✗ Kibana config missing"
+                            configValid = false
+                        } else {
+                            def kibanaConfig = readJSON file: "${CONFIG_DIR}/kibana_config.json"
+                            if (kibanaConfig.dashboards.isEmpty()) {
+                                echo "✗ Kibana config has no dashboards"
+                                configValid = false
+                            } else {
+                                echo "✓ Kibana config valid"
+                            }
+                        }
+                    }
+                    
+                    if (!configValid) {
+                        error "Configuration validation failed!"
+                    }
+                    
+                    echo "✓ All configurations validated successfully"
+                }
+            }
+        }
+        
+        stage('Parallel Execution') {
+            parallel {
+                stage('Performance Center Test') {
+                    steps {
+                        script {
+                            echo "=" * 80
+                            echo "Starting Performance Center Test"
+                            echo "=" * 80
+                            
+                            try {
+                                // Call your existing PC pipeline/script
+                                // Option 1: If you have a separate pipeline
+                                // build job: 'PC-Test-Execution',
+                                //     parameters: [
+                                //         string(name: 'TEST_ID', value: params.PC_TEST_ID),
+                                //         string(name: 'DURATION', value: params.TEST_DURATION),
+                                //         string(name: 'RUN_ID', value: env.TEST_RUN_ID)
+                                //     ],
+                                //     wait: true
+                                
+                                // Option 2: If you have a script
+                                sh """
+                                    cd ${WORKSPACE}
+                                    
+                                    # Your existing PC automation script
+                                    python3 pc_automation.py \
+                                        --url ${PC_URL} \
+                                        --username ${PC_USERNAME} \
+                                        --password ${PC_PASSWORD} \
+                                        --domain ${PC_DOMAIN} \
+                                        --project ${PC_PROJECT} \
+                                        --test-id ${params.PC_TEST_ID} \
+                                        --duration ${params.TEST_DURATION} \
+                                        --run-id ${env.TEST_RUN_ID} \
+                                        --output-dir ${REPORTS_DIR}
+                                """
+                                
+                                echo "✓ Performance Center test completed"
+                                
+                            } catch (Exception e) {
+                                echo "✗ Performance Center test failed: ${e.message}"
+                                currentBuild.result = 'UNSTABLE'
+                                // Don't fail the build, continue with monitoring data
+                            }
+                        }
+                    }
+                }
+                
+                stage('Monitoring Data Collection') {
+                    steps {
+                        script {
+                            echo "=" * 80
+                            echo "Starting Monitoring Data Collection"
+                            echo "=" * 80
+                            
+                            try {
+                                // Build monitoring command
+                                def monitoringCmd = """
+                                    cd ${MONITORING_DIR}
+                                    
+                                    python3 monitoring_main.py \
+                                        --run-id ${env.TEST_RUN_ID} \
+                                        --test-name "${params.TEST_NAME}" \
+                                        --duration ${params.TEST_DURATION} \
+                                        --appd-controller ${APPD_CONTROLLER} \
+                                        --appd-account ${APPD_ACCOUNT} \
+                                        --appd-user ${APPD_USERNAME} \
+                                        --appd-pass ${APPD_PASSWORD} \
+                                        --appd-config ${CONFIG_DIR}/appd_config.json \
+                                        --kibana-url ${KIBANA_URL} \
+                                        --kibana-user ${KIBANA_USERNAME} \
+                                        --kibana-pass ${KIBANA_PASSWORD} \
+                                        --kibana-config ${CONFIG_DIR}/kibana_config.json \
+                                        --kibana-index "${params.KIBANA_INDEX_PATTERN}" \
+                                        --kibana-api-field "${params.KIBANA_API_FIELD}" \
+                                        --kibana-status-field "${params.KIBANA_STATUS_FIELD}" \
+                                        --kibana-response-field "${params.KIBANA_RESPONSE_FIELD}" \
+                                        --db-user ${ORACLE_USER} \
+                                        --db-pass ${ORACLE_PASSWORD} \
+                                        --db-dsn ${ORACLE_DSN}
+                                """
+                                
+                                // Add optional flags
+                                if (params.DISABLE_KIBANA) {
+                                    monitoringCmd += " --disable-kibana"
+                                }
+                                if (params.DISABLE_APPDYNAMICS) {
+                                    monitoringCmd += " --disable-appdynamics"
+                                }
+                                
+                                sh monitoringCmd
+                                
+                                echo "✓ Monitoring data collection completed"
+                                
+                            } catch (Exception e) {
+                                echo "✗ Monitoring collection failed: ${e.message}"
+                                currentBuild.result = 'UNSTABLE'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Generate Consolidated Report') {
+            when {
+                expression { params.GENERATE_REPORT == true }
+            }
+            steps {
+                script {
+                    echo "=" * 80
+                    echo "Generating Consolidated Reports"
+                    echo "=" * 80
+                    
+                    try {
+                        sh """
+                            cd ${MONITORING_DIR}
+                            
+                            python3 generate_report_main.py \
+                                --run-id ${env.TEST_RUN_ID} \
+                                --db-user ${ORACLE_USER} \
+                                --db-pass ${ORACLE_PASSWORD} \
+                                --db-dsn ${ORACLE_DSN} \
+                                --output-dir ${REPORTS_DIR}
+                        """
+                        
+                        echo "✓ Reports generated successfully"
+                        
+                    } catch (Exception e) {
+                        echo "⚠ Report generation failed: ${e.message}"
+                        // Don't fail the build
+                    }
+                }
+            }
+        }
+        
+        stage('Archive Artifacts') {
+            steps {
+                script {
+                    echo "Archiving artifacts..."
+                    
+                    // Archive configurations
+                    archiveArtifacts artifacts: 'config/*.json', 
+                                    fingerprint: true,
+                                    allowEmptyArchive: true
+                    
+                    // Archive reports
+                    archiveArtifacts artifacts: 'reports/**/*', 
+                                    fingerprint: true,
+                                    allowEmptyArchive: true
+                    
+                    // Archive logs
+                    archiveArtifacts artifacts: 'monitoring/logs/*.log', 
+                                    fingerprint: true,
+                                    allowEmptyArchive: true
+                    
+                    // Archive monitoring logs
+                    archiveArtifacts artifacts: '*.log', 
+                                    fingerprint: true,
+                                    allowEmptyArchive: true
+                    
+                    echo "✓ Artifacts archived"
+                }
+            }
+        }
+        
+        stage('Publish Results') {
+            steps {
+                script {
+                    echo "Publishing test results..."
+                    
+                    // Publish HTML reports if available
+                    if (fileExists("${REPORTS_DIR}/consolidated_report.html")) {
+                        publishHTML([
+                            allowMissing: false,
+                            alwaysLinkToLastBuild: true,
+                            keepAll: true,
+                            reportDir: "${REPORTS_DIR}",
+                            reportFiles: 'consolidated_report.html',
+                            reportName: 'Consolidated Performance Report',
+                            reportTitles: 'Performance Test Report'
+                        ])
+                    }
+                    
+                    echo "✓ Results published"
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                echo "=" * 80
+                echo "Test Execution Summary"
+                echo "=" * 80
+                echo "Test Run ID: ${env.TEST_RUN_ID}"
+                echo "Build Number: ${currentBuild.number}"
+                echo "Status: ${currentBuild.result ?: 'SUCCESS'}"
+                echo "Duration: ${currentBuild.durationString}"
+                echo "=" * 80
+                
+                // Generate report URLs
+                def consolidatedReportUrl = "${env.BUILD_URL}artifact/reports/consolidated_report.html"
+                def appdReportUrl = "${env.BUILD_URL}artifact/reports/appd_metrics.html"
+                def kibanaReportUrl = "${env.BUILD_URL}artifact/reports/kibana_data.html"
+                
+                // Send email notification
+                try {
+                    emailext (
+                        subject: "Performance Test Results - ${env.TEST_RUN_ID} - ${currentBuild.result ?: 'SUCCESS'}",
+                        body: """
+                            <html>
+                            <head>
+                                <style>
+                                    body { font-family: Arial, sans-serif; }
+                                    .header { background-color: #2c3e50; color: white; padding: 20px; }
+                                    .content { padding: 20px; }
+                                    .section { margin: 20px 0; padding: 15px; background-color: #ecf0f1; border-radius: 5px; }
+                                    .success { color: #27ae60; }
+                                    .failure { color: #e74c3c; }
+                                    .warning { color: #f39c12; }
+                                    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+                                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                                    th { background-color: #3498db; color: white; }
+                                    a { color: #3498db; text-decoration: none; }
+                                    a:hover { text-decoration: underline; }
+                                </style>
+                            </head>
+                            <body>
+                                <div class="header">
+                                    <h1>Performance Test Execution Complete</h1>
+                                </div>
+                                
+                                <div class="content">
+                                    <div class="section">
+                                        <h2>Test Details</h2>
+                                        <table>
+                                            <tr>
+                                                <th>Parameter</th>
+                                                <th>Value</th>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Test Run ID</strong></td>
+                                                <td>${env.TEST_RUN_ID}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Test Name</strong></td>
+                                                <td>${params.TEST_NAME}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Build Number</strong></td>
+                                                <td>${currentBuild.number}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Duration</strong></td>
+                                                <td>${params.TEST_DURATION} minutes</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Status</strong></td>
+                                                <td class="${(currentBuild.result ?: 'SUCCESS') == 'SUCCESS' ? 'success' : 'failure'}">
+                                                    ${currentBuild.result ?: 'SUCCESS'}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Execution Time</strong></td>
+                                                <td>${currentBuild.durationString}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="section">
+                                        <h2>Monitoring Configuration</h2>
+                                        <table>
+                                            <tr>
+                                                <th>Component</th>
+                                                <th>Configuration</th>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>AppDynamics</strong></td>
+                                                <td>${params.DISABLE_APPDYNAMICS ? 'Disabled' : 'Enabled - ' + params.APPD_APP_NAMES}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Kibana</strong></td>
+                                                <td>${params.DISABLE_KIBANA ? 'Disabled' : 'Enabled - ' + params.KIBANA_INDEX_PATTERN}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Performance Center</strong></td>
+                                                <td>Test ID: ${params.PC_TEST_ID}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="section">
+                                        <h2>Reports & Artifacts</h2>
+                                        <ul style="line-height: 2;">
+                                            <li><a href="${consolidatedReportUrl}">📊 Consolidated Performance Report</a></li>
+                                            <li><a href="${appdReportUrl}">📈 AppDynamics Metrics Report</a></li>
+                                            <li><a href="${kibanaReportUrl}">📉 Kibana API Metrics Report</a></li>
+                                            <li><a href="${env.BUILD_URL}">🔗 View Full Build Results</a></li>
+                                            <li><a href="${env.BUILD_URL}artifact/">📁 Download All Artifacts</a></li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <div class="section">
+                                        <h2>Database Information</h2>
+                                        <p>All metrics have been stored in Oracle Database and can be queried using:</p>
+                                        <pre style="background-color: #2c3e50; color: #ecf0f1; padding: 10px; border-radius: 5px;">
+SELECT * FROM TEST_RUNS WHERE TEST_RUN_ID = '${env.TEST_RUN_ID}';
+SELECT * FROM APPD_SERVER_METRICS WHERE TEST_RUN_ID = '${env.TEST_RUN_ID}';
+SELECT * FROM APPD_JVM_METRICS WHERE TEST_RUN_ID = '${env.TEST_RUN_ID}';
+SELECT * FROM APPD_APPLICATION_METRICS WHERE TEST_RUN_ID = '${env.TEST_RUN_ID}';
+SELECT * FROM KIBANA_API_METRICS WHERE TEST_RUN_ID = '${env.TEST_RUN_ID}';
+                                        </pre>
+                                    </div>
+                                    
+                                    <hr style="margin: 30px 0;">
+                                    <p style="color: #7f8c8d; font-size: 12px;">
+                                        This is an automated email from Jenkins Pipeline.<br>
+                                        Generated at ${new Date().format('yyyy-MM-dd HH:mm:ss')}<br>
+                                        Build URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a>
+                                    </p>
+                                </div>
+                            </body>
+                            </html>
+                        """,
+                        to: "${env.EMAIL_RECIPIENTS}",
+                        mimeType: 'text/html',
+                        attachLog: true,
+                        compressLog: true,
+                        attachmentsPattern: 'reports/*.html'
+                    )
+                    
+                    echo "✓ Email notification sent"
+                    
+                } catch (Exception e) {
+                    echo "⚠ Failed to send email: ${e.message}"
+                }
+            }
+        }
+        
+        success {
+            script {
+                echo "✓ Pipeline completed successfully!"
+                
+                // Optional: Trigger downstream jobs
+                // build job: 'Performance-Test-Analysis',
+                //     parameters: [string(name: 'TEST_RUN_ID', value: env.TEST_RUN_ID)],
+                //     wait: false
+            }
+        }
+        
+        failure {
+            script {
+                echo "✗ Pipeline failed!"
+                
+                // Additional failure handling
+                // Could trigger alerts, create JIRA tickets, etc.
+            }
+        }
+        
+        unstable {
+            script {
+                echo "⚠ Pipeline completed with warnings"
+            }
+        }
+        
+        cleanup {
+            script {
+                echo "Performing cleanup..."
+                
+                // Clean up temporary files if needed
+                // sh "rm -f ${WORKSPACE}/temp_*"
+                
+                echo "✓ Cleanup completed"
+            }
+        }
+    }
+}
