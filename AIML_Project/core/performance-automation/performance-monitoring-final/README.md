@@ -600,3 +600,202 @@ performance-monitoring/
 ├── README.md ✅
 ├── verify_installation.py ✅
 └── Jenkinsfile ✅
+
+
+
+
+19Jan:
+
+Usage Examples
+1. Analyze Complete Dashboard Structure:
+bashpython3 test_kibana_fields.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --dashboard-id "your-dashboard-id" \
+    --output dashboard_structure.json
+This will print:
+
+Dashboard title and ID
+All panels in the dashboard
+Visualization details for each panel
+Aggregations used
+Field names in queries
+
+2. Analyze Index Pattern Fields:
+bashpython3 test_kibana_fields.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --index-pattern "api-logs-*"
+This will print:
+
+All available fields in the index
+Fields grouped by type
+Suggested fields for API monitoring (API names, status, response time)
+
+3. Test Query with Your Field Names:
+bashpython3 test_kibana_fields.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --index-pattern "api-logs-*" \
+    --test-query \
+    --api-field "endpoint.keyword" \
+    --status-field "result" \
+    --response-field "duration_ms" \
+    --time-field "@timestamp"
+This will:
+
+Execute a real query with your field names
+Show actual data results
+Display pass/fail counts
+Show response time percentiles (P50, P90, P95, P99)
+Confirm if field mapping is correct
+
+4. Complete Discovery Workflow:
+bash# Step 1: Analyze dashboard
+python3 test_kibana_fields.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --dashboard-id "abc123" \
+    --output dashboard.json
+
+# Step 2: Analyze index fields
+python3 test_kibana_fields.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --index-pattern "api-logs-*"
+
+# Step 3: Test with discovered field names
+python3 test_kibana_fields.py \
+    --kibana-url "http://kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --index-pattern "api-logs-*" \
+    --test-query \
+    --api-field "your.api.field.keyword" \
+    --status-field "your.status.field" \
+    --response-field "your.response.field"
+```
+
+## Example Output
+
+When you run the dashboard analysis, you'll see output like:
+```
+================================================================================
+DASHBOARD STRUCTURE ANALYSIS
+================================================================================
+Dashboard ID: abc123
+================================================================================
+
+Dashboard Title: API Performance Dashboard
+Dashboard ID: abc123
+
+Total Panels: 5
+
+--------------------------------------------------------------------------------
+PANEL 1
+--------------------------------------------------------------------------------
+Type: visualization
+ID: viz-123
+
+Panel Keys: ['type', 'id', 'panelIndex', 'gridData', 'version']
+
+  Visualization Details:
+    Title: API Call Count
+    Type: line
+
+    Visualization State Keys: ['title', 'type', 'aggs', 'params']
+
+    Aggregations (2):
+
+      [1] date_histogram
+          Schema: segment
+          ID: 2
+          Params: {
+            "field": "@timestamp",
+            "interval": "auto"
+          }
+
+      [2] count
+          Schema: metric
+          ID: 1
+
+    Search Source:
+      Index: api-logs-*
+      Query: {
+        "language": "kuery",
+        "query": ""
+      }
+
+--------------------------------------------------------------------------------
+INDEX PATTERN ANALYSIS: api-logs-*
+================----------------------------------------------------------------
+
+Index Pattern: api-logs-*
+Total Fields: 45
+
+STRING Fields (15):
+  - api_endpoint
+  - api_endpoint.keyword
+  - method
+  - status_code
+  - result
+  ...
+
+NUMBER Fields (8):
+  - response_time
+  - response_time_ms
+  - duration
+  ...
+
+--------------------------------------------------------------------------------
+SUGGESTED FIELDS FOR API MONITORING:
+--------------------------------------------------------------------------------
+
+Potential API/Endpoint Fields:
+  - api_endpoint
+  - api_endpoint.keyword
+  - service_name
+
+Potential Status Fields:
+  - result
+  - status_code
+  - outcome
+
+Potential Response Time Fields:
+  - response_time
+  - response_time_ms
+  - duration
+  - elapsed_time
+
+================================================================================
+TESTING QUERY WITH SPECIFIED FIELDS
+================================================================================
+...
+API: /api/users
+  Total Calls: 1234
+  Pass Count: 1200
+  Fail Count: 34
+  Response Time Stats:
+    Min: 45
+    Max: 2300
+    Avg: 156.7
+  Response Time Percentiles:
+    P50: 120
+    P90: 280
+    P95: 450
+    P99: 1200
+================================================================================
+✓ FIELD MAPPING VERIFIED!
+================================================================================
+
+You can use these field names in your configuration:
+  --kibana-api-field "api_endpoint.keyword"
+  --kibana-status-field "result"
+  --kibana-response-field "response_time_ms"
+  --kibana-timestamp-field "@timestamp"
+Now you can easily discover the correct field names for your Kibana data!
