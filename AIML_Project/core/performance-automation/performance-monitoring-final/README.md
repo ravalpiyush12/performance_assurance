@@ -799,3 +799,61 @@ You can use these field names in your configuration:
   --kibana-response-field "response_time_ms"
   --kibana-timestamp-field "@timestamp"
 Now you can easily discover the correct field names for your Kibana data!
+
+
+
+
+
+Latest:
+How to Use:
+Step 1: Test with Your Dashboard
+bashpython3 test_your_dashboard.py \
+    --kibana-url "http://your-kibana-url:5601" \
+    --kibana-user "your-username" \
+    --kibana-pass "your-password" \
+    --dashboard-id "d35dba6a7-2801-46b0-988e-2a7848b106e8" \
+    --output dashboard_test_results.json
+This will:
+
+Auto-detect your index pattern from the dashboard
+Fetch data matching your table structure
+Show results in the same format as your dashboard
+Give you the exact field names to use
+
+Step 2: If Auto-Detection Fails, Provide Index Pattern
+bashpython3 test_your_dashboard.py \
+    --kibana-url "http://your-kibana-url:5601" \
+    --kibana-user "your-username" \
+    --kibana-pass "your-password" \
+    --dashboard-id "d35dba6a7-2801-46b0-988e-2a7848b106e8" \
+    --index-pattern "your-index-pattern-*" \
+    --endpoint-field "userRequestedUri.keyword"
+Step 3: Generate Kibana Config
+After successful testing, create your Kibana config file manually:
+json{
+  "description": "Kibana API Performance Dashboard",
+  "generated_at": "2026-01-19T10:30:00Z",
+  "index_pattern": "your-index-pattern-*",
+  "endpoint_field": "userRequestedUri.keyword",
+  "time_field": "@timestamp",
+  "dashboards": [
+    {
+      "id": "d35dba6a7-2801-46b0-988e-2a7848b106e8",
+      "name": "PTE_ALL_ARTS_CDV3_APIs"
+    }
+  ]
+}
+Save this as kibana_config.json.
+Step 4: Run Monitoring
+bashpython3 monitoring_main.py \
+    --run-id "TEST_001" \
+    --duration 60 \
+    --kibana-url "http://your-kibana:5601" \
+    --kibana-user "admin" \
+    --kibana-pass "password" \
+    --kibana-config "kibana_config.json" \
+    --kibana-index "your-index-pattern-*" \
+    --kibana-endpoint-field "userRequestedUri.keyword" \
+    --appd-config "appd_config.json" \
+    ... other parameters ...
+The system will now fetch your dashboard data every 5 minutes and store it in the Oracle database with the exact same structure as your dashboard table!
