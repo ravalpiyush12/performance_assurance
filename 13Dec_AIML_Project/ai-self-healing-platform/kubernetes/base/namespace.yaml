@@ -1,0 +1,17 @@
+# Kubernetes Namespace
+# Creates isolated namespace for the self-healing platform
+# Apply with: kubectl apply -f namespace.yaml
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: self-healing-platform
+  labels:
+    name: self-healing-platform
+    app: self-healing
+    environment: production
+    managed-by: kubectl
+  annotations:
+    description: "AI/ML-Driven Self-Healing Platform for Cloud Workloads"
+    contact: "piyush_24a07res128@iitp.ac.in"
+    project: "MTech-IIT-Patna"

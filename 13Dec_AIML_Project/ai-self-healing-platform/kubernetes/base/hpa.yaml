@@ -1,0 +1,94 @@
+# Kubernetes HorizontalPodAutoscaler (HPA)
+# Automatically scales pods based on CPU/Memory usage
+# Apply with: kubectl apply -f hpa.yaml
+# Requires metrics-server: kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: self-healing-platform-hpa
+  namespace: self-healing-platform
+  labels:
+    app: self-healing-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: self-healing-platform
+  
+  minReplicas: 2
+  maxReplicas: 10
+  
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    
+    # Memory-based scaling
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min
+    
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 2
+          periodSeconds: 30
+      selectPolicy: Max
+
+---
+# VerticalPodAutoscaler (VPA) - Optional
+# Automatically adjusts CPU/Memory requests and limits
+# Requires VPA installed: https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler
+
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: self-healing-platform-vpa
+  namespace: self-healing-platform
+  labels:
+    app: self-healing-platform
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: self-healing-platform
+  
+  updatePolicy:
+    updateMode: "Auto"  # Options: Off, Initial, Recreate, Auto
+  
+  resourcePolicy:
+    containerPolicies:
+      - containerName: api
+        minAllowed:
+          cpu: 100m
+          memory: 128Mi
+        maxAllowed:
+          cpu: 2000m
+          memory: 2Gi
+        controlledResources:
+          - cpu
+          - memory
