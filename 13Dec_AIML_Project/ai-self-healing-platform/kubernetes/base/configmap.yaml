@@ -1,0 +1,91 @@
+# Kubernetes ConfigMap
+# Application configuration
+# Apply with: kubectl apply -f configmap.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-config
+  namespace: self-healing-platform
+  labels:
+    app: self-healing-platform
+data:
+  # Application Settings
+  app.conf: |
+    LOG_LEVEL=INFO
+    ENVIRONMENT=production
+    DEBUG=false
+    
+    # ML Settings
+    ML_MODEL_PATH=/app/data/models
+    ML_CONTAMINATION=0.1
+    ML_WINDOW_SIZE=100
+    ML_RETRAINING_INTERVAL=3600
+    
+    # Self-Healing Settings
+    HEALING_COOLDOWN_PERIOD=60
+    HEALING_MAX_ACTIONS_PER_HOUR=10
+    HEALING_ENABLED=true
+    
+    # Monitoring Settings
+    METRICS_COLLECTION_INTERVAL=5
+    METRICS_RETENTION_HOURS=24
+    
+    # API Settings
+    API_RATE_LIMIT=100
+    API_TIMEOUT=30
+    
+  # Prometheus Scrape Config
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+      - job_name: 'self-healing-platform'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - self-healing-platform
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+
+---
+# Secrets (for sensitive data)
+# Create with: kubectl create secret generic platform-secrets --from-literal=...
+# Or apply this template after base64 encoding values
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: platform-secrets
+  namespace: self-healing-platform
+  labels:
+    app: self-healing-platform
+type: Opaque
+data:
+  # JWT Secret (base64 encoded)
+  # Generate with: echo -n "your-secret-key" | base64
+  jwt-secret: eW91ci1zZWNyZXQta2V5LWNoYW5nZS10aGlzLWluLXByb2R1Y3Rpb24=
+  
+  # Redis Password (base64 encoded)
+  # redis-password: 
+  
+  # Database Password (base64 encoded - if using database)
+  # db-password:
+  
+  # AWS Credentials (base64 encoded - if using AWS)
+  # aws-access-key-id:
+  # aws-secret-access-key:

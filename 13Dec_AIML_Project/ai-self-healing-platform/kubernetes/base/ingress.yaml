@@ -1,0 +1,132 @@
+# Kubernetes Ingress
+# Manages external access to services with TLS/SSL
+# Apply with: kubectl apply -f ingress.yaml
+# Requires ingress controller: nginx, traefik, or ALB
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: self-healing-platform-ingress
+  namespace: self-healing-platform
+  labels:
+    app: self-healing-platform
+  annotations:
+    # NGINX Ingress Controller
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    
+    # Rate Limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "10"
+    
+    # CORS
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    
+    # Timeouts
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    
+    # WebSocket Support
+    nginx.ingress.kubernetes.io/websocket-services: "self-healing-platform"
+    
+    # SSL/TLS
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    
+    # AWS ALB (Alternative - comment out nginx annotations above)
+    # kubernetes.io/ingress.class: "alb"
+    # alb.ingress.kubernetes.io/scheme: "internet-facing"
+    # alb.ingress.kubernetes.io/target-type: "ip"
+    # alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:region:account-id:certificate/xxx"
+    # alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS-1-2-2017-01"
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # alb.ingress.kubernetes.io/ssl-redirect: "443"
+
+spec:
+  tls:
+    - hosts:
+        - self-healing.example.com  # Replace with your domain
+      secretName: self-healing-tls-secret
+  
+  rules:
+    - host: self-healing.example.com  # Replace with your domain
+      http:
+        paths:
+          # Main Application
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: self-healing-platform
+                port:
+                  number: 8000
+          
+          # API Routes
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: self-healing-platform
+                port:
+                  number: 8000
+          
+          # WebSocket
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: self-healing-platform
+                port:
+                  number: 8000
+          
+          # Health Check
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: self-healing-platform
+                port:
+                  number: 8000
+
+---
+# Certificate (for cert-manager)
+# Automatically provisions SSL/TLS certificates
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: self-healing-tls
+  namespace: self-healing-platform
+spec:
+  secretName: self-healing-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - self-healing.example.com  # Replace with your domain
+  privateKey:
+    algorithm: RSA
+    size: 2048
+
+---
+# ClusterIssuer (for cert-manager - Let's Encrypt)
+# Deploy once per cluster
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: piyush_24a07res128@iitp.ac.in  # Replace with your email
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
