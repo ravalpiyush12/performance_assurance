@@ -57,7 +57,7 @@ class OracleLoader:
         CREATE TABLE IF NOT EXISTS PC_TEST_RUNS (
             RUN_ID NUMBER PRIMARY KEY,
             TEST_ID NUMBER NOT NULL,
-            SCENARIO_NAME VARCHAR2(255),
+            TEST_NAME VARCHAR2(255),
             BUILD_NUMBER VARCHAR2(50),
             RUN_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             TEST_STATUS VARCHAR2(50),
@@ -114,7 +114,7 @@ class OracleLoader:
                 CREATE TABLE PC_TEST_RUNS (
                     RUN_ID NUMBER PRIMARY KEY,
                     TEST_ID NUMBER NOT NULL,
-                    SCENARIO_NAME VARCHAR2(255),
+                    TEST_NAME VARCHAR2(255),
                     BUILD_NUMBER VARCHAR2(50),
                     RUN_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     TEST_STATUS VARCHAR2(50),
@@ -162,10 +162,10 @@ class OracleLoader:
         
         insert_sql = """
             INSERT INTO PC_TEST_RUNS (
-                RUN_ID, TEST_ID, SCENARIO_NAME, BUILD_NUMBER, RUN_DATE, TEST_STATUS,
+                RUN_ID, TEST_ID, TEST_NAME, BUILD_NUMBER, RUN_DATE, TEST_STATUS,
                 TEST_DURATION, PC_HOST, PC_PROJECT
             ) VALUES (
-                :run_id, :test_id, :scenario_name, :build_number, :run_date, :test_status,
+                :run_id, :test_id, :test_name, :build_number, :run_date, :test_status,
                 :test_duration, :pc_host, :pc_project
             )
         """
@@ -173,7 +173,7 @@ class OracleLoader:
         run_data = {
             'run_id': self.test_run_info.get('run_id'),
             'test_id': self.test_run_info.get('test_id'),
-            'scenario_name': self.test_run_info.get('scenario_name'),
+            'test_name': self.test_run_info.get('test_name'),
             'build_number': self.test_run_info.get('build_number'),
             'run_date': self.test_run_info.get('run_date', datetime.now()),
             'test_status': self.test_run_info.get('test_status'),
@@ -271,7 +271,7 @@ def main():
     parser.add_argument('--oracle-dsn', required=True, help='Oracle DSN (host:port/service)')
     parser.add_argument('--run-id', type=int, required=True, help='Test run ID')
     parser.add_argument('--test-id', type=int, help='Test ID')
-    parser.add_argument('--scenario-name', help='Scenario/Test name')
+    parser.add_argument('--test-name', help='Test name')
     parser.add_argument('--build-number', help='Jenkins build number')
     parser.add_argument('--test-status', help='Test status')
     parser.add_argument('--test-duration', type=int, help='Test duration in seconds')
@@ -285,7 +285,7 @@ def main():
     test_run_info = {
         'run_id': args.run_id,
         'test_id': args.test_id,
-        'scenario_name': args.scenario_name,
+        'test_name': args.test_name,
         'build_number': args.build_number,
         'test_status': args.test_status,
         'test_duration': args.test_duration,
