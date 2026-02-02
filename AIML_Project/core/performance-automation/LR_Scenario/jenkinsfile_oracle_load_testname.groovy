@@ -12,10 +12,10 @@
                     def runId = sh(script: "cat ${WORKSPACE}/results/run_id.txt", returnStdout: true).trim()
                     def resultId = sh(script: "cat ${WORKSPACE}/results/result_id.txt 2>/dev/null || echo ''", returnStdout: true).trim()
                     def finalStatus = sh(script: "cat ${WORKSPACE}/results/final_status.txt 2>/dev/null || echo 'UNKNOWN'", returnStdout: true).trim()
-                    def scenarioName = sh(script: "cat ${WORKSPACE}/results/scenario_name.txt 2>/dev/null || echo 'Unknown'", returnStdout: true).trim()
+                    def testName = sh(script: "cat ${WORKSPACE}/results/test_name.txt 2>/dev/null || echo 'Unknown'", returnStdout: true).trim()
                     
                     echo "Run ID: ${runId}"
-                    echo "Scenario Name: ${scenarioName}"
+                    echo "Test Name: ${testName}"
                     echo "Status: ${finalStatus}"
                     
                     // Install cx_Oracle if not present
@@ -25,7 +25,7 @@
                         echo "cx_Oracle may already be installed"
                     """
                     
-                    // Create inline Oracle loader script
+                    // Create inline Oracle loader script with TEST_NAME
                     sh """
 cat > ${WORKSPACE}/scripts/load_oracle.py << 'PYEOF'
 #!/usr/bin/env python3
@@ -45,31 +45,31 @@ def load_to_oracle(oracle_dsn, oracle_user, oracle_pass, json_file, run_info):
     with open(json_file) as f:
         data = json.load(f)
     
-    # Insert test run with scenario name
+    # Insert test run with TEST_NAME
     try:
         cursor.execute('''
             INSERT INTO PC_TEST_RUNS 
-            (RUN_ID, TEST_ID, SCENARIO_NAME, BUILD_NUMBER, TEST_STATUS, 
+            (RUN_ID, TEST_ID, TEST_NAME, BUILD_NUMBER, TEST_STATUS, 
              TEST_DURATION, PC_HOST, PC_PROJECT, RUN_DATE)
             VALUES (:1, :2, :3, :4, :5, :6, :7, :8, SYSDATE)
         ''', (
             int(run_info['run_id']),
             int(run_info['test_id']),
-            run_info['scenario_name'],
+            run_info['test_name'],
             run_info['build_number'],
             run_info['status'],
             int(run_info['duration']),
             run_info['pc_host'],
             run_info['pc_project']
         ))
-        print(f"✓ Inserted run {run_info['run_id']} - Scenario: {run_info['scenario_name']}")
+        print(f"✓ Inserted run {run_info['run_id']} - Test: {run_info['test_name']}")
     except cx_Oracle.IntegrityError:
-        print(f"Run {run_info['run_id']} already exists, updating scenario name...")
+        print(f"Run {run_info['run_id']} already exists, updating test name...")
         cursor.execute('''
             UPDATE PC_TEST_RUNS 
-            SET SCENARIO_NAME = :1, TEST_STATUS = :2
+            SET TEST_NAME = :1, TEST_STATUS = :2
             WHERE RUN_ID = :3
-        ''', (run_info['scenario_name'], run_info['status'], int(run_info['run_id'])))
+        ''', (run_info['test_name'], run_info['status'], int(run_info['run_id'])))
     
     # Insert transactions
     count = 0
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     json_file = sys.argv[4]
     run_id = sys.argv[5]
     test_id = sys.argv[6]
-    scenario_name = sys.argv[7]
+    test_name = sys.argv[7]
     build_num = sys.argv[8]
     status = sys.argv[9]
     duration = sys.argv[10]
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     run_info = {
         'run_id': run_id,
         'test_id': test_id,
-        'scenario_name': scenario_name,
+        'test_name': test_name,
         'build_number': build_num,
         'status': status,
         'duration': duration,
@@ -144,7 +144,7 @@ chmod +x ${WORKSPACE}/scripts/load_oracle.py
                         def oracleDSN = "${params.ORACLE_HOST}:${params.ORACLE_PORT}/${params.ORACLE_SERVICE}"
                         
                         echo "Oracle DSN: ${oracleDSN}"
-                        echo "Loading data for Scenario: ${scenarioName}"
+                        echo "Loading data for Test: ${testName}"
                         
                         sh """
                             python3 ${WORKSPACE}/scripts/load_oracle.py \
@@ -154,7 +154,7 @@ chmod +x ${WORKSPACE}/scripts/load_oracle.py
                             "${WORKSPACE}/results/transactions_data.json" \
                             "${runId}" \
                             "${params.TEST_ID}" \
-                            "${scenarioName}" \
+                            "${testName}" \
                             "${BUILD_NUMBER}" \
                             "${finalStatus}" \
                             "${params.TEST_DURATION}" \
@@ -166,7 +166,7 @@ chmod +x ${WORKSPACE}/scripts/load_oracle.py
                     echo ""
                     echo "✓ Data loaded to Oracle successfully"
                     echo "  - Run ID: ${runId}"
-                    echo "  - Scenario: ${scenarioName}"
+                    echo "  - Test Name: ${testName}"
                     echo "  - Transactions loaded"
                 }
             }
