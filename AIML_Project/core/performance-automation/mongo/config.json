@@ -1,0 +1,28 @@
+{
+  "mongodb": {
+    "host": "localhost",
+    "port": 27017,
+    "database": "your_database_name",
+    "username": "",
+    "password": "",
+    "auth_source": "admin"
+  },
+  "collections": [
+    "collection1",
+    "collection2"
+  ],
+  "output": {
+    "directory": "exports",
+    "filename_prefix": "mongodb_export",
+    "add_timestamp": true
+  },
+  "excel": {
+    "header_style": {
+      "bold": true,
+      "bg_color": "366092",
+      "font_color": "FFFFFF"
+    },
+    "auto_filter": true,
+    "freeze_panes": true
+  }
+}
