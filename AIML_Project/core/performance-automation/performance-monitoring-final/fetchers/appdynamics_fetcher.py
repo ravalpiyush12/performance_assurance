@@ -421,3 +421,110 @@ class AppDynamicsDataFetcher:
                     total += sum(len(values) for values in jvm_metrics.values())
         
         return total
+
+ def check_node_availability(self, app_name: str, node_id: int, 
+                            min_availability: float = 1.0,
+                            duration_mins: int = 15) -> bool:
+    """
+    Check if a node has app agent availability above threshold
+    
+    Args:
+        app_name: Application name
+        node_id: Node ID
+        min_availability: Minimum availability percentage (0-100)
+        duration_mins: Duration to check in minutes
+        
+    Returns:
+        True if node is active (availability >= min_availability)
+    """
+    
+    # Get node health metric
+    url = f"{self.controller_url}/controller/rest/applications/{app_name}/metric-data"
+    
+    # App Agent Availability metric path
+    metric_path = f"Application Infrastructure Performance|*|Individual Nodes|*|Agent|App|Availability"
+    
+    params = {
+        'metric-path': metric_path,
+        'time-range-type': 'BEFORE_NOW',
+        'duration-in-mins': duration_mins,
+        'rollup': 'false',
+        'output': 'JSON'
+    }
+    
+    try:
+        response = self.session.get(url, params=params, verify=False, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Parse metric data
+        for metric in data:
+            metric_values = metric.get('metricValues', [])
+            
+            # Check if this metric is for the specific node
+            metric_path_str = metric.get('metricPath', '')
+            
+            # If we have recent data points
+            if metric_values:
+                # Get the most recent value
+                latest_value = metric_values[-1].get('value', 0)
+                
+                # Check if availability meets threshold
+                if latest_value >= min_availability:
+                    return True
+        
+        # If no data or all values below threshold, node is inactive
+        return False
+        
+    except Exception as e:
+        self.logger.debug(f"Error checking node availability: {e}")
+        # On error, conservatively include the node
+        return True
+
+def get_nodes_for_tier_with_health(self, app_name: str, tier_name: str,
+                                   min_availability: float = 1.0,
+                                   duration_mins: int = 15) -> List[Dict]:
+    """
+    Get nodes for tier with health status
+    
+    Args:
+        app_name: Application name
+        tier_name: Tier name
+        min_availability: Minimum availability percentage
+        duration_mins: Duration to check
+        
+    Returns:
+        List of nodes with health information
+    """
+    nodes = self.get_nodes_for_tier(app_name, tier_name)
+    
+    if not nodes:
+        return []
+    
+    nodes_with_health = []
+    
+    for node in nodes:
+        node_id = node.get('id')
+        node_name = node.get('name')
+        
+        # Check availability
+        is_available = self.check_node_availability(
+            app_name=app_name,
+            node_id=node_id,
+            min_availability=min_availability,
+            duration_mins=duration_mins
+        )
+        
+        node_info = {
+            'id': node_id,
+            'name': node_name,
+            'available': is_available,
+            'type': node.get('type'),
+            'machineName': node.get('machineName'),
+            'agentType': node.get('agentType')
+        }
+        
+        nodes_with_health.append(node_info)
+    
+    return nodes_with_health       
