@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Generate AppDynamics configuration file - Filter by Active Nodes Only
-Only includes nodes with App Agent availability > 0%
+Generate AppDynamics configuration - Filter by App Agent Availability %
+Only includes nodes with App Agent Availability >= threshold (default 50%)
 """
 import argparse
 import json
@@ -12,34 +12,30 @@ from utils.logger import setup_logger
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate AppDynamics configuration from application names (Active Nodes Only)'
+        description='Generate AppDynamics config filtering by App Agent Availability %'
     )
     
     # AppDynamics credentials
-    parser.add_argument('--controller', required=True, help='AppDynamics controller URL')
-    parser.add_argument('--account', required=True, help='AppDynamics account name')
-    parser.add_argument('--username', required=True, help='AppDynamics username')
-    parser.add_argument('--password', required=True, help='AppDynamics password')
+    parser.add_argument('--controller', required=True, help='Controller URL')
+    parser.add_argument('--account', required=True, help='Account name')
+    parser.add_argument('--username', required=True, help='Username')
+    parser.add_argument('--password', required=True, help='Password')
     
     # Application names
     parser.add_argument('--app-names', required=True, 
-                       help='Comma-separated list of application names')
+                       help='Comma-separated application names')
     
     # Filtering options
-    parser.add_argument('--min-availability', type=float, default=1.0,
-                       help='Minimum app agent availability percentage (default: 1.0 = 1%%)')
-    parser.add_argument('--check-last-minutes', type=int, default=15,
-                       help='Check node availability in last N minutes (default: 15)')
-    parser.add_argument('--include-inactive-tiers', action='store_true',
-                       help='Include tiers even if they have no active nodes')
+    parser.add_argument('--min-availability', type=float, default=50.0,
+                       help='Minimum App Agent Availability %% (default: 50)')
+    parser.add_argument('--check-duration', type=int, default=15,
+                       help='Check availability over last N minutes (default: 15)')
     
     # Output
-    parser.add_argument('--output', required=True, 
-                       help='Output JSON configuration file path')
-    
-    # Verbose
-    parser.add_argument('--verbose', action='store_true',
-                       help='Show detailed filtering information')
+    parser.add_argument('--output', required=True, help='Output JSON file')
+    parser.add_argument('--verbose', action='store_true', help='Verbose output')
+    parser.add_argument('--show-availability', action='store_true',
+                       help='Show availability percentage for each node')
     
     args = parser.parse_args()
     
@@ -48,17 +44,15 @@ def main():
     logger = setup_logger('AppDConfigGenerator', level=log_level)
     
     logger.info("=" * 80)
-    logger.info("AppDynamics Configuration Generator (Active Nodes Filter)")
+    logger.info("AppDynamics Config Generator - App Agent Availability Filter")
     logger.info("=" * 80)
-    logger.info(f"Minimum App Agent Availability: {args.min_availability}%")
-    logger.info(f"Checking availability in last: {args.check_last_minutes} minutes")
+    logger.info(f"Minimum Availability: {args.min_availability}%")
+    logger.info(f"Check Period: {args.check_duration} minutes")
     logger.info("=" * 80)
     
-    # Parse application names
+    # Parse app names
     app_names = [name.strip() for name in args.app_names.split(',')]
     logger.info(f"\nApplications to process: {len(app_names)}")
-    for app in app_names:
-        logger.info(f"  - {app}")
     
     # Initialize fetcher
     logger.info("\n→ Connecting to AppDynamics...")
@@ -73,7 +67,7 @@ def main():
         logger.error("✗ Connection failed!")
         return 1
     
-    # Validate applications exist
+    # Validate applications
     logger.info("\n→ Validating applications...")
     all_apps = fetcher.get_applications()
     if not all_apps:
@@ -81,43 +75,48 @@ def main():
         return 1
     
     available_app_names = [app.get('name') for app in all_apps]
-    
     invalid_apps = [app for app in app_names if app not in available_app_names]
+    
     if invalid_apps:
-        logger.error(f"\n✗ Invalid application names: {', '.join(invalid_apps)}")
-        logger.error(f"Available: {', '.join(available_app_names)}")
+        logger.error(f"\n✗ Invalid apps: {', '.join(invalid_apps)}")
         return 1
     
     # Generate configuration
     logger.info("\n" + "=" * 80)
-    logger.info("GENERATING CONFIGURATION WITH NODE FILTERING")
+    logger.info("GENERATING CONFIGURATION")
     logger.info("=" * 80)
     
     config = {
-        'description': 'AppDynamics monitoring configuration (Active nodes only)',
+        'description': f'AppDynamics config - Nodes with availability >= {args.min_availability}%',
         'generated_at': datetime.now().isoformat(),
         'filter_criteria': {
             'min_availability_percent': args.min_availability,
-            'check_period_minutes': args.check_last_minutes
+            'check_period_minutes': args.check_duration
         },
         'applications': []
     }
     
-    total_tiers = 0
-    total_nodes = 0
-    total_inactive_nodes = 0
-    total_active_nodes = 0
+    # Statistics
+    stats = {
+        'total_tiers': 0,
+        'total_nodes_discovered': 0,
+        'total_nodes_active': 0,
+        'total_nodes_inactive': 0,
+        'apps_processed': 0,
+        'tiers_with_active_nodes': 0
+    }
     
     for app_idx, app_name in enumerate(app_names, 1):
-        logger.info(f"\n[{app_idx}/{len(app_names)}] {app_name}")
-        logger.info("-" * 80)
+        logger.info(f"\n{'=' * 80}")
+        logger.info(f"[{app_idx}/{len(app_names)}] Processing: {app_name}")
+        logger.info(f"{'=' * 80}")
         
         tiers = fetcher.get_tiers_for_application(app_name)
         if not tiers:
-            logger.warning(f"  No tiers found")
+            logger.warning(f"No tiers found for {app_name}")
             continue
         
-        logger.info(f"  Found {len(tiers)} tiers")
+        logger.info(f"Found {len(tiers)} tiers")
         
         app_config = {
             'app_name': app_name,
@@ -126,111 +125,121 @@ def main():
         
         for tier_idx, tier in enumerate(tiers, 1):
             tier_name = tier.get('name')
-            logger.info(f"\n  [{tier_idx}/{len(tiers)}] {tier_name}")
+            logger.info(f"\n[Tier {tier_idx}/{len(tiers)}] {tier_name}")
+            logger.info("-" * 80)
             
-            # Get all nodes for tier
-            all_nodes = fetcher.get_nodes_for_tier(app_name, tier_name)
+            # Get nodes with availability check
+            result = fetcher.get_active_nodes_with_availability(
+                app_name=app_name,
+                tier_name=tier_name,
+                min_availability=args.min_availability,
+                duration_mins=args.check_duration
+            )
             
-            if not all_nodes:
-                logger.info(f"      No nodes found")
-                if args.include_inactive_tiers:
-                    app_config['tiers'].append({
-                        'tier_name': tier_name,
-                        'nodes': []
-                    })
-                    total_tiers += 1
+            total_nodes = result['total_nodes']
+            active_nodes = result['active_nodes']
+            inactive_nodes = result['inactive_nodes']
+            node_availability = result['node_availability']
+            
+            stats['total_nodes_discovered'] += total_nodes
+            stats['total_nodes_active'] += len(active_nodes)
+            stats['total_nodes_inactive'] += len(inactive_nodes)
+            
+            if total_nodes == 0:
+                logger.info("  No nodes found")
                 continue
             
-            logger.info(f"      Total nodes discovered: {len(all_nodes)}")
+            logger.info(f"Total nodes: {total_nodes}")
+            logger.info(f"Active nodes (≥{args.min_availability}%): {len(active_nodes)}")
+            logger.info(f"Inactive nodes (<{args.min_availability}%): {len(inactive_nodes)}")
             
-            # Filter nodes by availability
-            active_nodes = []
-            inactive_nodes = []
-            
-            for node in all_nodes:
-                node_name = node.get('name')
-                node_id = node.get('id')
+            # Show availability details if requested
+            if args.show_availability:
+                logger.info("\nNode Availability Details:")
                 
-                # Check node health/availability
-                is_active = fetcher.check_node_availability(
-                    app_name=app_name,
-                    node_id=node_id,
-                    min_availability=args.min_availability,
-                    duration_mins=args.check_last_minutes
+                # Sort by availability (descending)
+                sorted_nodes = sorted(
+                    node_availability.items(),
+                    key=lambda x: x[1],
+                    reverse=True
                 )
                 
-                if is_active:
-                    active_nodes.append(node_name)
-                    logger.info(f"      ✓ {node_name} - ACTIVE")
-                else:
-                    inactive_nodes.append(node_name)
-                    if args.verbose:
-                        logger.debug(f"      ✗ {node_name} - INACTIVE (filtered out)")
+                for node_name, availability in sorted_nodes:
+                    status = "✓ ACTIVE  " if availability >= args.min_availability else "✗ INACTIVE"
+                    logger.info(f"  {status} {node_name}: {availability:.1f}%")
+            else:
+                # Just show active nodes
+                if active_nodes:
+                    logger.info("\nActive nodes:")
+                    for node_name in active_nodes[:10]:  # Show first 10
+                        availability = node_availability.get(node_name, 0)
+                        logger.info(f"  ✓ {node_name} ({availability:.1f}%)")
+                    
+                    if len(active_nodes) > 10:
+                        logger.info(f"  ... and {len(active_nodes) - 10} more")
             
-            # Summary for this tier
-            logger.info(f"\n      Active nodes: {len(active_nodes)}/{len(all_nodes)}")
-            if inactive_nodes:
-                logger.info(f"      Filtered out: {len(inactive_nodes)} inactive nodes")
-            
-            total_nodes += len(all_nodes)
-            total_active_nodes += len(active_nodes)
-            total_inactive_nodes += len(inactive_nodes)
-            
-            # Add tier to config only if it has active nodes OR if include_inactive_tiers is True
-            if active_nodes or args.include_inactive_tiers:
+            # Add to config if has active nodes
+            if active_nodes:
                 app_config['tiers'].append({
                     'tier_name': tier_name,
                     'nodes': active_nodes
                 })
-                total_tiers += 1
+                stats['total_tiers'] += 1
+                stats['tiers_with_active_nodes'] += 1
             else:
-                logger.warning(f"      ⚠ Tier '{tier_name}' excluded (no active nodes)")
+                logger.warning(f"  ⚠ No active nodes - tier excluded from config")
         
+        # Add app to config if it has tiers with active nodes
         if app_config['tiers']:
             config['applications'].append(app_config)
+            stats['apps_processed'] += 1
+        else:
+            logger.warning(f"\n⚠ Application '{app_name}' has no active nodes - excluded from config")
     
     # Save configuration
-    logger.info("\n→ Saving configuration...")
+    logger.info("\n" + "=" * 80)
+    logger.info("SAVING CONFIGURATION")
+    logger.info("=" * 80)
+    
     try:
         with open(args.output, 'w') as f:
             json.dump(config, f, indent=2)
         
-        logger.info(f"✓ Saved to: {args.output}")
-        
-        # Summary
-        logger.info("\n" + "=" * 80)
-        logger.info("GENERATION SUMMARY")
-        logger.info("=" * 80)
-        logger.info(f"Applications: {len(config['applications'])}")
-        logger.info(f"Total Tiers: {total_tiers}")
-        logger.info(f"Total Nodes Discovered: {total_nodes}")
-        logger.info(f"  ✓ Active Nodes (included): {total_active_nodes}")
-        logger.info(f"  ✗ Inactive Nodes (filtered): {total_inactive_nodes}")
-        
-        if total_nodes > 0:
-            active_percentage = (total_active_nodes / total_nodes) * 100
-            logger.info(f"  Active Percentage: {active_percentage:.1f}%")
-        
-        logger.info("=" * 80)
-        
-        # Show configuration preview
-        logger.info("\nConfiguration Preview:")
-        logger.info("-" * 80)
-        for app in config['applications']:
-            logger.info(f"\nApplication: {app['app_name']}")
-            for tier in app['tiers']:
-                logger.info(f"  Tier: {tier['tier_name']} ({len(tier['nodes'])} active nodes)")
-                if args.verbose and tier['nodes']:
-                    for node in tier['nodes'][:5]:
-                        logger.info(f"    - {node}")
-                    if len(tier['nodes']) > 5:
-                        logger.info(f"    ... and {len(tier['nodes']) - 5} more")
-        
-        return 0
+        logger.info(f"✓ Configuration saved to: {args.output}")
         
     except Exception as e:
-        logger.error(f"✗ Error saving: {e}")
+        logger.error(f"✗ Error saving configuration: {e}")
         return 1
+    
+    # Summary
+    logger.info("\n" + "=" * 80)
+    logger.info("GENERATION SUMMARY")
+    logger.info("=" * 80)
+    logger.info(f"Applications processed: {stats['apps_processed']}/{len(app_names)}")
+    logger.info(f"Tiers with active nodes: {stats['tiers_with_active_nodes']}")
+    logger.info(f"Total tiers in config: {stats['total_tiers']}")
+    logger.info("")
+    logger.info(f"Nodes discovered: {stats['total_nodes_discovered']}")
+    logger.info(f"  ✓ Active (included): {stats['total_nodes_active']}")
+    logger.info(f"  ✗ Inactive (filtered): {stats['total_nodes_inactive']}")
+    
+    if stats['total_nodes_discovered'] > 0:
+        active_pct = (stats['total_nodes_active'] / stats['total_nodes_discovered']) * 100
+        logger.info(f"\nActive percentage: {active_pct:.1f}%")
+        logger.info(f"Reduction: {stats['total_nodes_inactive']} nodes filtered out")
+    
+    logger.info("=" * 80)
+    
+    # Show configuration preview
+    logger.info("\nCONFIGURATION PREVIEW")
+    logger.info("-" * 80)
+    for app in config['applications']:
+        logger.info(f"\nApplication: {app['app_name']}")
+        for tier in app['tiers']:
+            logger.info(f"  Tier: {tier['tier_name']}")
+            logger.info(f"    Nodes: {len(tier['nodes'])}")
+    
+    return 0
 
 if __name__ == '__main__':
     sys.exit(main())

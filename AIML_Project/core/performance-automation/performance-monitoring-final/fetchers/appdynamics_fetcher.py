@@ -422,7 +422,7 @@ class AppDynamicsDataFetcher:
         
         return total
 
- def check_node_availability(self, app_name: str, node_id: int, 
+def check_node_availability(self, app_name: str, node_id: int, 
                             min_availability: float = 1.0,
                             duration_mins: int = 15) -> bool:
     """
@@ -528,3 +528,133 @@ def get_nodes_for_tier_with_health(self, app_name: str, tier_name: str,
         nodes_with_health.append(node_info)
     
     return nodes_with_health       
+
+def get_node_app_agent_availability(self, app_name: str, tier_name: str, 
+                                    node_name: str, duration_mins: int = 15) -> float:
+    """
+    Get the actual App Agent Availability percentage for a node
+    This is the same metric shown in AppDynamics UI
+    
+    Args:
+        app_name: Application name
+        tier_name: Tier name
+        node_name: Node name
+        duration_mins: Duration to check
+        
+    Returns:
+        Availability percentage (0-100), or 0 if unavailable
+    """
+    
+    # Exact metric path for App Agent Availability
+    metric_path = f"Application Infrastructure Performance|{tier_name}|Individual Nodes|{node_name}|Agent|App|Availability"
+    
+    url = f"{self.controller_url}/controller/rest/applications/{app_name}/metric-data"
+    
+    params = {
+        'metric-path': metric_path,
+        'time-range-type': 'BEFORE_NOW',
+        'duration-in-mins': duration_mins,
+        'rollup': 'false',
+        'output': 'JSON'
+    }
+    
+    try:
+        response = self.session.get(url, params=params, verify=False, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if not data or len(data) == 0:
+            self.logger.debug(f"No availability data for {node_name}")
+            return 0.0
+        
+        # Get metric values
+        for metric in data:
+            metric_values = metric.get('metricValues', [])
+            
+            if not metric_values:
+                continue
+            
+            # Calculate average availability from recent values
+            availability_sum = 0
+            count = 0
+            
+            for value_point in metric_values:
+                availability = value_point.get('value', 0)
+                availability_sum += availability
+                count += 1
+            
+            if count > 0:
+                avg_availability = availability_sum / count
+                self.logger.debug(f"Node {node_name}: {avg_availability:.1f}% availability")
+                return avg_availability
+        
+        return 0.0
+        
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            self.logger.debug(f"Availability metric not found for {node_name}")
+        else:
+            self.logger.debug(f"HTTP error checking availability for {node_name}: {e}")
+        return 0.0
+    except Exception as e:
+        self.logger.debug(f"Error checking availability for {node_name}: {e}")
+        return 0.0
+
+def get_active_nodes_with_availability(self, app_name: str, tier_name: str,
+                                       min_availability: float = 50.0,
+                                       duration_mins: int = 15) -> Dict:
+    """
+    Get nodes filtered by actual App Agent Availability percentage
+    
+    Args:
+        app_name: Application name
+        tier_name: Tier name
+        min_availability: Minimum availability percentage (default: 50%)
+        duration_mins: Time window to check
+        
+    Returns:
+        Dictionary with active_nodes list and statistics
+    """
+    all_nodes = self.get_nodes_for_tier(app_name, tier_name)
+    
+    if not all_nodes:
+        return {
+            'active_nodes': [],
+            'total_nodes': 0,
+            'active_count': 0,
+            'inactive_count': 0
+        }
+    
+    active_nodes = []
+    inactive_nodes = []
+    node_availability = {}
+    
+    self.logger.debug(f"Checking availability for {len(all_nodes)} nodes in {tier_name}")
+    
+    for node in all_nodes:
+        node_name = node.get('name')
+        
+        # Get actual availability percentage
+        availability = self.get_node_app_agent_availability(
+            app_name=app_name,
+            tier_name=tier_name,
+            node_name=node_name,
+            duration_mins=duration_mins
+        )
+        
+        node_availability[node_name] = availability
+        
+        if availability >= min_availability:
+            active_nodes.append(node_name)
+        else:
+            inactive_nodes.append(node_name)
+    
+    return {
+        'active_nodes': active_nodes,
+        'inactive_nodes': inactive_nodes,
+        'total_nodes': len(all_nodes),
+        'active_count': len(active_nodes),
+        'inactive_count': len(inactive_nodes),
+        'node_availability': node_availability
+    }
