@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Generate AppDynamics configuration - Filter by App Agent Availability %
-Only includes nodes with App Agent Availability >= threshold (default 50%)
+Generate AppDynamics configuration - Filter by Active Metrics
+Only includes nodes that have Calls per Minute data (App Agent Status = 100%)
 """
 import argparse
 import json
@@ -9,10 +9,11 @@ import sys
 from datetime import datetime
 from fetchers.appdynamics_fetcher import AppDynamicsDataFetcher
 from utils.logger import setup_logger
+import time
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate AppDynamics config filtering by App Agent Availability %'
+        description='Generate AppDynamics config - Active nodes with metrics only'
     )
     
     # AppDynamics credentials
@@ -26,16 +27,18 @@ def main():
                        help='Comma-separated application names')
     
     # Filtering options
-    parser.add_argument('--min-availability', type=float, default=50.0,
-                       help='Minimum App Agent Availability %% (default: 50)')
     parser.add_argument('--check-duration', type=int, default=15,
-                       help='Check availability over last N minutes (default: 15)')
+                       help='Check for metrics in last N minutes (default: 15)')
+    parser.add_argument('--require-calls', action='store_true', default=True,
+                       help='Require node to have calls > 0 (default: True)')
     
     # Output
     parser.add_argument('--output', required=True, help='Output JSON file')
     parser.add_argument('--verbose', action='store_true', help='Verbose output')
-    parser.add_argument('--show-availability', action='store_true',
-                       help='Show availability percentage for each node')
+    parser.add_argument('--show-metrics', action='store_true',
+                       help='Show calls/min for each node')
+    parser.add_argument('--quick-check', action='store_true',
+                       help='Use quick 5-minute check instead of 15 minutes')
     
     args = parser.parse_args()
     
@@ -43,16 +46,20 @@ def main():
     log_level = 'DEBUG' if args.verbose else 'INFO'
     logger = setup_logger('AppDConfigGenerator', level=log_level)
     
+    check_duration = 5 if args.quick_check else args.check_duration
+    
     logger.info("=" * 80)
-    logger.info("AppDynamics Config Generator - App Agent Availability Filter")
+    logger.info("AppDynamics Config Generator - Active Metrics Filter")
     logger.info("=" * 80)
-    logger.info(f"Minimum Availability: {args.min_availability}%")
-    logger.info(f"Check Period: {args.check_duration} minutes")
+    logger.info(f"Filter: Nodes with Calls per Minute data (App Agent Status = 100%)")
+    logger.info(f"Check Period: {check_duration} minutes")
     logger.info("=" * 80)
     
     # Parse app names
     app_names = [name.strip() for name in args.app_names.split(',')]
     logger.info(f"\nApplications to process: {len(app_names)}")
+    for app in app_names:
+        logger.info(f"  - {app}")
     
     # Initialize fetcher
     logger.info("\n→ Connecting to AppDynamics...")
@@ -79,19 +86,21 @@ def main():
     
     if invalid_apps:
         logger.error(f"\n✗ Invalid apps: {', '.join(invalid_apps)}")
+        logger.error(f"Available: {', '.join(available_app_names)}")
         return 1
     
     # Generate configuration
     logger.info("\n" + "=" * 80)
-    logger.info("GENERATING CONFIGURATION")
+    logger.info("DISCOVERING ACTIVE NODES")
     logger.info("=" * 80)
     
     config = {
-        'description': f'AppDynamics config - Nodes with availability >= {args.min_availability}%',
+        'description': 'AppDynamics config - Active nodes with metrics',
         'generated_at': datetime.now().isoformat(),
         'filter_criteria': {
-            'min_availability_percent': args.min_availability,
-            'check_period_minutes': args.check_duration
+            'method': 'Calls per Minute metric presence',
+            'check_period_minutes': check_duration,
+            'require_active_calls': args.require_calls
         },
         'applications': []
     }
@@ -103,8 +112,11 @@ def main():
         'total_nodes_active': 0,
         'total_nodes_inactive': 0,
         'apps_processed': 0,
-        'tiers_with_active_nodes': 0
+        'tiers_with_active_nodes': 0,
+        'total_calls_per_min': 0.0
     }
+    
+    start_time = time.time()
     
     for app_idx, app_name in enumerate(app_names, 1):
         logger.info(f"\n{'=' * 80}")
@@ -116,7 +128,7 @@ def main():
             logger.warning(f"No tiers found for {app_name}")
             continue
         
-        logger.info(f"Found {len(tiers)} tiers")
+        logger.info(f"Found {len(tiers)} tiers\n")
         
         app_config = {
             'app_name': app_name,
@@ -125,79 +137,104 @@ def main():
         
         for tier_idx, tier in enumerate(tiers, 1):
             tier_name = tier.get('name')
-            logger.info(f"\n[Tier {tier_idx}/{len(tiers)}] {tier_name}")
+            logger.info(f"[Tier {tier_idx}/{len(tiers)}] {tier_name}")
             logger.info("-" * 80)
             
-            # Get nodes with availability check
-            result = fetcher.get_active_nodes_with_availability(
+            # Get nodes with metric check
+            logger.info("  Checking node metrics...")
+            
+            result = fetcher.get_active_nodes_by_metrics(
                 app_name=app_name,
                 tier_name=tier_name,
-                min_availability=args.min_availability,
-                duration_mins=args.check_duration
+                require_calls=args.require_calls,
+                duration_mins=check_duration
             )
             
             total_nodes = result['total_nodes']
             active_nodes = result['active_nodes']
             inactive_nodes = result['inactive_nodes']
-            node_availability = result['node_availability']
+            node_metrics = result['node_metrics']
             
             stats['total_nodes_discovered'] += total_nodes
             stats['total_nodes_active'] += len(active_nodes)
             stats['total_nodes_inactive'] += len(inactive_nodes)
             
             if total_nodes == 0:
-                logger.info("  No nodes found")
+                logger.info("  No nodes found\n")
                 continue
             
-            logger.info(f"Total nodes: {total_nodes}")
-            logger.info(f"Active nodes (≥{args.min_availability}%): {len(active_nodes)}")
-            logger.info(f"Inactive nodes (<{args.min_availability}%): {len(inactive_nodes)}")
+            logger.info(f"  Total nodes: {total_nodes}")
+            logger.info(f"  ✓ Active (with metrics): {len(active_nodes)}")
+            logger.info(f"  ✗ Inactive (no metrics): {len(inactive_nodes)}")
             
-            # Show availability details if requested
-            if args.show_availability:
-                logger.info("\nNode Availability Details:")
+            # Calculate tier statistics
+            tier_total_calls = sum(
+                m['calls_per_min'] for m in node_metrics.values()
+            )
+            stats['total_calls_per_min'] += tier_total_calls
+            
+            if tier_total_calls > 0:
+                logger.info(f"  Total calls/min: {tier_total_calls:.2f}")
+            
+            # Show detailed metrics if requested
+            if args.show_metrics and active_nodes:
+                logger.info("\n  Active Node Metrics:")
                 
-                # Sort by availability (descending)
+                # Sort by calls per minute (descending)
                 sorted_nodes = sorted(
-                    node_availability.items(),
-                    key=lambda x: x[1],
+                    [(name, node_metrics[name]) for name in active_nodes],
+                    key=lambda x: x[1]['calls_per_min'],
                     reverse=True
                 )
                 
-                for node_name, availability in sorted_nodes:
-                    status = "✓ ACTIVE  " if availability >= args.min_availability else "✗ INACTIVE"
-                    logger.info(f"  {status} {node_name}: {availability:.1f}%")
-            else:
-                # Just show active nodes
-                if active_nodes:
-                    logger.info("\nActive nodes:")
-                    for node_name in active_nodes[:10]:  # Show first 10
-                        availability = node_availability.get(node_name, 0)
-                        logger.info(f"  ✓ {node_name} ({availability:.1f}%)")
-                    
-                    if len(active_nodes) > 10:
-                        logger.info(f"  ... and {len(active_nodes) - 10} more")
+                for node_name, metrics in sorted_nodes[:10]:  # Show top 10
+                    calls = metrics['calls_per_min']
+                    data_points = metrics['data_points']
+                    logger.info(f"    ✓ {node_name}: {calls:.2f} calls/min ({data_points} data points)")
+                
+                if len(sorted_nodes) > 10:
+                    logger.info(f"    ... and {len(sorted_nodes) - 10} more active nodes")
+            
+            elif active_nodes and not args.show_metrics:
+                logger.info(f"\n  Active nodes (showing first 5):")
+                for node_name in active_nodes[:5]:
+                    calls = node_metrics[node_name]['calls_per_min']
+                    logger.info(f"    ✓ {node_name} ({calls:.2f} calls/min)")
+                
+                if len(active_nodes) > 5:
+                    logger.info(f"    ... and {len(active_nodes) - 5} more")
+            
+            # Show sample inactive nodes if verbose
+            if args.verbose and inactive_nodes:
+                logger.info(f"\n  Sample inactive nodes (first 3):")
+                for node_name in inactive_nodes[:3]:
+                    logger.info(f"    ✗ {node_name} (no metrics)")
+            
+            logger.info("")  # Blank line
             
             # Add to config if has active nodes
             if active_nodes:
                 app_config['tiers'].append({
                     'tier_name': tier_name,
-                    'nodes': active_nodes
+                    'nodes': active_nodes,
+                    'total_calls_per_min': tier_total_calls
                 })
                 stats['total_tiers'] += 1
                 stats['tiers_with_active_nodes'] += 1
             else:
-                logger.warning(f"  ⚠ No active nodes - tier excluded from config")
+                logger.warning(f"  ⚠ No active nodes - tier excluded from config\n")
         
-        # Add app to config if it has tiers with active nodes
+        # Add app to config if it has active tiers
         if app_config['tiers']:
             config['applications'].append(app_config)
             stats['apps_processed'] += 1
         else:
-            logger.warning(f"\n⚠ Application '{app_name}' has no active nodes - excluded from config")
+            logger.warning(f"\n⚠ Application '{app_name}' has no active nodes - excluded\n")
+    
+    elapsed_time = time.time() - start_time
     
     # Save configuration
-    logger.info("\n" + "=" * 80)
+    logger.info("=" * 80)
     logger.info("SAVING CONFIGURATION")
     logger.info("=" * 80)
     
@@ -215,29 +252,38 @@ def main():
     logger.info("\n" + "=" * 80)
     logger.info("GENERATION SUMMARY")
     logger.info("=" * 80)
-    logger.info(f"Applications processed: {stats['apps_processed']}/{len(app_names)}")
+    logger.info(f"Applications in config: {stats['apps_processed']}/{len(app_names)}")
     logger.info(f"Tiers with active nodes: {stats['tiers_with_active_nodes']}")
     logger.info(f"Total tiers in config: {stats['total_tiers']}")
     logger.info("")
-    logger.info(f"Nodes discovered: {stats['total_nodes_discovered']}")
-    logger.info(f"  ✓ Active (included): {stats['total_nodes_active']}")
-    logger.info(f"  ✗ Inactive (filtered): {stats['total_nodes_inactive']}")
+    logger.info(f"Total nodes discovered: {stats['total_nodes_discovered']}")
+    logger.info(f"  ✓ Active (with metrics): {stats['total_nodes_active']}")
+    logger.info(f"  ✗ Inactive (no metrics): {stats['total_nodes_inactive']}")
     
     if stats['total_nodes_discovered'] > 0:
         active_pct = (stats['total_nodes_active'] / stats['total_nodes_discovered']) * 100
+        reduction = stats['total_nodes_inactive']
+        
         logger.info(f"\nActive percentage: {active_pct:.1f}%")
-        logger.info(f"Reduction: {stats['total_nodes_inactive']} nodes filtered out")
+        logger.info(f"Nodes filtered out: {reduction} ({100-active_pct:.1f}%)")
+        logger.info(f"Total traffic: {stats['total_calls_per_min']:.2f} calls/min")
     
+    logger.info(f"\nExecution time: {elapsed_time:.1f} seconds")
     logger.info("=" * 80)
     
-    # Show configuration preview
-    logger.info("\nCONFIGURATION PREVIEW")
-    logger.info("-" * 80)
-    for app in config['applications']:
-        logger.info(f"\nApplication: {app['app_name']}")
-        for tier in app['tiers']:
-            logger.info(f"  Tier: {tier['tier_name']}")
-            logger.info(f"    Nodes: {len(tier['nodes'])}")
+    # Configuration preview
+    if stats['apps_processed'] > 0:
+        logger.info("\nCONFIGURATION PREVIEW")
+        logger.info("-" * 80)
+        for app in config['applications']:
+            logger.info(f"\n✓ Application: {app['app_name']}")
+            for tier in app['tiers']:
+                node_count = len(tier['nodes'])
+                calls = tier.get('total_calls_per_min', 0)
+                logger.info(f"    Tier: {tier['tier_name']}")
+                logger.info(f"      Nodes: {node_count}")
+                logger.info(f"      Traffic: {calls:.2f} calls/min")
+        logger.info("")
     
     return 0
 
