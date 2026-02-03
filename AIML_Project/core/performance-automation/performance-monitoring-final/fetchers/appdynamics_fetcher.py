@@ -658,3 +658,173 @@ def get_active_nodes_with_availability(self, app_name: str, tier_name: str,
         'inactive_count': len(inactive_nodes),
         'node_availability': node_availability
     }
+
+def check_node_has_active_metrics(self, app_name: str, tier_name: str, 
+                                  node_name: str, duration_mins: int = 15) -> Dict:
+    """
+    Check if a node has active metrics (Calls per Minute)
+    This indicates the node is actually reporting data
+    
+    Args:
+        app_name: Application name
+        tier_name: Tier name  
+        node_name: Node name
+        duration_mins: Duration to check
+        
+    Returns:
+        Dictionary with 'is_active' (bool) and 'calls_per_min' (float)
+    """
+    
+    # Check for Calls per Minute metric at node level
+    # This metric exists only for nodes with active app agents
+    metric_path = f"Application Infrastructure Performance|{tier_name}|Individual Nodes|{node_name}|Calls per Minute"
+    
+    url = f"{self.controller_url}/controller/rest/applications/{app_name}/metric-data"
+    
+    params = {
+        'metric-path': metric_path,
+        'time-range-type': 'BEFORE_NOW',
+        'duration-in-mins': duration_mins,
+        'rollup': 'false',
+        'output': 'JSON'
+    }
+    
+    try:
+        response = self.session.get(url, params=params, verify=False, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if not data or len(data) == 0:
+            self.logger.debug(f"No metrics data for {node_name}")
+            return {'is_active': False, 'calls_per_min': 0.0, 'data_points': 0}
+        
+        # Parse metric values
+        for metric in data:
+            metric_values = metric.get('metricValues', [])
+            
+            if not metric_values:
+                continue
+            
+            # Calculate average calls per minute
+            total_calls = 0
+            count = 0
+            
+            for value_point in metric_values:
+                calls = value_point.get('value', 0)
+                if calls is not None:
+                    total_calls += calls
+                    count += 1
+            
+            if count > 0:
+                avg_calls = total_calls / count
+                is_active = avg_calls > 0  # Node is active if it has any calls
+                
+                self.logger.debug(f"Node {node_name}: {avg_calls:.2f} calls/min, {count} data points")
+                
+                return {
+                    'is_active': is_active,
+                    'calls_per_min': avg_calls,
+                    'data_points': count
+                }
+        
+        return {'is_active': False, 'calls_per_min': 0.0, 'data_points': 0}
+        
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            self.logger.debug(f"Calls metric not found for {node_name} - inactive node")
+        else:
+            self.logger.debug(f"HTTP error checking node {node_name}: {e}")
+        return {'is_active': False, 'calls_per_min': 0.0, 'data_points': 0}
+    except Exception as e:
+        self.logger.debug(f"Error checking node {node_name}: {e}")
+        return {'is_active': False, 'calls_per_min': 0.0, 'data_points': 0}
+
+def get_active_nodes_by_metrics(self, app_name: str, tier_name: str,
+                                require_calls: bool = True,
+                                duration_mins: int = 15) -> Dict:
+    """
+    Get nodes that are actually reporting metrics (have Calls per Minute data)
+    
+    Args:
+        app_name: Application name
+        tier_name: Tier name
+        require_calls: If True, node must have calls > 0 (default: True)
+        duration_mins: Time window to check
+        
+    Returns:
+        Dictionary with active nodes and their metrics
+    """
+    all_nodes = self.get_nodes_for_tier(app_name, tier_name)
+    
+    if not all_nodes:
+        return {
+            'active_nodes': [],
+            'inactive_nodes': [],
+            'total_nodes': 0,
+            'active_count': 0,
+            'inactive_count': 0,
+            'node_metrics': {}
+        }
+    
+    active_nodes = []
+    inactive_nodes = []
+    node_metrics = {}
+    
+    self.logger.debug(f"Checking metrics for {len(all_nodes)} nodes in {tier_name}")
+    
+    for node in all_nodes:
+        node_name = node.get('name')
+        
+        # Check if node has active metrics
+        metric_info = self.check_node_has_active_metrics(
+            app_name=app_name,
+            tier_name=tier_name,
+            node_name=node_name,
+            duration_mins=duration_mins
+        )
+        
+        is_active = metric_info['is_active']
+        calls_per_min = metric_info['calls_per_min']
+        data_points = metric_info['data_points']
+        
+        node_metrics[node_name] = {
+            'calls_per_min': calls_per_min,
+            'data_points': data_points,
+            'is_active': is_active
+        }
+        
+        if is_active:
+            active_nodes.append(node_name)
+        else:
+            inactive_nodes.append(node_name)
+    
+    return {
+        'active_nodes': active_nodes,
+        'inactive_nodes': inactive_nodes,
+        'total_nodes': len(all_nodes),
+        'active_count': len(active_nodes),
+        'inactive_count': len(inactive_nodes),
+        'node_metrics': node_metrics
+    }
+
+def check_node_health_quick(self, app_name: str, tier_name: str, node_name: str) -> bool:
+    """
+    Quick check if node is healthy by checking for any recent metric data
+    
+    Args:
+        app_name: Application name
+        tier_name: Tier name
+        node_name: Node name
+        
+    Returns:
+        True if node has reported metrics recently
+    """
+    metric_result = self.check_node_has_active_metrics(
+        app_name=app_name,
+        tier_name=tier_name,
+        node_name=node_name,
+        duration_mins=5  # Quick 5-minute check
+    )
+    
+    return metric_result['is_active']
