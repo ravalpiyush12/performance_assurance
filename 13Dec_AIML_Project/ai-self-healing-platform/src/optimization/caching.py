@@ -1,23 +1,14 @@
 """
-Caching Module - Redis-based Caching
-Implements caching strategies for performance optimization
+Optimization Module - Caching Layer with Redis Support
+Provides caching functionality with automatic fallback to in-memory cache
 """
 
-import json
 import logging
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Dict, List
 from datetime import timedelta
+import json
 from functools import wraps
-import hashlib
-
-# Redis client
-try:
-    import redis
-    from redis import Redis
-    REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
-    logging.warning("Redis not installed. Install with: pip install redis")
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,104 +16,81 @@ logger = logging.getLogger(__name__)
 
 class CacheManager:
     """
-    Manages Redis cache operations
+    Unified cache manager with Redis and in-memory fallback
     """
     
-    def __init__(self, host: str = "localhost", port: int = 6379, db: int = 0, 
-                 password: Optional[str] = None, default_ttl: int = 300):
+    def __init__(self, redis_client=None, default_ttl: int = 300):
         """
         Initialize cache manager
         
         Args:
-            host: Redis host
-            port: Redis port
-            db: Redis database number
-            password: Redis password
-            default_ttl: Default TTL in seconds
+            redis_client: Redis client instance (optional)
+            default_ttl: Default time-to-live in seconds
         """
+        self.redis_client = redis_client
         self.default_ttl = default_ttl
-        self.enabled = REDIS_AVAILABLE
+        self.enabled = redis_client is not None
         
-        if not REDIS_AVAILABLE:
-            logger.warning("Redis caching disabled - redis package not installed")
-            self.client = None
-            return
+        # In-memory fallback
+        self._memory_cache: Dict[str, tuple] = {}  # {key: (value, expiry_timestamp)}
         
-        try:
-            self.client = Redis(
-                host=host,
-                port=port,
-                db=db,
-                password=password,
-                decode_responses=True,
-                socket_timeout=5,
-                socket_connect_timeout=5
-            )
-            
-            # Test connection
-            self.client.ping()
-            logger.info(f"✓ Connected to Redis at {host}:{port}")
-            
-        except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
-            logger.warning("Cache will be disabled")
-            self.client = None
-            self.enabled = False
-    
-    def _generate_key(self, prefix: str, *args, **kwargs) -> str:
-        """Generate cache key from function arguments"""
-        # Create a unique key based on function arguments
-        key_data = f"{prefix}:{str(args)}:{str(sorted(kwargs.items()))}"
-        key_hash = hashlib.md5(key_data.encode()).hexdigest()
-        return f"{prefix}:{key_hash}"
+        # Statistics
+        self.stats = {
+            'hits': 0,
+            'misses': 0,
+            'sets': 0,
+            'deletes': 0
+        }
+        
+        logger.info(f"CacheManager initialized (Redis: {self.enabled}, TTL: {default_ttl}s)")
     
     def get(self, key: str) -> Optional[Any]:
-        """
-        Get value from cache
-        
-        Args:
-            key: Cache key
-            
-        Returns:
-            Cached value or None
-        """
-        if not self.enabled or not self.client:
-            return None
-        
+        """Get value from cache"""
         try:
-            value = self.client.get(key)
-            if value:
-                logger.debug(f"Cache HIT: {key}")
-                return json.loads(value)
+            if self.redis_client:
+                value = self.redis_client.get(key)
+                if value is not None:
+                    self.stats['hits'] += 1
+                    try:
+                        return json.loads(value)
+                    except:
+                        return value
+                self.stats['misses'] += 1
+                return None
             else:
-                logger.debug(f"Cache MISS: {key}")
+                # In-memory cache
+                if key in self._memory_cache:
+                    value, expiry = self._memory_cache[key]
+                    if time.time() < expiry:
+                        self.stats['hits'] += 1
+                        return value
+                    else:
+                        # Expired
+                        del self._memory_cache[key]
+                
+                self.stats['misses'] += 1
                 return None
                 
         except Exception as e:
             logger.error(f"Cache get error: {e}")
+            self.stats['misses'] += 1
             return None
     
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
-        """
-        Set value in cache
-        
-        Args:
-            key: Cache key
-            value: Value to cache
-            ttl: Time to live in seconds
-            
-        Returns:
-            True if successful
-        """
-        if not self.enabled or not self.client:
-            return False
-        
+        """Set value in cache"""
         try:
             ttl = ttl or self.default_ttl
-            serialized = json.dumps(value)
             
-            self.client.setex(key, ttl, serialized)
-            logger.debug(f"Cache SET: {key} (TTL: {ttl}s)")
+            if self.redis_client:
+                if isinstance(value, (dict, list)):
+                    value = json.dumps(value)
+                self.redis_client.setex(key, ttl, value)
+            else:
+                # In-memory cache
+                expiry = time.time() + ttl
+                self._memory_cache[key] = (value, expiry)
+            
+            self.stats['sets'] += 1
             return True
             
         except Exception as e:
@@ -131,266 +99,301 @@ class CacheManager:
     
     def delete(self, key: str) -> bool:
         """Delete key from cache"""
-        if not self.enabled or not self.client:
-            return False
-        
         try:
-            self.client.delete(key)
-            logger.debug(f"Cache DELETE: {key}")
+            if self.redis_client:
+                self.redis_client.delete(key)
+            else:
+                if key in self._memory_cache:
+                    del self._memory_cache[key]
+            
+            self.stats['deletes'] += 1
             return True
+            
         except Exception as e:
             logger.error(f"Cache delete error: {e}")
             return False
     
-    def clear_pattern(self, pattern: str) -> int:
-        """
-        Clear all keys matching pattern
-        
-        Args:
-            pattern: Pattern to match (e.g., "metrics:*")
-            
-        Returns:
-            Number of keys deleted
-        """
-        if not self.enabled or not self.client:
-            return 0
-        
+    def exists(self, key: str) -> bool:
+        """Check if key exists"""
         try:
-            keys = self.client.keys(pattern)
-            if keys:
-                deleted = self.client.delete(*keys)
-                logger.info(f"Cleared {deleted} keys matching '{pattern}'")
-                return deleted
-            return 0
+            if self.redis_client:
+                return bool(self.redis_client.exists(key))
+            else:
+                if key in self._memory_cache:
+                    _, expiry = self._memory_cache[key]
+                    if time.time() < expiry:
+                        return True
+                    else:
+                        del self._memory_cache[key]
+                return False
+                
+        except Exception as e:
+            logger.error(f"Cache exists error: {e}")
+            return False
+    
+    def clear(self) -> bool:
+        """Clear all cache"""
+        try:
+            if self.redis_client:
+                self.redis_client.flushdb()
+            else:
+                self._memory_cache.clear()
+            
+            logger.info("Cache cleared")
+            return True
+            
         except Exception as e:
             logger.error(f"Cache clear error: {e}")
+            return False
+    
+    def keys(self, pattern: str = "*") -> List[str]:
+        """Get keys matching pattern"""
+        try:
+            if self.redis_client:
+                return [k.decode() if isinstance(k, bytes) else k 
+                       for k in self.redis_client.keys(pattern)]
+            else:
+                # Simple pattern matching for in-memory
+                if pattern == "*":
+                    return list(self._memory_cache.keys())
+                else:
+                    # Basic wildcard support
+                    import fnmatch
+                    return [k for k in self._memory_cache.keys() 
+                           if fnmatch.fnmatch(k, pattern)]
+                    
+        except Exception as e:
+            logger.error(f"Cache keys error: {e}")
+            return []
+    
+    def delete_pattern(self, pattern: str) -> int:
+        """Delete all keys matching pattern"""
+        try:
+            keys = self.keys(pattern)
+            count = 0
+            
+            for key in keys:
+                if self.delete(key):
+                    count += 1
+            
+            logger.info(f"Deleted {count} keys matching '{pattern}'")
+            return count
+            
+        except Exception as e:
+            logger.error(f"Cache delete pattern error: {e}")
             return 0
     
-    def flush_all(self) -> bool:
-        """Clear entire cache"""
-        if not self.enabled or not self.client:
-            return False
-        
-        try:
-            self.client.flushdb()
-            logger.warning("All cache cleared!")
-            return True
-        except Exception as e:
-            logger.error(f"Cache flush error: {e}")
-            return False
-    
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
-        if not self.enabled or not self.client:
-            return {"status": "disabled"}
+        total_requests = self.stats['hits'] + self.stats['misses']
+        hit_rate = (self.stats['hits'] / total_requests * 100) if total_requests > 0 else 0
         
-        try:
-            info = self.client.info()
-            return {
-                "status": "enabled",
-                "used_memory": info.get("used_memory_human"),
-                "connected_clients": info.get("connected_clients"),
-                "total_keys": self.client.dbsize(),
-                "hits": info.get("keyspace_hits", 0),
-                "misses": info.get("keyspace_misses", 0),
-                "hit_rate": self._calculate_hit_rate(info)
-            }
-        except Exception as e:
-            logger.error(f"Cache stats error: {e}")
-            return {"status": "error", "error": str(e)}
-    
-    def _calculate_hit_rate(self, info: dict) -> float:
-        """Calculate cache hit rate"""
-        hits = info.get("keyspace_hits", 0)
-        misses = info.get("keyspace_misses", 0)
-        total = hits + misses
+        stats = {
+            'enabled': self.enabled,
+            'backend': 'redis' if self.redis_client else 'in-memory',
+            'hits': self.stats['hits'],
+            'misses': self.stats['misses'],
+            'sets': self.stats['sets'],
+            'deletes': self.stats['deletes'],
+            'hit_rate': round(hit_rate, 2),
+            'total_requests': total_requests
+        }
         
-        if total == 0:
-            return 0.0
+        # Add Redis-specific stats
+        if self.redis_client:
+            try:
+                info = self.redis_client.info('stats')
+                stats['redis_stats'] = {
+                    'total_connections_received': info.get('total_connections_received', 0),
+                    'total_commands_processed': info.get('total_commands_processed', 0),
+                    'keyspace_hits': info.get('keyspace_hits', 0),
+                    'keyspace_misses': info.get('keyspace_misses', 0)
+                }
+            except:
+                pass
+        else:
+            stats['in_memory_keys'] = len(self._memory_cache)
         
-        return round((hits / total) * 100, 2)
-
-
-# Global cache instance
-_cache_manager = None
-
-
-def get_cache_manager() -> CacheManager:
-    """Get global cache manager instance"""
-    global _cache_manager
+        return stats
     
-    if _cache_manager is None:
-        _cache_manager = CacheManager()
+    def cleanup_expired(self):
+        """Clean up expired keys (for in-memory cache)"""
+        if not self.redis_client:
+            current_time = time.time()
+            expired_keys = [
+                key for key, (_, expiry) in self._memory_cache.items()
+                if current_time >= expiry
+            ]
+            
+            for key in expired_keys:
+                del self._memory_cache[key]
+            
+            if expired_keys:
+                logger.info(f"Cleaned up {len(expired_keys)} expired keys")
+
+
+class MetricsCache:
+    """
+    Specialized cache for metrics data with predefined TTLs
+    """
     
-    return _cache_manager
+    def __init__(self, cache_manager: CacheManager):
+        """
+        Initialize metrics cache
+        
+        Args:
+            cache_manager: CacheManager instance
+        """
+        self.cache = cache_manager
+        
+        # Define TTLs for different metric types
+        self.ttls = {
+            'system_status': 5,      # 5 seconds
+            'metrics': 60,           # 1 minute
+            'anomalies': 120,        # 2 minutes
+            'healing_actions': 180,  # 3 minutes
+            'predictions': 300,      # 5 minutes
+            'statistics': 60         # 1 minute
+        }
+        
+        logger.info("MetricsCache initialized")
+    
+    def cache_system_status(self, status: Dict) -> bool:
+        """Cache system status"""
+        return self.cache.set('system:status', status, self.ttls['system_status'])
+    
+    def get_system_status(self) -> Optional[Dict]:
+        """Get cached system status"""
+        return self.cache.get('system:status')
+    
+    def cache_metrics(self, metrics: List[Dict], limit: int = 50) -> bool:
+        """Cache metrics list"""
+        key = f'metrics:recent:{limit}'
+        return self.cache.set(key, metrics, self.ttls['metrics'])
+    
+    def get_metrics(self, limit: int = 50) -> Optional[List[Dict]]:
+        """Get cached metrics"""
+        key = f'metrics:recent:{limit}'
+        return self.cache.get(key)
+    
+    def cache_anomalies(self, anomalies: List[Dict], limit: int = 20) -> bool:
+        """Cache anomalies list"""
+        key = f'anomalies:recent:{limit}'
+        return self.cache.set(key, anomalies, self.ttls['anomalies'])
+    
+    def get_anomalies(self, limit: int = 20) -> Optional[List[Dict]]:
+        """Get cached anomalies"""
+        key = f'anomalies:recent:{limit}'
+        return self.cache.get(key)
+    
+    def cache_healing_actions(self, actions: List[Dict], limit: int = 20) -> bool:
+        """Cache healing actions list"""
+        key = f'healing:recent:{limit}'
+        return self.cache.set(key, actions, self.ttls['healing_actions'])
+    
+    def get_healing_actions(self, limit: int = 20) -> Optional[List[Dict]]:
+        """Get cached healing actions"""
+        key = f'healing:recent:{limit}'
+        return self.cache.get(key)
+    
+    def cache_predictions(self, predictions: Dict) -> bool:
+        """Cache predictions"""
+        return self.cache.set('predictions:latest', predictions, self.ttls['predictions'])
+    
+    def get_predictions(self) -> Optional[Dict]:
+        """Get cached predictions"""
+        return self.cache.get('predictions:latest')
+    
+    def invalidate_metrics(self):
+        """Invalidate all metrics caches"""
+        self.cache.delete_pattern('metrics:*')
+        self.cache.delete_pattern('anomalies:*')
+        self.cache.delete_pattern('healing:*')
+        self.cache.delete('system:status')
+        logger.info("Metrics cache invalidated")
+    
+    def get_cache_info(self) -> Dict:
+        """Get cache information"""
+        return {
+            'ttls': self.ttls,
+            'keys': self.cache.keys('*'),
+            'stats': self.cache.get_stats()
+        }
 
 
 def cached(ttl: int = 300, key_prefix: str = "cache"):
     """
-    Decorator to cache function results
-    
-    Usage:
-        @cached(ttl=600, key_prefix="metrics")
-        def get_metrics(user_id: int):
-            # expensive operation
-            return data
+    Decorator for caching function results
     
     Args:
-        ttl: Time to live in seconds
+        ttl: Time-to-live in seconds
         key_prefix: Prefix for cache key
     """
-    def decorator(func: Callable) -> Callable:
+    def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            cache = get_cache_manager()
-            
             # Generate cache key
-            cache_key = cache._generate_key(key_prefix, *args, **kwargs)
+            cache_key = f"{key_prefix}:{func.__name__}:{hash(str(args) + str(kwargs))}"
             
             # Try to get from cache
-            cached_result = cache.get(cache_key)
-            if cached_result is not None:
-                return cached_result
+            if hasattr(func, '_cache_manager'):
+                cached_value = func._cache_manager.get(cache_key)
+                if cached_value is not None:
+                    return cached_value
             
             # Execute function
             result = func(*args, **kwargs)
             
             # Store in cache
-            cache.set(cache_key, result, ttl)
+            if hasattr(func, '_cache_manager'):
+                func._cache_manager.set(cache_key, result, ttl)
             
             return result
         
         return wrapper
     return decorator
-
-
-def cache_invalidate(key_prefix: str):
-    """
-    Decorator to invalidate cache after function execution
-    
-    Usage:
-        @cache_invalidate(key_prefix="metrics")
-        def update_metrics(user_id: int, data):
-            # update operation
-            return success
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            result = func(*args, **kwargs)
-            
-            # Invalidate cache
-            cache = get_cache_manager()
-            pattern = f"{key_prefix}:*"
-            cache.clear_pattern(pattern)
-            
-            return result
-        
-        return wrapper
-    return decorator
-
-
-class RateLimiter:
-    """
-    Simple rate limiter using Redis
-    """
-    
-    def __init__(self, cache_manager: Optional[CacheManager] = None):
-        self.cache = cache_manager or get_cache_manager()
-    
-    def is_allowed(self, key: str, max_requests: int, window_seconds: int) -> bool:
-        """
-        Check if request is allowed under rate limit
-        
-        Args:
-            key: Unique identifier (e.g., user_id, ip_address)
-            max_requests: Maximum requests allowed
-            window_seconds: Time window in seconds
-            
-        Returns:
-            True if allowed, False if rate limit exceeded
-        """
-        if not self.cache.enabled:
-            return True  # No rate limiting if cache disabled
-        
-        try:
-            rate_key = f"rate_limit:{key}"
-            current = self.cache.client.get(rate_key)
-            
-            if current is None:
-                # First request in window
-                self.cache.client.setex(rate_key, window_seconds, 1)
-                return True
-            
-            current_count = int(current)
-            
-            if current_count >= max_requests:
-                logger.warning(f"Rate limit exceeded for {key}")
-                return False
-            
-            # Increment counter
-            self.cache.client.incr(rate_key)
-            return True
-            
-        except Exception as e:
-            logger.error(f"Rate limit check error: {e}")
-            return True  # Allow on error
 
 
 # Example usage
 if __name__ == '__main__':
-    import time
+    # Test with in-memory cache
+    print("Testing CacheManager (in-memory mode)...")
+    print("=" * 60)
     
-    # Initialize cache
-    cache = CacheManager(host="localhost", port=6379)
+    cache_manager = CacheManager(redis_client=None, default_ttl=60)
     
-    # Test basic operations
-    print("\n=== Testing Cache Operations ===")
+    # Test set/get
+    print("\n1. Testing set/get:")
+    cache_manager.set('test_key', {'data': 'test_value'})
+    result = cache_manager.get('test_key')
+    print(f"   Stored: {{'data': 'test_value'}}")
+    print(f"   Retrieved: {result}")
+    print(f"   Success: {result == {'data': 'test_value'}}")
     
-    # Set
-    cache.set("test_key", {"data": "test_value"}, ttl=60)
+    # Test exists
+    print("\n2. Testing exists:")
+    print(f"   'test_key' exists: {cache_manager.exists('test_key')}")
+    print(f"   'nonexistent' exists: {cache_manager.exists('nonexistent')}")
     
-    # Get
-    value = cache.get("test_key")
-    print(f"Retrieved: {value}")
+    # Test stats
+    print("\n3. Cache statistics:")
+    stats = cache_manager.get_stats()
+    print(f"   Backend: {stats['backend']}")
+    print(f"   Hits: {stats['hits']}")
+    print(f"   Misses: {stats['misses']}")
+    print(f"   Hit rate: {stats['hit_rate']}%")
     
-    # Test decorator
-    @cached(ttl=30, key_prefix="expensive")
-    def expensive_function(x: int, y: int):
-        print(f"Computing {x} + {y}...")
-        time.sleep(1)  # Simulate expensive operation
-        return x + y
+    # Test MetricsCache
+    print("\n4. Testing MetricsCache:")
+    metrics_cache = MetricsCache(cache_manager)
     
-    print("\n=== Testing Cached Decorator ===")
+    test_status = {'health': 95.0, 'alerts': 0}
+    metrics_cache.cache_system_status(test_status)
     
-    # First call - should compute
-    result1 = expensive_function(5, 3)
-    print(f"Result 1: {result1}")
+    retrieved_status = metrics_cache.get_system_status()
+    print(f"   Cached status: {test_status}")
+    print(f"   Retrieved status: {retrieved_status}")
+    print(f"   Success: {retrieved_status == test_status}")
     
-    # Second call - should use cache
-    result2 = expensive_function(5, 3)
-    print(f"Result 2: {result2} (from cache)")
-    
-    # Different args - should compute
-    result3 = expensive_function(10, 20)
-    print(f"Result 3: {result3}")
-    
-    # Test rate limiting
-    print("\n=== Testing Rate Limiter ===")
-    
-    limiter = RateLimiter(cache)
-    
-    for i in range(5):
-        allowed = limiter.is_allowed("user_123", max_requests=3, window_seconds=60)
-        print(f"Request {i+1}: {'✓ Allowed' if allowed else '✗ Blocked'}")
-    
-    # Get stats
-    print("\n=== Cache Statistics ===")
-    stats = cache.get_stats()
-    print(json.dumps(stats, indent=2))
-    
-    # Cleanup
-    cache.delete("test_key")
-    cache.clear_pattern("expensive:*")
-    
-    print("\n✓ Cache tests completed!")
+    print("\n" + "=" * 60)
+    print("✅ All tests completed!")
