@@ -1,0 +1,281 @@
+{
+  "info": {
+    "name": "Oracle SQL API",
+    "description": "API collection for Oracle SQL operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "local-dev-api-key",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "test_user",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Get Auth Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set('access_token', jsonData.access_token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"username\": \"{{username}}\",\n    \"api_key\": \"{{api_key}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/auth/token",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "auth", "token"]
+        }
+      }
+    },
+    {
+      "name": "Execute SELECT Query",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"sql_content\": \"SELECT SYSDATE, USER, SYS_CONTEXT('USERENV', 'HOST') as HOST FROM DUAL\",\n    \"username\": \"{{username}}\",\n    \"description\": \"Test SELECT query\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/sql/execute",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "sql", "execute"]
+        }
+      }
+    },
+    {
+      "name": "Execute INSERT Query",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"sql_content\": \"INSERT INTO test_table (id, name, created_date) VALUES (1, 'Test Record', SYSDATE)\",\n    \"username\": \"{{username}}\",\n    \"description\": \"Test INSERT query\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/sql/execute",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "sql", "execute"]
+        }
+      }
+    },
+    {
+      "name": "Execute UPDATE Query",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"sql_content\": \"UPDATE test_table SET name = 'Updated Record' WHERE id = 1\",\n    \"username\": \"{{username}}\",\n    \"description\": \"Test UPDATE query\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/sql/execute",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "sql", "execute"]
+        }
+      }
+    },
+    {
+      "name": "Execute SQL File",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "test.sql"
+            },
+            {
+              "key": "username",
+              "value": "{{username}}",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "value": "Test SQL file upload",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/sql/execute-file",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "sql", "execute-file"]
+        }
+      }
+    },
+    {
+      "name": "Get Pool Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/pool/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "pool", "status"]
+        }
+      }
+    },
+    {
+      "name": "Get Rate Limit Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/rate-limit/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "rate-limit", "status"]
+        }
+      }
+    },
+    {
+      "name": "Get Audit Summary",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/audit/summary",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "audit", "summary"]
+        }
+      }
+    },
+    {
+      "name": "Test Invalid SQL (DROP)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"sql_content\": \"DROP TABLE test_table\",\n    \"username\": \"{{username}}\",\n    \"description\": \"Test validation - should be blocked\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/sql/execute",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "sql", "execute"]
+        }
+      }
+    },
+    {
+      "name": "Test Unauthorized Access",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"sql_content\": \"SELECT 1 FROM DUAL\",\n    \"username\": \"{{username}}\",\n    \"description\": \"Test without API key - should fail\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/sql/execute",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "sql", "execute"]
+        }
+      }
+    }
+  ]
+}
