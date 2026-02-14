@@ -1,0 +1,200 @@
+# ==============================================================================
+# PROMETHEUS CONFIGURATION
+# ==============================================================================
+# This configures Prometheus to scrape your sample-app pods
+
+# Method 1: If using Helm, add this to values.yaml
+# helm install prometheus prometheus-community/prometheus -f prometheus-values.yaml
+
+# prometheus-values.yaml:
+serverFiles:
+  prometheus.yml:
+    global:
+      scrape_interval: 15s              # How often to scrape
+      evaluation_interval: 15s          # How often to evaluate rules
+      external_labels:
+        cluster: 'kubernetes'
+        environment: 'demo'
+    
+    scrape_configs:
+    
+    # ===========================================================
+    # KUBERNETES POD DISCOVERY (AUTOMATIC)
+    # ===========================================================
+    # This discovers all pods with prometheus.io/scrape annotation
+    
+    - job_name: 'kubernetes-pods'
+      kubernetes_sd_configs:
+      - role: pod
+      
+      relabel_configs:
+      # Only scrape pods with prometheus.io/scrape = true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      
+      # Use custom port if prometheus.io/port annotation exists
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        target_label: __address__
+        regex: (.+)
+        replacement: $1
+      
+      # Use custom path if prometheus.io/path annotation exists
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      
+      # Add pod metadata as labels
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+      
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: replace
+        target_label: app
+      
+      - source_labels: [__meta_kubernetes_pod_label_version]
+        action: replace
+        target_label: version
+    
+    # ===========================================================
+    # SAMPLE APP SPECIFIC (EXPLICIT)
+    # ===========================================================
+    # Alternative: Explicitly target sample-app service
+    
+    - job_name: 'sample-app'
+      static_configs:
+      - targets: ['sample-app.monitoring-demo.svc.cluster.local:5000']
+        labels:
+          app: 'sample-app'
+          environment: 'demo'
+      metrics_path: '/metrics'
+      scrape_interval: 15s
+    
+    # ===========================================================
+    # KUBERNETES NODES (SYSTEM METRICS)
+    # ===========================================================
+    
+    - job_name: 'kubernetes-nodes'
+      kubernetes_sd_configs:
+      - role: node
+      
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics
+      
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    
+    # ===========================================================
+    # CADVISOR (CONTAINER METRICS)
+    # ===========================================================
+    
+    - job_name: 'kubernetes-cadvisor'
+      kubernetes_sd_configs:
+      - role: node
+      
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+      
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+---
+# ==============================================================================
+# Method 2: ConfigMap for Manual Prometheus Installation
+# ==============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring-demo
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+    
+    # Discover pods with prometheus.io/scrape annotation
+    - job_name: 'kubernetes-pods'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - monitoring-demo
+      
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: replace
+        target_label: app
+
+---
+# ==============================================================================
+# VERIFICATION QUERIES
+# ==============================================================================
+# After Prometheus is scraping, use these PromQL queries:
+
+# Query 1: Check if sample-app metrics are being scraped
+# up{job="sample-app"}
+# Should return: 1 (means target is up)
+
+# Query 2: HTTP requests total
+# http_requests_total{app="sample-app"}
+
+# Query 3: CPU usage
+# app_cpu_usage_percent{app="sample-app"}
+
+# Query 4: Memory usage
+# app_memory_usage_bytes{app="sample-app"}
+
+# Query 5: Request duration (average over 1 minute)
+# rate(http_request_duration_seconds_sum{app="sample-app"}[1m]) 
+# / 
+# rate(http_request_duration_seconds_count{app="sample-app"}[1m])
+
+# Query 6: Error rate
+# rate(app_errors_total{app="sample-app"}[1m])
