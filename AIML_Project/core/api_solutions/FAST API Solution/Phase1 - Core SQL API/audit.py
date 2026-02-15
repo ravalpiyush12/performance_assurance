@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from config import Settings
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) 
 
 
 class AuditLogger:
