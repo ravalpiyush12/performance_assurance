@@ -1,13 +1,14 @@
 """
-Oracle Connection Handler with CyberArk Integration
+Oracle Connection Handler with python-oracledb (replaces cx_Oracle)
+Supports both Thin mode (pure Python) and Thick mode (with Oracle Client)
 """
-import cx_Oracle
+import oracledb
 import sys
 from typing import Optional
 
 
 class OracleConnectionPool:
-    """Manages Oracle connection pool with optional CyberArk integration"""
+    """Manages Oracle connection pool using python-oracledb"""
     
     def __init__(self, db_config, global_settings):
         """
@@ -44,9 +45,10 @@ class OracleConnectionPool:
         dsn = f"{self.db_config.host}:{self.db_config.port}/{self.db_config.service_name}"
         print(f"    DSN: {dsn}", flush=True)
         
-        # Create connection pool
+        # Create connection pool using python-oracledb
         try:
-            self.pool = cx_Oracle.SessionPool(
+            # Create pool with Thin mode (pure Python, no Oracle Client required)
+            self.pool = oracledb.create_pool(
                 user=self.credentials["username"],
                 password=self.credentials["password"],
                 dsn=dsn,
@@ -54,13 +56,17 @@ class OracleConnectionPool:
                 max=self.db_config.pool_max,
                 increment=self.db_config.pool_increment,
                 threaded=True,
-                encoding="UTF-8"
+                # Thin mode parameters
+                encoding="UTF-8",
+                nencoding="UTF-8"
             )
-            print(f"    Pool created: {self.db_config.pool_min}-{self.db_config.pool_max} connections", flush=True)
             
-        except cx_Oracle.DatabaseError as e:
-            error_obj, = e.args
-            print(f"    Oracle Error: {error_obj.message}", flush=True)
+            print(f"    Pool created: {self.db_config.pool_min}-{self.db_config.pool_max} connections", flush=True)
+            print(f"    Mode: Thin (pure Python)", flush=True)
+            
+        except oracledb.DatabaseError as e:
+            error_obj = e.args[0] if e.args else str(e)
+            print(f"    Oracle Error: {error_obj}", flush=True)
             raise
     
     def _get_cyberark_credentials(self) -> dict:
@@ -100,7 +106,8 @@ class OracleConnectionPool:
             "opened": self.pool.opened,
             "busy": self.pool.busy,
             "max": self.pool.max,
-            "min": self.pool.min
+            "min": self.pool.min,
+            "mode": "thin"  # python-oracledb thin mode
         }
     
     def close(self):
@@ -108,3 +115,27 @@ class OracleConnectionPool:
         if self.pool:
             self.pool.close()
             self.pool = None
+
+
+# Optional: Initialize Thick mode if Oracle Instant Client is available
+def init_thick_mode(lib_dir: Optional[str] = None):
+    """
+    Initialize Thick mode (requires Oracle Instant Client)
+    
+    Args:
+        lib_dir: Optional path to Oracle Instant Client library
+    
+    Note: Only call this if you need features not available in Thin mode
+    (e.g., advanced Oracle features, DRCP)
+    """
+    try:
+        if lib_dir:
+            oracledb.init_oracle_client(lib_dir=lib_dir)
+        else:
+            oracledb.init_oracle_client()
+        print("✓ Oracle Thick mode initialized", flush=True)
+        return True
+    except Exception as e:
+        print(f"⚠ Thick mode initialization failed: {e}", flush=True)
+        print("✓ Falling back to Thin mode (pure Python)", flush=True)
+        return False

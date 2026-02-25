@@ -5,23 +5,12 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install minimal system dependencies
+# Note: Oracle Instant Client NOT required for python-oracledb Thin mode
 RUN apt-get update && apt-get install -y \
-    wget \
-    unzip \
-    libaio1 \
     curl \
     netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Oracle Instant Client
-RUN wget https://download.oracle.com/otn_software/linux/instantclient/2115000/instantclient-basic-linux.x64-21.15.0.0.0dbru.zip \
-    && unzip instantclient-basic-linux.x64-21.15.0.0.0dbru.zip -d /opt/oracle \
-    && rm instantclient-basic-linux.x64-21.15.0.0.0dbru.zip
-
-# Set Oracle environment variables
-ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_21_15:$LD_LIBRARY_PATH \
-    PATH=/opt/oracle/instantclient_21_15:$PATH
 
 # Set working directory
 WORKDIR /app
@@ -30,6 +19,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install Python dependencies
+# python-oracledb works in Thin mode without Oracle Client
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 

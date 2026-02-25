@@ -6,8 +6,8 @@ gunicorn==21.2.0
 # Pydantic v1 (IMPORTANT!)
 pydantic==1.10.18
 
-# Oracle Database
-cx_Oracle==8.3.0
+# Oracle Database - NEW python-oracledb (replaces cx_Oracle)
+oracledb==2.0.0
 
 # Security & Authentication
 python-jose[cryptography]==3.3.0
