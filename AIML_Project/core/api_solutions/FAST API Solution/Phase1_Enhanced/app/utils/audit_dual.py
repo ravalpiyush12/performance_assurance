@@ -1,5 +1,5 @@
 """
-Enhanced Audit Logger - Dual Logging System
+Enhanced Audit Logger - Dual Logging System (Updated for python-oracledb)
 Supports both JSONL file logging and Oracle Database (CQE_NFT) table logging
 """
 import json
@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
-import cx_Oracle
+import oracledb
 
 
 class AuditLogger:
@@ -64,8 +64,10 @@ class AuditLogger:
         - ADDITIONAL_DATA (CLOB)
         """
         try:
-            with self.cqe_nft_pool.get_connection() as conn:
-                cursor = conn.cursor()
+            connection = self.cqe_nft_pool.get_connection()
+            
+            try:
+                cursor = connection.cursor()
                 
                 # Create sequence for audit ID
                 create_sequence_sql = """
@@ -136,10 +138,13 @@ class AuditLogger:
                 """
                 cursor.execute(create_index2_sql)
                 
-                conn.commit()
+                connection.commit()
                 cursor.close()
                 
                 print("✓ Audit table initialized in CQE_NFT", flush=True)
+                
+            finally:
+                connection.close()
                 
         except Exception as e:
             print(f"⚠ Failed to initialize audit table: {e}", flush=True)
@@ -261,8 +266,10 @@ class AuditLogger:
             All audit event parameters
         """
         try:
-            with self.cqe_nft_pool.get_connection() as conn:
-                cursor = conn.cursor()
+            connection = self.cqe_nft_pool.get_connection()
+            
+            try:
+                cursor = connection.cursor()
                 
                 # Convert additional_data to JSON string
                 additional_json = json.dumps(additional_data) if additional_data else None
@@ -318,8 +325,11 @@ class AuditLogger:
                     'additional_data': additional_json
                 })
                 
-                conn.commit()
+                connection.commit()
                 cursor.close()
+                
+            finally:
+                connection.close()
                 
         except Exception as e:
             print(f"Failed to write database audit log: {e}", flush=True)
@@ -352,8 +362,10 @@ class AuditLogger:
             return []
         
         try:
-            with self.cqe_nft_pool.get_connection() as conn:
-                cursor = conn.cursor()
+            connection = self.cqe_nft_pool.get_connection()
+            
+            try:
+                cursor = connection.cursor()
                 
                 # Build dynamic query
                 where_clauses = []
@@ -418,6 +430,9 @@ class AuditLogger:
                         # Convert datetime to string
                         if isinstance(value, datetime):
                             value = value.isoformat()
+                        # Convert LOB to string
+                        elif isinstance(value, oracledb.LOB):
+                            value = value.read() if value else None
                         # Parse JSON additional_data
                         if col == 'ADDITIONAL_DATA' and value:
                             try:
@@ -429,6 +444,9 @@ class AuditLogger:
                 
                 cursor.close()
                 return results
+                
+            finally:
+                connection.close()
                 
         except Exception as e:
             print(f"Failed to query audit logs: {e}", flush=True)
@@ -453,8 +471,10 @@ class AuditLogger:
             return {}
         
         try:
-            with self.cqe_nft_pool.get_connection() as conn:
-                cursor = conn.cursor()
+            connection = self.cqe_nft_pool.get_connection()
+            
+            try:
+                cursor = connection.cursor()
                 
                 where_clauses = []
                 params = {}
@@ -521,6 +541,9 @@ class AuditLogger:
                     "databases": databases
                 }
                 
+            finally:
+                connection.close()
+                
         except Exception as e:
             print(f"Failed to get audit statistics: {e}", flush=True)
             return {}
@@ -536,8 +559,10 @@ class AuditLogger:
             return
         
         try:
-            with self.cqe_nft_pool.get_connection() as conn:
-                cursor = conn.cursor()
+            connection = self.cqe_nft_pool.get_connection()
+            
+            try:
+                cursor = connection.cursor()
                 
                 delete_sql = """
                 DELETE FROM AUDIT_LOG
@@ -547,10 +572,13 @@ class AuditLogger:
                 cursor.execute(delete_sql, {'days_to_keep': days_to_keep})
                 rows_deleted = cursor.rowcount
                 
-                conn.commit()
+                connection.commit()
                 cursor.close()
                 
                 print(f"✓ Cleaned up {rows_deleted} old audit records", flush=True)
+                
+            finally:
+                connection.close()
                 
         except Exception as e:
             print(f"Failed to cleanup old audit logs: {e}", flush=True)
