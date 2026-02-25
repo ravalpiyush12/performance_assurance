@@ -1,0 +1,42 @@
+# Core API Framework
+fastapi==0.88.0
+uvicorn[standard]==0.27.0
+gunicorn==21.2.0
+
+# Pydantic v1 (IMPORTANT!)
+pydantic==1.10.18
+
+# Oracle Database
+cx_Oracle==8.3.0
+
+# Security & Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+bcrypt==4.1.2
+
+# HTTP Requests
+requests==2.31.0
+httpx==0.24.1
+
+# MongoDB Driver
+pymongo==4.6.1
+
+# Elasticsearch
+elasticsearch==8.11.0
+
+# Templating
+jinja2==3.1.2
+
+# Utilities
+python-dotenv==1.0.0
+aiofiles==23.2.1
+
+# Logging
+structlog==24.1.0
+
+# XML parsing (Splunk)
+lxml==5.1.0
+
+# Date utilities
+python-dateutil==2.8.2

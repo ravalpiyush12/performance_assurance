@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CQE NFT Monitoring API Solutions</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            background: #f5f5f5;
+            border: none;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .tab:hover { background: #e0e0e0; }
+        
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .form-group { margin-bottom: 20px; }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        select, input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        select:focus, input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            font-family: 'Courier New', monospace;
+            min-height: 200px;
+            resize: vertical;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .response-box {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            max-height: 500px;
+            overflow: auto;
+        }
+        
+        .response-box pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .success {
+            border-left-color: #4caf50;
+            background: #f1f8f4;
+        }
+        
+        .error {
+            border-left-color: #f44336;
+            background: #fef1f0;
+        }
+        
+        .database-selector {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .api-doc {
+            background: #f5f7fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .api-doc h3 { color: #667eea; margin-bottom: 10px; }
+        
+        .api-doc code {
+            background: #e0e0e0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active { display: block; }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .database-info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .database-info strong { color: #856404; }
+        
+        .api-keys-display {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .api-keys-display h4 { color: #1976d2; margin-bottom: 10px; }
+        
+        .api-key-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 3px solid #2196f3;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .api-key-item .key-label {
+            font-weight: bold;
+            color: #1976d2;
+            margin-right: 10px;
+        }
+        
+        .api-key-item .key-value {
+            color: #555;
+            word-break: break-all;
+        }
+        
+        .all-databases-keys {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .db-key-section {
+            background: white;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .db-key-section h4 { color: #667eea; margin-bottom: 10px; }
+        
+        .key-list { list-style: none; padding: 0; }
+        
+        .key-list li {
+            padding: 8px;
+            background: #f9f9f9;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        /* Database Connectivity Status */
+        .db-status-panel {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .db-status-panel h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .db-status-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #ccc;
+            transition: all 0.3s;
+        }
+
+        .db-status-item.healthy { border-left-color: #28a745; }
+        .db-status-item.unhealthy { border-left-color: #dc3545; }
+        .db-status-item.checking { border-left-color: #ffc107; }
+
+        .db-name {
+            font-weight: 600;
+            color: #212529;
+            font-size: 0.95em;
+        }
+
+        .db-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.healthy { background: #28a745; }
+        .status-dot.unhealthy { background: #dc3545; }
+        .status-dot.checking { background: #ffc107; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 0.85em;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .status-text.healthy { color: #28a745; }
+        .status-text.unhealthy { color: #dc3545; }
+        .status-text.checking { color: #ffc107; }
+
+        .refresh-status-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .refresh-status-btn:hover { background: #5a6268; }
+
+        .overall-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 15px;
+            background: white;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .overall-status.healthy {
+            color: #28a745;
+            border: 2px solid #28a745;
+        }
+
+        .overall-status.degraded {
+            color: #ffc107;
+            border: 2px solid #ffc107;
+        }
+
+        @media (max-width: 768px) {
+            .tabs { flex-direction: column; }
+            .status-grid { grid-template-columns: 1fr; }
+            .db-status-panel h3 { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗄️ CQE NFT Monitoring API Solutions</h1>
+            <p>Multi-Database Management Platform with Integrated Monitoring</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">
+                Environment: <span id="headerEnvironment">Loading...</span> | 
+                Version: <span id="headerVersion">Loading...</span>
+            </p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab(event, 'oracle')">Oracle SQL</button>
+            <button class="tab" onclick="showTab(event, 'apikeys')">📋 API Keys</button>
+            <button class="tab" onclick="showTab(event, 'appdynamics')">AppDynamics</button>
+            <button class="tab" onclick="showTab(event, 'kibana')">Kibana</button>
+            <button class="tab" onclick="showTab(event, 'splunk')">Splunk</button>
+            <button class="tab" onclick="showTab(event, 'mongodb')">MongoDB</button>
+        </div>
+        
+        <!-- Oracle SQL Tab -->
+        <div id="oracle" class="tab-content active">
+            <h2>Oracle SQL Execution</h2>
+            
+            <!-- Database Connectivity Status Panel -->
+            <div class="db-status-panel">
+                <h3>
+                    📊 Database Connectivity Status
+                    <span class="overall-status" id="overallStatus">
+                        <span class="status-dot checking"></span>
+                        Checking...
+                    </span>
+                    <button class="refresh-status-btn" onclick="checkDatabaseStatus()">🔄 Refresh</button>
+                </h3>
+                <div class="status-grid" id="dbStatusGrid">
+                    <div class="db-status-item checking">
+                        <span class="db-name">Loading databases...</span>
+                        <div class="db-status">
+                            <span class="status-dot checking"></span>
+                            <span class="status-text checking">Checking...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Available API Keys -->
+            <div class="api-keys-display" id="currentDbApiKeys" style="display: none;">
+                <h4>🔑 Available API Keys</h4>
+                <div id="currentDbKeysList"></div>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label>Select API Key:</label>
+                    <select id="apiKeySelector" onchange="selectApiKey()">
+                        <option value="">-- Select Key --</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="database-selector">
+                <div class="form-group">
+                    <label for="database">Select Database:</label>
+                    <select id="database" onchange="updateDatabaseInfo()">
+                        <option value="">-- Loading... --</option>
+                    </select>
+                </div>
+                
+                <div id="databaseInfo" class="database-info" style="display: none;">
+                    <strong>Info:</strong> <span id="dbInfoText"></span>
+                </div>
+            </div>
+            
+            <div class="api-doc">
+                <h3>📚 API Documentation</h3>
+                <p><strong>Endpoint:</strong> <code>POST /api/v1/{database}/execute</code></p>
+                <p><strong>Headers:</strong> <code>X-API-Key: your-key</code></p>
+            </div>
+            
+            <div class="form-group">
+                <label for="apiKey">API Key:</label>
+                <input type="text" id="apiKey" placeholder="Auto-selected" readonly style="background: #f9f9f9;">
+            </div>
+            
+            <div class="form-group">
+                <label for="sqlQuery">SQL Query:</label>
+                <textarea id="sqlQuery">SELECT SYSDATE FROM DUAL</textarea>
+            </div>
+            
+            <button class="btn" onclick="executeSQL()">Execute Query</button>
+            <button class="btn" onclick="uploadSQLFile()" style="margin-left: 10px; background: #4caf50;">Upload File</button>
+            <input type="file" id="sqlFileInput" style="display: none;" accept=".sql" onchange="handleFileUpload()">
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Executing...</p>
+            </div>
+            
+            <div id="response" class="response-box" style="display: none;">
+                <h3>Response:</h3>
+                <pre id="responseContent"></pre>
+            </div>
+        </div>
+        
+        <!-- API Keys Tab -->
+        <div id="apikeys" class="tab-content">
+            <h2>📋 API Keys Reference</h2>
+            <div class="all-databases-keys" id="allDatabasesKeys">Loading...</div>
+        </div>
+        
+        <!-- Other Tabs -->
+        <div id="appdynamics" class="tab-content"><h2>AppDynamics Monitoring</h2></div>
+        <div id="kibana" class="tab-content"><h2>Kibana Monitoring</h2></div>
+        <div id="splunk" class="tab-content"><h2>Splunk Monitoring</h2></div>
+        <div id="mongodb" class="tab-content"><h2>MongoDB Analysis</h2></div>
+    </div>
+    
+    <script>
+        let apiKeysMap = {};
+        let databasesInfo = {};
+        
+        const dbDescriptions = {
+            'CQE_NFT': 'Read/Write (DQL + DML). Direct auth.',
+            'CD_PTE_READ': 'Read-only (DQL). Direct auth.',
+            'CD_PTE_WRITE': 'Write (DML). CyberArk.',
+            'CAS_PTE_READ': 'Read-only (DQL). Direct auth.',
+            'CAS_PTE_WRITE': 'Write (DML). CyberArk.',
+            'PORTAL_PTE_READ': 'Read-only (DQL). Direct auth.',
+            'PORTAL_PTE_WRITE': 'Write (DML). CyberArk.'
+        };
+        
+        window.addEventListener('DOMContentLoaded', function() {
+            loadEnvironmentInfo();
+            loadDatabases();
+            loadApiKeys();
+            checkDatabaseStatus();
+        });
+        
+        function loadEnvironmentInfo() {
+            fetch('/api/v1/config/environment')
+                .then(r => r.json())
+                .then(d => {
+                    document.getElementById('headerEnvironment').textContent = d.environment || 'Unknown';
+                    document.getElementById('headerVersion').textContent = d.version || 'Unknown';
+                })
+                .catch(e => console.error('Env load failed:', e));
+        }
+        
+        function loadDatabases() {
+            fetch('/api/v1/databases')
+                .then(r => r.json())
+                .then(d => {
+                    const sel = document.getElementById('database');
+                    sel.innerHTML = '<option value="">-- Select --</option>';
+                    d.databases.forEach(db => {
+                        if (db.status === 'available') {
+                            databasesInfo[db.name] = db;
+                            const opt = document.createElement('option');
+                            opt.value = db.name;
+                            opt.textContent = db.name + ' (' + db.allowed_operations.join(', ') + ')';
+                            sel.appendChild(opt);
+                        }
+                    });
+                })
+                .catch(e => console.error('DB load failed:', e));
+        }
+        
+        function checkDatabaseStatus() {
+            fetch('/health')
+                .then(r => r.json())
+                .then(d => displayDatabaseStatus(d.status, d.databases || {}))
+                .catch(() => displayDatabaseStatus('error', {}));
+        }
+        
+        function displayDatabaseStatus(status, databases) {
+            const grid = document.getElementById('dbStatusGrid');
+            const overall = document.getElementById('overallStatus');
+            
+            let cls = 'checking', txt = 'Checking...';
+            if (status === 'healthy') { cls = 'healthy'; txt = 'All Operational'; }
+            else if (status === 'degraded') { cls = 'degraded'; txt = 'Some Down'; }
+            
+            overall.className = 'overall-status ' + cls;
+            overall.innerHTML = '<span class="status-dot ' + cls + '"></span>' + txt;
+            
+            if (Object.keys(databases).length === 0) {
+                grid.innerHTML = '<div class="db-status-item checking"><span class="db-name">No databases</span></div>';
+                return;
+            }
+            
+            let html = '';
+            for (const name in databases) {
+                const db = databases[name];
+                const healthy = db.status === 'healthy';
+                const c = healthy ? 'healthy' : 'unhealthy';
+                const t = healthy ? 'Connected' : 'Disconnected';
+                html += '<div class="db-status-item ' + c + '">' +
+                    '<span class="db-name">' + name + '</span>' +
+                    '<div class="db-status">' +
+                    '<span class="status-dot ' + c + '"></span>' +
+                    '<span class="status-text ' + c + '">' + t + '</span>' +
+                    '</div></div>';
+            }
+            grid.innerHTML = html;
+        }
+        
+        function loadApiKeys() {
+            fetch('/api/v1/config/api-keys')
+                .then(r => r.json())
+                .then(d => {
+                    apiKeysMap = d.api_keys || {};
+                    displayAllApiKeys();
+                })
+                .catch(e => console.error('Keys load failed:', e));
+        }
+        
+        function displayAllApiKeys() {
+            const cont = document.getElementById('allDatabasesKeys');
+            if (!apiKeysMap || Object.keys(apiKeysMap).length === 0) {
+                cont.innerHTML = '<p>No API keys</p>';
+                return;
+            }
+            let html = '';
+            for (const db in apiKeysMap) {
+                const keys = apiKeysMap[db];
+                if (!keys || !keys.length) continue;
+                html += '<div class="db-key-section"><h4>' + db + '</h4><ul class="key-list">';
+                keys.forEach((k, i) => html += '<li>Key ' + (i+1) + ': ' + k + '</li>');
+                html += '</ul></div>';
+            }
+            cont.innerHTML = html || '<p>No keys</p>';
+        }
+        
+        function showTab(evt, name) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+            document.getElementById(name).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }
+        
+        function updateDatabaseInfo() {
+            const db = document.getElementById('database').value;
+            if (!db) {
+                document.getElementById('databaseInfo').style.display = 'none';
+                document.getElementById('currentDbApiKeys').style.display = 'none';
+                document.getElementById('apiKey').value = '';
+                return;
+            }
+            document.getElementById('dbInfoText').textContent = dbDescriptions[db] || '';
+            document.getElementById('databaseInfo').style.display = 'block';
+            showApiKeysForDatabase(db);
+        }
+        
+        function showApiKeysForDatabase(db) {
+            const keys = apiKeysMap[db] || [];
+            if (!keys.length) {
+                document.getElementById('currentDbApiKeys').style.display = 'none';
+                document.getElementById('apiKey').value = '';
+                return;
+            }
+            let html = '<p><strong>Available:</strong></p>';
+            keys.forEach((k, i) => html += '<div class="api-key-item"><span class="key-label">Key ' + (i+1) + ':</span><span class="key-value">' + k + '</span></div>');
+            document.getElementById('currentDbKeysList').innerHTML = html;
+            
+            const sel = document.getElementById('apiKeySelector');
+            sel.innerHTML = '<option value="">-- Select --</option>';
+            keys.forEach((k, i) => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = 'Key ' + (i+1);
+                sel.appendChild(opt);
+            });
+            document.getElementById('currentDbApiKeys').style.display = 'block';
+            sel.value = keys[0];
+            document.getElementById('apiKey').value = keys[0];
+        }
+        
+        function selectApiKey() {
+            document.getElementById('apiKey').value = document.getElementById('apiKeySelector').value;
+        }
+        
+        async function executeSQL() {
+            const db = document.getElementById('database').value;
+            const key = document.getElementById('apiKey').value;
+            const sql = document.getElementById('sqlQuery').value;
+            
+            if (!db || !key || !sql.trim()) {
+                alert('Select database, API key, and enter SQL');
+                return;
+            }
+            
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('response').style.display = 'none';
+            
+            try {
+                const r = await fetch('/api/v1/' + db + '/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
+                    body: JSON.stringify({ sql: sql, fetch_size: 1000 })
+                });
+                const d = await r.json();
+                document.getElementById('response').style.display = 'block';
+                document.getElementById('response').className = r.ok ? 'response-box success' : 'response-box error';
+                document.getElementById('responseContent').textContent = JSON.stringify(d, null, 2);
+            } catch (e) {
+                document.getElementById('response').style.display = 'block';
+                document.getElementById('response').className = 'response-box error';
+                document.getElementById('responseContent').textContent = 'Error: ' + e.message;
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+        
+        function uploadSQLFile() { document.getElementById('sqlFileInput').click(); }
+        
+        async function handleFileUpload() {
+            const file = document.getElementById('sqlFileInput').files[0];
+            if (!file) return;
+            
+            const db = document.getElementById('database').value;
+            const key = document.getElementById('apiKey').value;
+            if (!db || !key) { alert('Select database and key'); return; }
+            
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('response').style.display = 'none';
+            
+            try {
+                const fd = new FormData();
+                fd.append('file', file);
+                const r = await fetch('/api/v1/' + db + '/execute-file', {
+                    method: 'POST',
+                    headers: { 'X-API-Key': key },
+                    body: fd
+                });
+                const d = await r.json();
+                document.getElementById('response').style.display = 'block';
+                document.getElementById('response').className = r.ok ? 'response-box success' : 'response-box error';
+                document.getElementById('responseContent').textContent = JSON.stringify(d, null, 2);
+            } catch (e) {
+                document.getElementById('response').style.display = 'block';
+                document.getElementById('response').className = 'response-box error';
+                document.getElementById('responseContent').textContent = 'Error: ' + e.message;
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('sqlFileInput').value = '';
+            }
+        }
+    </script>
+</body>
+</html>
