@@ -1,0 +1,364 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}
+  labels:
+    app: {{ .Values.app.name }}
+    version: {{ .Values.app.version }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}
+        version: {{ .Values.app.version }}
+    spec:
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+      
+      containers:
+      - name: {{ .Values.app.name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.targetPort }}
+          protocol: TCP
+        
+        env:
+        # Application Settings
+        - name: APP_NAME
+          value: {{ .Values.app.name | quote }}
+        - name: APP_VERSION
+          value: {{ .Values.app.version | quote }}
+        - name: ENVIRONMENT
+          value: {{ .Values.app.environment | quote }}
+        - name: DEBUG
+          value: {{ .Values.app.debug | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.app.logLevel | quote }}
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        
+        # Global Settings
+        - name: MAX_SQL_FILE_SIZE_MB
+          value: {{ .Values.global.maxSqlFileSizeMb | quote }}
+        - name: SQL_EXECUTION_TIMEOUT
+          value: {{ .Values.global.sqlExecutionTimeout | quote }}
+        - name: RATE_LIMIT_REQUESTS
+          value: {{ .Values.global.rateLimitRequests | quote }}
+        - name: RATE_LIMIT_PERIOD
+          value: {{ .Values.global.rateLimitPeriod | quote }}
+        - name: ENABLE_AUDIT_LOG
+          value: {{ .Values.global.enableAuditLog | quote }}
+        - name: AUDIT_LOG_PATH
+          value: {{ .Values.global.auditLogPath | quote }}
+        
+        # CyberArk Settings
+        - name: CYBERARK_ENABLED
+          value: {{ .Values.cyberark.enabled | quote }}
+        - name: CYBERARK_URL
+          value: {{ .Values.cyberark.url | quote }}
+        - name: CYBERARK_APP_ID
+          value: {{ .Values.cyberark.appId | quote }}
+        - name: CYBERARK_CERT_PATH
+          value: {{ .Values.cyberark.certPath | quote }}
+        - name: CYBERARK_CERT_KEY_PATH
+          value: {{ .Values.cyberark.certKeyPath | quote }}
+        
+        # CQE_NFT Database
+        - name: CQE_NFT_HOST
+          value: {{ .Values.databases.cqe_nft.host | quote }}
+        - name: CQE_NFT_PORT
+          value: {{ .Values.databases.cqe_nft.port | quote }}
+        - name: CQE_NFT_SERVICE_NAME
+          value: {{ .Values.databases.cqe_nft.serviceName | quote }}
+        - name: CQE_NFT_USERNAME
+          value: {{ .Values.databases.cqe_nft.username | quote }}
+        - name: CQE_NFT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cqe-nft-password
+        - name: CQE_NFT_POOL_MIN
+          value: {{ .Values.databases.cqe_nft.poolMin | quote }}
+        - name: CQE_NFT_POOL_MAX
+          value: {{ .Values.databases.cqe_nft.poolMax | quote }}
+        - name: CQE_NFT_POOL_INCREMENT
+          value: {{ .Values.databases.cqe_nft.poolIncrement | quote }}
+        - name: CQE_NFT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cqe-nft-secret-key
+        - name: CQE_NFT_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cqe-nft-api-keys
+        
+        # CD_PTE_READ Database
+        - name: CD_PTE_READ_HOST
+          value: {{ .Values.databases.cd_pte_read.host | quote }}
+        - name: CD_PTE_READ_PORT
+          value: {{ .Values.databases.cd_pte_read.port | quote }}
+        - name: CD_PTE_READ_SERVICE_NAME
+          value: {{ .Values.databases.cd_pte_read.serviceName | quote }}
+        - name: CD_PTE_READ_USERNAME
+          value: {{ .Values.databases.cd_pte_read.username | quote }}
+        - name: CD_PTE_READ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cd-pte-read-password
+        - name: CD_PTE_READ_POOL_MIN
+          value: {{ .Values.databases.cd_pte_read.poolMin | quote }}
+        - name: CD_PTE_READ_POOL_MAX
+          value: {{ .Values.databases.cd_pte_read.poolMax | quote }}
+        - name: CD_PTE_READ_POOL_INCREMENT
+          value: {{ .Values.databases.cd_pte_read.poolIncrement | quote }}
+        - name: CD_PTE_READ_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cd-pte-read-secret-key
+        - name: CD_PTE_READ_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cd-pte-read-api-keys
+        
+        # CD_PTE_WRITE Database
+        - name: CD_PTE_WRITE_HOST
+          value: {{ .Values.databases.cd_pte_write.host | quote }}
+        - name: CD_PTE_WRITE_PORT
+          value: {{ .Values.databases.cd_pte_write.port | quote }}
+        - name: CD_PTE_WRITE_SERVICE_NAME
+          value: {{ .Values.databases.cd_pte_write.serviceName | quote }}
+        - name: CD_PTE_WRITE_USERNAME
+          value: {{ .Values.databases.cd_pte_write.username | quote }}
+        - name: CD_PTE_WRITE_CYBERARK_SAFE
+          value: {{ .Values.databases.cd_pte_write.cyberarkSafe | quote }}
+        - name: CD_PTE_WRITE_CYBERARK_OBJECT
+          value: {{ .Values.databases.cd_pte_write.cyberarkObject | quote }}
+        - name: CD_PTE_WRITE_POOL_MIN
+          value: {{ .Values.databases.cd_pte_write.poolMin | quote }}
+        - name: CD_PTE_WRITE_POOL_MAX
+          value: {{ .Values.databases.cd_pte_write.poolMax | quote }}
+        - name: CD_PTE_WRITE_POOL_INCREMENT
+          value: {{ .Values.databases.cd_pte_write.poolIncrement | quote }}
+        - name: CD_PTE_WRITE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cd-pte-write-secret-key
+        - name: CD_PTE_WRITE_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cd-pte-write-api-keys
+        
+        # CAS_PTE_READ Database
+        - name: CAS_PTE_READ_HOST
+          value: {{ .Values.databases.cas_pte_read.host | quote }}
+        - name: CAS_PTE_READ_PORT
+          value: {{ .Values.databases.cas_pte_read.port | quote }}
+        - name: CAS_PTE_READ_SERVICE_NAME
+          value: {{ .Values.databases.cas_pte_read.serviceName | quote }}
+        - name: CAS_PTE_READ_USERNAME
+          value: {{ .Values.databases.cas_pte_read.username | quote }}
+        - name: CAS_PTE_READ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cas-pte-read-password
+        - name: CAS_PTE_READ_POOL_MIN
+          value: {{ .Values.databases.cas_pte_read.poolMin | quote }}
+        - name: CAS_PTE_READ_POOL_MAX
+          value: {{ .Values.databases.cas_pte_read.poolMax | quote }}
+        - name: CAS_PTE_READ_POOL_INCREMENT
+          value: {{ .Values.databases.cas_pte_read.poolIncrement | quote }}
+        - name: CAS_PTE_READ_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cas-pte-read-secret-key
+        - name: CAS_PTE_READ_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cas-pte-read-api-keys
+        
+        # CAS_PTE_WRITE Database
+        - name: CAS_PTE_WRITE_HOST
+          value: {{ .Values.databases.cas_pte_write.host | quote }}
+        - name: CAS_PTE_WRITE_PORT
+          value: {{ .Values.databases.cas_pte_write.port | quote }}
+        - name: CAS_PTE_WRITE_SERVICE_NAME
+          value: {{ .Values.databases.cas_pte_write.serviceName | quote }}
+        - name: CAS_PTE_WRITE_USERNAME
+          value: {{ .Values.databases.cas_pte_write.username | quote }}
+        - name: CAS_PTE_WRITE_CYBERARK_SAFE
+          value: {{ .Values.databases.cas_pte_write.cyberarkSafe | quote }}
+        - name: CAS_PTE_WRITE_CYBERARK_OBJECT
+          value: {{ .Values.databases.cas_pte_write.cyberarkObject | quote }}
+        - name: CAS_PTE_WRITE_POOL_MIN
+          value: {{ .Values.databases.cas_pte_write.poolMin | quote }}
+        - name: CAS_PTE_WRITE_POOL_MAX
+          value: {{ .Values.databases.cas_pte_write.poolMax | quote }}
+        - name: CAS_PTE_WRITE_POOL_INCREMENT
+          value: {{ .Values.databases.cas_pte_write.poolIncrement | quote }}
+        - name: CAS_PTE_WRITE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cas-pte-write-secret-key
+        - name: CAS_PTE_WRITE_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: cas-pte-write-api-keys
+        
+        # PORTAL_PTE_READ Database
+        - name: PORTAL_PTE_READ_HOST
+          value: {{ .Values.databases.portal_pte_read.host | quote }}
+        - name: PORTAL_PTE_READ_PORT
+          value: {{ .Values.databases.portal_pte_read.port | quote }}
+        - name: PORTAL_PTE_READ_SERVICE_NAME
+          value: {{ .Values.databases.portal_pte_read.serviceName | quote }}
+        - name: PORTAL_PTE_READ_USERNAME
+          value: {{ .Values.databases.portal_pte_read.username | quote }}
+        - name: PORTAL_PTE_READ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: portal-pte-read-password
+        - name: PORTAL_PTE_READ_POOL_MIN
+          value: {{ .Values.databases.portal_pte_read.poolMin | quote }}
+        - name: PORTAL_PTE_READ_POOL_MAX
+          value: {{ .Values.databases.portal_pte_read.poolMax | quote }}
+        - name: PORTAL_PTE_READ_POOL_INCREMENT
+          value: {{ .Values.databases.portal_pte_read.poolIncrement | quote }}
+        - name: PORTAL_PTE_READ_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: portal-pte-read-secret-key
+        - name: PORTAL_PTE_READ_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: portal-pte-read-api-keys
+        
+        # PORTAL_PTE_WRITE Database
+        - name: PORTAL_PTE_WRITE_HOST
+          value: {{ .Values.databases.portal_pte_write.host | quote }}
+        - name: PORTAL_PTE_WRITE_PORT
+          value: {{ .Values.databases.portal_pte_write.port | quote }}
+        - name: PORTAL_PTE_WRITE_SERVICE_NAME
+          value: {{ .Values.databases.portal_pte_write.serviceName | quote }}
+        - name: PORTAL_PTE_WRITE_USERNAME
+          value: {{ .Values.databases.portal_pte_write.username | quote }}
+        - name: PORTAL_PTE_WRITE_CYBERARK_SAFE
+          value: {{ .Values.databases.portal_pte_write.cyberarkSafe | quote }}
+        - name: PORTAL_PTE_WRITE_CYBERARK_OBJECT
+          value: {{ .Values.databases.portal_pte_write.cyberarkObject | quote }}
+        - name: PORTAL_PTE_WRITE_POOL_MIN
+          value: {{ .Values.databases.portal_pte_write.poolMin | quote }}
+        - name: PORTAL_PTE_WRITE_POOL_MAX
+          value: {{ .Values.databases.portal_pte_write.poolMax | quote }}
+        - name: PORTAL_PTE_WRITE_POOL_INCREMENT
+          value: {{ .Values.databases.portal_pte_write.poolIncrement | quote }}
+        - name: PORTAL_PTE_WRITE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: portal-pte-write-secret-key
+        - name: PORTAL_PTE_WRITE_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: oracle-db-secrets
+              key: portal-pte-write-api-keys
+        
+        livenessProbe:
+          {{- toYaml .Values.livenessProbe | nindent 10 }}
+        
+        readinessProbe:
+          {{- toYaml .Values.readinessProbe | nindent 10 }}
+        
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        
+        volumeMounts:
+        - name: audit-logs
+          mountPath: {{ .Values.global.auditLogPath }}
+        {{- if .Values.cyberark.enabled }}
+        - name: cyberark-certs
+          mountPath: /app/certs
+          readOnly: true
+        {{- end }}
+      
+      volumes:
+      - name: audit-logs
+        {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.app.name }}-logs
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      {{- if .Values.cyberark.enabled }}
+      - name: cyberark-certs
+        secret:
+          secretName: cyberark-certificates
+      {{- end }}
+      
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.app.name }}
+  labels:
+    app: {{ .Values.app.name }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+  - port: {{ .Values.service.port }}
+    targetPort: {{ .Values.service.targetPort }}
+    protocol: TCP
+    name: http
+  selector:
+    app: {{ .Values.app.name }}
+
+---
+{{- if .Values.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.app.name }}-logs
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- end }}

@@ -1,0 +1,216 @@
+# Helm Values for Oracle SQL API - Multi-Database
+# All 7 Oracle databases configuration
+
+# Application Configuration
+app:
+  name: oracle-sql-api
+  version: "2.0.0"
+  environment: "dev"  # dev, staging, prod
+  debug: "false"
+  logLevel: "INFO"
+
+# Image Configuration
+image:
+  repository: your-registry.example.com/oracle-sql-api
+  tag: "2.0.0"
+  pullPolicy: IfNotPresent
+
+# Deployment Configuration
+replicaCount: 2
+
+# Service Configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+# Ingress Configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: oracle-sql-api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: oracle-sql-api-tls
+      hosts:
+        - oracle-sql-api.example.com
+
+# Resources
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+  requests:
+    cpu: 1000m
+    memory: 2Gi
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Health Checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 90
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Global Settings
+global:
+  maxSqlFileSizeMb: "10"
+  sqlExecutionTimeout: "300"
+  rateLimitRequests: "100"
+  rateLimitPeriod: "3600"
+  enableAuditLog: "true"
+  auditLogPath: "/app/logs/audit"
+
+# CyberArk Configuration (for WRITE databases)
+cyberark:
+  enabled: "true"
+  url: "https://cyberark.example.com/AIMWebService/api/Accounts"
+  appId: "OracleSQLAPI"
+  certPath: "/app/certs/client.crt"
+  certKeyPath: "/app/certs/client.key"
+
+# Database Configurations
+databases:
+  # Database 1: CQE_NFT (DQL + DML, Direct Auth)
+  cqe_nft:
+    host: "cqe-nft-db.example.com"
+    port: "1521"
+    serviceName: "CQENFT"
+    username: "cqe_user"
+    password: "cqe_password"  # Store in Kubernetes Secret in production
+    poolMin: "2"
+    poolMax: "10"
+    poolIncrement: "1"
+    secretKey: "your-secret-key-here"  # Store in Kubernetes Secret
+    apiKeys: "apk_live_key1,apk_live_key2"  # Store in Kubernetes Secret
+  
+  # Database 2: CD_PTE_READ (DQL only, Direct Auth)
+  cd_pte_read:
+    host: "cd-pte-db.example.com"
+    port: "1521"
+    serviceName: "CDPTE"
+    username: "cd_read_user"
+    password: "cd_read_password"
+    poolMin: "2"
+    poolMax: "10"
+    poolIncrement: "1"
+    secretKey: "your-secret-key-here"
+    apiKeys: "apk_live_key1,apk_live_key2"
+  
+  # Database 3: CD_PTE_WRITE (DML only, CyberArk)
+  cd_pte_write:
+    host: "cd-pte-db.example.com"
+    port: "1521"
+    serviceName: "CDPTE"
+    username: "cd_write_user"
+    password: ""  # Will use CyberArk
+    cyberarkSafe: "OracleDatabases"
+    cyberarkObject: "CD_PTE_WRITE_Credentials"
+    poolMin: "2"
+    poolMax: "10"
+    poolIncrement: "1"
+    secretKey: "your-secret-key-here"
+    apiKeys: "apk_live_key1,apk_live_key2"
+  
+  # Database 4: CAS_PTE_READ (DQL only, Direct Auth)
+  cas_pte_read:
+    host: "cas-pte-db.example.com"
+    port: "1521"
+    serviceName: "CASPTE"
+    username: "cas_read_user"
+    password: "cas_read_password"
+    poolMin: "2"
+    poolMax: "10"
+    poolIncrement: "1"
+    secretKey: "your-secret-key-here"
+    apiKeys: "apk_live_key1,apk_live_key2"
+  
+  # Database 5: CAS_PTE_WRITE (DML only, CyberArk)
+  cas_pte_write:
+    host: "cas-pte-db.example.com"
+    port: "1521"
+    serviceName: "CASPTE"
+    username: "cas_write_user"
+    password: ""  # Will use CyberArk
+    cyberarkSafe: "OracleDatabases"
+    cyberarkObject: "CAS_PTE_WRITE_Credentials"
+    poolMin: "2"
+    poolMax: "10"
+    poolIncrement: "1"
+    secretKey: "your-secret-key-here"
+    apiKeys: "apk_live_key1,apk_live_key2"
+  
+  # Database 6: PORTAL_PTE_READ (DQL only, Direct Auth)
+  portal_pte_read:
+    host: "portal-pte-db.example.com"
+    port: "1521"
+    serviceName: "PORTALPTE"
+    username: "portal_read_user"
+    password: "portal_read_password"
+    poolMin: "2"
+    poolMax: "10"
+    poolIncrement: "1"
+    secretKey: "your-secret-key-here"
+    apiKeys: "apk_live_key1,apk_live_key2"
+  
+  # Database 7: PORTAL_PTE_WRITE (DML only, CyberArk)
+  portal_pte_write:
+    host: "portal-pte-db.example.com"
+    port: "1521"
+    serviceName: "PORTALPTE"
+    username: "portal_write_user"
+    password: ""  # Will use CyberArk
+    cyberarkSafe: "OracleDatabases"
+    cyberarkObject: "PORTAL_PTE_WRITE_Credentials"
+    poolMin: "2"
+    poolMax: "10"
+    poolIncrement: "1"
+    secretKey: "your-secret-key-here"
+    apiKeys: "apk_live_key1,apk_live_key2"
+
+# Persistent Volume for Audit Logs
+persistence:
+  enabled: true
+  storageClass: "standard"
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /app/logs
+
+# Security Context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Node Selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
