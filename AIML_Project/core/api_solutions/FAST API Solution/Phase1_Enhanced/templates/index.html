@@ -33,6 +33,33 @@
         .header h1 { font-size: 2.5em; margin-bottom: 10px; }
         .header p { font-size: 1.1em; opacity: 0.9; }
         
+        .quick-links {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 6px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .quick-link {
+            display: inline-block;
+            padding: 8px 16px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .quick-link:hover {
+            transform: translateY(-2px);
+        }
+        
         .tabs {
             display: flex;
             background: #f5f5f5;
@@ -377,6 +404,93 @@
             border: 2px solid #ffc107;
         }
 
+        /* API Documentation Styles */
+        .api-endpoint {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .endpoint-header {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .endpoint-header:hover {
+            background: #e9ecef;
+        }
+
+        .endpoint-method {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-right: 10px;
+        }
+
+        .method-get { background: #61affe; color: white; }
+        .method-post { background: #49cc90; color: white; }
+        .method-delete { background: #f93e3e; color: white; }
+
+        .endpoint-path {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        .endpoint-body {
+            padding: 20px;
+            display: none;
+        }
+
+        .endpoint-body.active {
+            display: block;
+        }
+
+        .endpoint-description {
+            margin-bottom: 15px;
+            color: #666;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .code-block code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .param-table th {
+            background: #f8f9fa;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .param-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
         @media (max-width: 768px) {
             .tabs { flex-direction: column; }
             .status-grid { grid-template-columns: 1fr; }
@@ -393,11 +507,18 @@
                 Environment: <span id="headerEnvironment">Loading...</span> | 
                 Version: <span id="headerVersion">Loading...</span>
             </p>
+            <div class="quick-links">
+                <a href="/api/docs" class="quick-link" target="_blank">📖 OpenAPI Docs</a>
+                <a href="/logs" class="quick-link">📊 Audit Logs</a>
+                <a href="/health" class="quick-link" target="_blank">❤️ Health Check</a>
+                <a href="/api/v1/databases" class="quick-link" target="_blank">🗄️ Databases Info</a>
+            </div>
         </div>
         
         <div class="tabs">
             <button class="tab active" onclick="showTab(event, 'oracle')">Oracle SQL</button>
             <button class="tab" onclick="showTab(event, 'apikeys')">📋 API Keys</button>
+            <button class="tab" onclick="showTab(event, 'apidocs')">📚 API Documentation</button>
             <button class="tab" onclick="showTab(event, 'appdynamics')">AppDynamics</button>
             <button class="tab" onclick="showTab(event, 'kibana')">Kibana</button>
             <button class="tab" onclick="showTab(event, 'splunk')">Splunk</button>
@@ -454,12 +575,6 @@
                 </div>
             </div>
             
-            <div class="api-doc">
-                <h3>📚 API Documentation</h3>
-                <p><strong>Endpoint:</strong> <code>POST /api/v1/{database}/execute</code></p>
-                <p><strong>Headers:</strong> <code>X-API-Key: your-key</code></p>
-            </div>
-            
             <div class="form-group">
                 <label for="apiKey">API Key:</label>
                 <input type="text" id="apiKey" placeholder="Auto-selected" readonly style="background: #f9f9f9;">
@@ -489,6 +604,386 @@
         <div id="apikeys" class="tab-content">
             <h2>📋 API Keys Reference</h2>
             <div class="all-databases-keys" id="allDatabasesKeys">Loading...</div>
+        </div>
+        
+        <!-- API Documentation Tab -->
+        <div id="apidocs" class="tab-content">
+            <h2>📚 Complete API Documentation</h2>
+            <p style="margin-bottom: 20px; color: #666;">
+                All available endpoints with examples and parameters
+            </p>
+            
+            <!-- SQL Execution APIs -->
+            <h3 style="margin: 30px 0 15px 0; color: #667eea;">SQL Execution</h3>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-post">POST</span>
+                        <span class="endpoint-path">/api/v1/{database}/execute</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Execute SQL query on specific database</p>
+                    
+                    <strong>Headers:</strong>
+                    <table class="param-table">
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Required</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td>X-API-Key</td>
+                            <td>string</td>
+                            <td>Yes</td>
+                            <td>Database-specific API key</td>
+                        </tr>
+                    </table>
+                    
+                    <strong>Request Body:</strong>
+                    <div class="code-block"><code>{
+  "sql": "SELECT * FROM users WHERE id = :id",
+  "params": {"id": 123},
+  "fetch_size": 1000
+}</code></div>
+                    
+                    <strong>Example:</strong>
+                    <div class="code-block"><code>curl -X POST "http://your-api/api/v1/CQE_NFT/execute" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{"sql": "SELECT SYSDATE FROM DUAL"}'</code></div>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-post">POST</span>
+                        <span class="endpoint-path">/api/v1/{database}/execute-file</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Execute multiple SQL statements from uploaded .sql file</p>
+                    
+                    <strong>Headers:</strong>
+                    <table class="param-table">
+                        <tr><th>Name</th><th>Type</th><th>Required</th></tr>
+                        <tr><td>X-API-Key</td><td>string</td><td>Yes</td></tr>
+                    </table>
+                    
+                    <strong>Form Data:</strong>
+                    <table class="param-table">
+                        <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+                        <tr><td>file</td><td>file</td><td>.sql file containing SQL statements (semicolon separated)</td></tr>
+                    </table>
+                    
+                    <strong>Example:</strong>
+                    <div class="code-block"><code>curl -X POST "http://your-api/api/v1/CQE_NFT/execute-file" \
+  -H "X-API-Key: your-api-key" \
+  -F "file=@queries.sql"</code></div>
+                </div>
+            </div>
+            
+            <!-- Health & Status APIs -->
+            <h3 style="margin: 30px 0 15px 0; color: #667eea;">Health & Status</h3>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/health</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Global health check for all databases</p>
+                    
+                    <strong>Response:</strong>
+                    <div class="code-block"><code>{
+  "status": "healthy",
+  "timestamp": "2026-02-25T10:30:00",
+  "version": "2.0.0",
+  "environment": "production",
+  "databases": {
+    "CQE_NFT": {
+      "status": "healthy",
+      "host": "db.example.com",
+      "operations": ["DQL", "DML"],
+      "pool_status": {
+        "opened": 2,
+        "busy": 0,
+        "max": 10
+      }
+    }
+  }
+}</code></div>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/v1/{database}/health</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Database-specific health check</p>
+                    
+                    <strong>Headers:</strong>
+                    <table class="param-table">
+                        <tr><td>X-API-Key</td><td>string</td><td>Yes</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/v1/databases</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">List all configured databases and their status</p>
+                    
+                    <strong>Response:</strong>
+                    <div class="code-block"><code>{
+  "total_databases": 7,
+  "available": 7,
+  "failed": 0,
+  "databases": [
+    {
+      "name": "CQE_NFT",
+      "status": "available",
+      "host": "db.example.com",
+      "allowed_operations": ["DQL", "DML"],
+      "auth_type": "Direct"
+    }
+  ]
+}</code></div>
+                </div>
+            </div>
+            
+            <!-- Configuration APIs -->
+            <h3 style="margin: 30px 0 15px 0; color: #667eea;">Configuration</h3>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/v1/config/api-keys</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Get all configured API keys (for frontend use)</p>
+                    
+                    <strong>Response:</strong>
+                    <div class="code-block"><code>{
+  "api_keys": {
+    "CQE_NFT": ["apk_live_key1...", "apk_live_key2..."],
+    "CD_PTE_READ": ["apk_live_key1..."]
+  },
+  "total_databases": 7
+}</code></div>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/v1/config/environment</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Get environment configuration</p>
+                    
+                    <strong>Response:</strong>
+                    <div class="code-block"><code>{
+  "environment": "production",
+  "version": "2.0.0",
+  "debug": false,
+  "audit_enabled": true,
+  "cyberark_enabled": true
+}</code></div>
+                </div>
+            </div>
+            
+            <!-- Audit APIs -->
+            <h3 style="margin: 30px 0 15px 0; color: #667eea;">Audit Logs</h3>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/v1/audit/logs</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Query audit logs with filters</p>
+                    
+                    <strong>Query Parameters:</strong>
+                    <table class="param-table">
+                        <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+                        <tr><td>start_date</td><td>string</td><td>ISO format: 2026-02-25T00:00:00</td></tr>
+                        <tr><td>end_date</td><td>string</td><td>ISO format</td></tr>
+                        <tr><td>database</td><td>string</td><td>Filter by database name</td></tr>
+                        <tr><td>event_type</td><td>string</td><td>Filter by event type</td></tr>
+                        <tr><td>status</td><td>string</td><td>success or failed</td></tr>
+                        <tr><td>limit</td><td>integer</td><td>Max records (1-1000, default 100)</td></tr>
+                    </table>
+                    
+                    <strong>Example:</strong>
+                    <div class="code-block"><code>curl "http://your-api/api/v1/audit/logs?database=CQE_NFT&status=success&limit=50"</code></div>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/v1/audit/statistics</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Get audit statistics and analytics</p>
+                    
+                    <strong>Response:</strong>
+                    <div class="code-block"><code>{
+  "total_events": 1523,
+  "successful_events": 1489,
+  "failed_events": 34,
+  "avg_execution_time_ms": 45.3,
+  "event_types": {
+    "sql_executed": 1450,
+    "sql_failed": 34
+  },
+  "databases": {
+    "CQE_NFT": 890,
+    "CD_PTE_READ": 633
+  }
+}</code></div>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/v1/audit/recent</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Get recent audit events</p>
+                    
+                    <strong>Query Parameters:</strong>
+                    <table class="param-table">
+                        <tr><td>hours</td><td>integer</td><td>Lookback hours (1-168, default 24)</td></tr>
+                        <tr><td>limit</td><td>integer</td><td>Max records (1-500, default 50)</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/v1/audit/by-database/{database}</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Get audit logs for specific database</p>
+                    
+                    <strong>Example:</strong>
+                    <div class="code-block"><code>curl "http://your-api/api/v1/audit/by-database/CQE_NFT?hours=24"</code></div>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/v1/audit/failed</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Get all failed operations for troubleshooting</p>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-post">POST</span>
+                        <span class="endpoint-path">/api/v1/audit/cleanup</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Delete audit logs older than specified days</p>
+                    
+                    <strong>Query Parameters:</strong>
+                    <table class="param-table">
+                        <tr><td>days_to_keep</td><td>integer</td><td>Days to retain (30-365, default 90)</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- UI Routes -->
+            <h3 style="margin: 30px 0 15px 0; color: #667eea;">UI Routes</h3>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Main dashboard with SQL execution interface</p>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/logs</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Audit logs viewer UI with filters and statistics</p>
+                </div>
+            </div>
+            
+            <div class="api-endpoint">
+                <div class="endpoint-header" onclick="toggleEndpoint(this)">
+                    <div>
+                        <span class="endpoint-method method-get">GET</span>
+                        <span class="endpoint-path">/api/docs</span>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="endpoint-body">
+                    <p class="endpoint-description">Interactive OpenAPI (Swagger) documentation</p>
+                </div>
+            </div>
         </div>
         
         <!-- Other Tabs -->
@@ -727,6 +1222,13 @@
                 document.getElementById('loading').classList.remove('active');
                 document.getElementById('sqlFileInput').value = '';
             }
+        }
+        
+        function toggleEndpoint(header) {
+            const body = header.nextElementSibling;
+            const arrow = header.querySelector('span:last-child');
+            body.classList.toggle('active');
+            arrow.textContent = body.classList.contains('active') ? '▲' : '▼';
         }
     </script>
 </body>
