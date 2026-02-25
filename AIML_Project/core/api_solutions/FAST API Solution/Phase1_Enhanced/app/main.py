@@ -257,6 +257,271 @@ def get_database_executor(db_name: str = Depends(verify_database_access)) -> SQL
     return app.state.sql_executors[db_name]
 
 
+"""
+Add this to main.py to enable /logs route for audit information
+"""
+
+from fastapi import Query
+from fastapi.responses import HTMLResponse
+from datetime import datetime, timedelta
+
+# ========================================
+# Audit Logs UI Route
+# ========================================
+@app.get("/logs", response_class=HTMLResponse, include_in_schema=False)
+async def audit_logs_ui(request: Request):
+    """
+    Audit logs viewer UI
+    Shows recent audit logs from both JSONL files and database
+    """
+    
+    # Get recent logs (last 24 hours)
+    start_date = datetime.now() - timedelta(hours=24)
+    
+    logs = []
+    stats = {}
+    
+    if app.state.audit_logger and app.state.audit_logger.db_audit_enabled:
+        logs = app.state.audit_logger.query_audit_logs(
+            start_date=start_date,
+            limit=100
+        )
+        stats = app.state.audit_logger.get_audit_statistics(
+            start_date=start_date
+        )
+    
+    # Generate HTML
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Audit Logs - CQE NFT Monitoring</title>
+        <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: #f5f5f5;
+                padding: 20px;
+            }}
+            .container {{
+                max-width: 1400px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                padding: 30px;
+            }}
+            h1 {{
+                color: #333;
+                margin-bottom: 10px;
+            }}
+            .stats {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+                margin: 20px 0;
+            }}
+            .stat-card {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                border-radius: 8px;
+            }}
+            .stat-value {{
+                font-size: 2em;
+                font-weight: bold;
+            }}
+            .stat-label {{
+                opacity: 0.9;
+                margin-top: 5px;
+            }}
+            .filters {{
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 6px;
+                margin: 20px 0;
+            }}
+            .filters select, .filters input {{
+                padding: 10px;
+                margin: 5px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }}
+            .filters button {{
+                padding: 10px 20px;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }}
+            .filters button:hover {{
+                background: #5568d3;
+            }}
+            .logs-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }}
+            .logs-table th {{
+                background: #f8f9fa;
+                padding: 12px;
+                text-align: left;
+                border-bottom: 2px solid #dee2e6;
+                font-weight: 600;
+            }}
+            .logs-table td {{
+                padding: 12px;
+                border-bottom: 1px solid #e9ecef;
+            }}
+            .logs-table tr:hover {{
+                background: #f8f9fa;
+            }}
+            .status-success {{
+                color: #28a745;
+                font-weight: bold;
+            }}
+            .status-failed {{
+                color: #dc3545;
+                font-weight: bold;
+            }}
+            .sql-preview {{
+                font-family: monospace;
+                font-size: 0.9em;
+                max-width: 400px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }}
+            .back-btn {{
+                display: inline-block;
+                padding: 10px 20px;
+                background: #6c757d;
+                color: white;
+                text-decoration: none;
+                border-radius: 4px;
+                margin-bottom: 20px;
+            }}
+            .back-btn:hover {{
+                background: #5a6268;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <a href="/" class="back-btn">← Back to Dashboard</a>
+            <h1>📊 Audit Logs Viewer</h1>
+            <p style="color: #666; margin-bottom: 20px;">Last 24 hours of activity</p>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value">{stats.get('total_events', 0)}</div>
+                    <div class="stat-label">Total Events</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{stats.get('successful_events', 0)}</div>
+                    <div class="stat-label">Successful</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{stats.get('failed_events', 0)}</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{stats.get('avg_execution_time_ms', 0):.0f}ms</div>
+                    <div class="stat-label">Avg Execution Time</div>
+                </div>
+            </div>
+            
+            <div class="filters">
+                <strong>Filters:</strong>
+                <select id="dbFilter" onchange="filterLogs()">
+                    <option value="">All Databases</option>
+                    {''.join([f'<option value="{db}">{db}</option>' for db in stats.get('databases', {}).keys()])}
+                </select>
+                <select id="statusFilter" onchange="filterLogs()">
+                    <option value="">All Status</option>
+                    <option value="success">Success</option>
+                    <option value="failed">Failed</option>
+                </select>
+                <button onclick="window.location.reload()">🔄 Refresh</button>
+                <button onclick="window.open('/api/v1/audit/logs?limit=1000', '_blank')">📥 Export JSON</button>
+            </div>
+            
+            <table class="logs-table" id="logsTable">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Event Type</th>
+                        <th>Database</th>
+                        <th>Username</th>
+                        <th>SQL Preview</th>
+                        <th>Rows</th>
+                        <th>Time (ms)</th>
+                        <th>Status</th>
+                        <th>Client IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+    """
+    
+    # Add log rows
+    for log in logs:
+        timestamp = log.get('event_timestamp', '')
+        event_type = log.get('event_type', '')
+        database = log.get('database_name', '')
+        username = log.get('username', '')
+        sql = log.get('sql_statement', '')
+        sql_preview = (sql[:100] + '...') if sql and len(sql) > 100 else (sql or '')
+        rows = log.get('rows_affected', 0) or 0
+        exec_time = log.get('execution_time_ms', 0) or 0
+        status = log.get('status', '')
+        client_ip = log.get('client_ip', '')
+        
+        status_class = 'status-success' if status == 'success' else 'status-failed'
+        
+        html_content += f"""
+                    <tr data-database="{database}" data-status="{status}">
+                        <td>{timestamp}</td>
+                        <td>{event_type}</td>
+                        <td>{database}</td>
+                        <td>{username}</td>
+                        <td class="sql-preview" title="{sql}">{sql_preview}</td>
+                        <td>{rows}</td>
+                        <td>{exec_time:.2f}</td>
+                        <td class="{status_class}">{status.upper()}</td>
+                        <td>{client_ip}</td>
+                    </tr>
+        """
+    
+    html_content += """
+                </tbody>
+            </table>
+        </div>
+        
+        <script>
+            function filterLogs() {
+                const dbFilter = document.getElementById('dbFilter').value;
+                const statusFilter = document.getElementById('statusFilter').value;
+                const rows = document.querySelectorAll('#logsTable tbody tr');
+                
+                rows.forEach(row => {
+                    const db = row.getAttribute('data-database');
+                    const status = row.getAttribute('data-status');
+                    
+                    let show = true;
+                    if (dbFilter && db !== dbFilter) show = false;
+                    if (statusFilter && status !== statusFilter) show = false;
+                    
+                    row.style.display = show ? '' : 'none';
+                });
+            }
+        </script>
+    </body>
+    </html>
+    """
+    
+    return HTMLResponse(content=html_content)
+
 # ========================================
 # UI Routes
 # ========================================
