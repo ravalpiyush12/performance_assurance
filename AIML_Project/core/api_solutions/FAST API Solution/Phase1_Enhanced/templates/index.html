@@ -56,9 +56,7 @@
             transition: transform 0.2s;
         }
         
-        .quick-link:hover {
-            transform: translateY(-2px);
-        }
+        .quick-link:hover { transform: translateY(-2px); }
         
         .tabs {
             display: flex;
@@ -147,6 +145,10 @@
         
         .btn:active { transform: translateY(0); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+        }
         
         .response-box {
             margin-top: 20px;
@@ -262,36 +264,6 @@
             word-break: break-all;
         }
         
-        .all-databases-keys {
-            background: #f5f5f5;
-            padding: 20px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        
-        .db-key-section {
-            background: white;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 6px;
-            border-left: 4px solid #667eea;
-        }
-        
-        .db-key-section h4 { color: #667eea; margin-bottom: 10px; }
-        
-        .key-list { list-style: none; padding: 0; }
-        
-        .key-list li {
-            padding: 8px;
-            background: #f9f9f9;
-            margin: 5px 0;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85em;
-        }
-
         /* Database Connectivity Status */
         .db-status-panel {
             background: #f8f9fa;
@@ -404,97 +376,218 @@
             border: 2px solid #ffc107;
         }
 
-        /* API Documentation Styles */
-        .api-endpoint {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            overflow: hidden;
-        }
-
-        .endpoint-header {
-            padding: 15px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #e0e0e0;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .endpoint-header:hover {
-            background: #e9ecef;
-        }
-
-        .endpoint-method {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 0.85em;
-            margin-right: 10px;
-        }
-
-        .method-get { background: #61affe; color: white; }
-        .method-post { background: #49cc90; color: white; }
-        .method-delete { background: #f93e3e; color: white; }
-
-        .endpoint-path {
-            font-family: 'Courier New', monospace;
-            font-weight: 600;
-        }
-
-        .endpoint-body {
+        /* AppDynamics Monitoring Styles */
+        .thread-pool-status {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
-            display: none;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            color: white;
         }
 
-        .endpoint-body.active {
-            display: block;
-        }
-
-        .endpoint-description {
+        .thread-pool-status h3 {
             margin-bottom: 15px;
-            color: #666;
+            font-size: 1.2em;
         }
 
-        .code-block {
-            background: #2d2d2d;
-            color: #f8f8f2;
-            padding: 15px;
-            border-radius: 4px;
-            overflow-x: auto;
-            margin: 10px 0;
+        .status-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
         }
 
-        .code-block code {
-            font-family: 'Courier New', monospace;
+        .status-card {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .card-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .card-label {
+            opacity: 0.9;
             font-size: 0.9em;
         }
 
-        .param-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
         }
 
-        .param-table th {
+        .action-panel {
             background: #f8f9fa;
-            padding: 10px;
-            text-align: left;
-            border-bottom: 2px solid #dee2e6;
+            padding: 25px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
         }
 
-        .param-table td {
-            padding: 10px;
-            border-bottom: 1px solid #e9ecef;
+        .action-panel h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .action-panel p {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+
+        .btn-refresh {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .btn-refresh:hover { background: #5a6268; }
+
+        .sessions-panel {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .session-card {
+            background: #f8f9fa;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .session-card.running {
+            border-left-color: #28a745;
+            animation: pulse-green 2s infinite;
+        }
+
+        .session-card.stopped { border-left-color: #6c757d; }
+        .session-card.failed { border-left-color: #dc3545; }
+
+        @keyframes pulse-green {
+            0%, 100% { border-left-color: #28a745; }
+            50% { border-left-color: #20c997; }
+        }
+
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .session-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .session-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .session-status.running {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .session-status.stopped {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .session-status.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .session-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+
+        .session-detail {
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+        }
+
+        .session-detail strong {
+            color: #667eea;
+        }
+
+        .session-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-stop {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .btn-stop:hover { background: #c82333; }
+
+        .btn-view {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .btn-view:hover { background: #138496; }
+
+        .progress-bar-container {
+            background: #e9ecef;
+            height: 8px;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+            animation: progress-animation 2s infinite;
+        }
+
+        @keyframes progress-animation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         @media (max-width: 768px) {
             .tabs { flex-direction: column; }
             .status-grid { grid-template-columns: 1fr; }
             .db-status-panel h3 { flex-direction: column; align-items: flex-start; }
+            .action-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -518,7 +611,6 @@
         <div class="tabs">
             <button class="tab active" onclick="showTab(event, 'oracle')">Oracle SQL</button>
             <button class="tab" onclick="showTab(event, 'apikeys')">📋 API Keys</button>
-            <button class="tab" onclick="showTab(event, 'apidocs')">📚 API Documentation</button>
             <button class="tab" onclick="showTab(event, 'appdynamics')">AppDynamics</button>
             <button class="tab" onclick="showTab(event, 'kibana')">Kibana</button>
             <button class="tab" onclick="showTab(event, 'splunk')">Splunk</button>
@@ -603,399 +695,148 @@
         <!-- API Keys Tab -->
         <div id="apikeys" class="tab-content">
             <h2>📋 API Keys Reference</h2>
-            <div class="all-databases-keys" id="allDatabasesKeys">Loading...</div>
+            <div class="all-databases-keys" id="allDatabasesKeys" style="background: #f5f5f5; padding: 20px; border-radius: 6px;">Loading...</div>
         </div>
         
-        <!-- API Documentation Tab -->
-        <div id="apidocs" class="tab-content">
-            <h2>📚 Complete API Documentation</h2>
-            <p style="margin-bottom: 20px; color: #666;">
-                All available endpoints with examples and parameters
+        <!-- AppDynamics Tab -->
+        <div id="appdynamics" class="tab-content">
+            <h2>📊 AppDynamics Monitoring Control Panel</h2>
+            <p style="color: #666; margin-bottom: 20px;">
+                Manage AppD health checks and monitoring sessions for performance testing
             </p>
             
-            <!-- SQL Execution APIs -->
-            <h3 style="margin: 30px 0 15px 0; color: #667eea;">SQL Execution</h3>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-post">POST</span>
-                        <span class="endpoint-path">/api/v1/{database}/execute</span>
+            <!-- Thread Pool Status -->
+            <div class="thread-pool-status">
+                <h3>🔧 Thread Pool Status</h3>
+                <div class="status-cards">
+                    <div class="status-card">
+                        <div class="card-value" id="activeMonitors">0</div>
+                        <div class="card-label">Active Monitors</div>
                     </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Execute SQL query on specific database</p>
-                    
-                    <strong>Headers:</strong>
-                    <table class="param-table">
-                        <tr>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Required</th>
-                            <th>Description</th>
-                        </tr>
-                        <tr>
-                            <td>X-API-Key</td>
-                            <td>string</td>
-                            <td>Yes</td>
-                            <td>Database-specific API key</td>
-                        </tr>
-                    </table>
-                    
-                    <strong>Request Body:</strong>
-                    <div class="code-block"><code>{
-  "sql": "SELECT * FROM users WHERE id = :id",
-  "params": {"id": 123},
-  "fetch_size": 1000
-}</code></div>
-                    
-                    <strong>Example:</strong>
-                    <div class="code-block"><code>curl -X POST "http://your-api/api/v1/CQE_NFT/execute" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{"sql": "SELECT SYSDATE FROM DUAL"}'</code></div>
+                    <div class="status-card">
+                        <div class="card-value" id="availableSlots">10</div>
+                        <div class="card-label">Available Slots</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="card-value" id="utilization">0%</div>
+                        <div class="card-label">Utilization</div>
+                    </div>
                 </div>
             </div>
             
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-post">POST</span>
-                        <span class="endpoint-path">/api/v1/{database}/execute-file</span>
+            <!-- Action Panels -->
+            <div class="action-grid">
+                <!-- Health Check Panel -->
+                <div class="action-panel">
+                    <h3>🏥 Health Check (Code 1)</h3>
+                    <p>Discover applications and identify active nodes/tiers</p>
+                    
+                    <div class="form-group">
+                        <label>Applications (comma-separated, or leave empty for all):</label>
+                        <input type="text" id="healthCheckApps" placeholder="App1, App2, App3...">
                     </div>
-                    <span>▼</span>
+                    
+                    <button class="btn" onclick="runHealthCheck()">
+                        🔍 Run Health Check
+                    </button>
+                    
+                    <div id="healthCheckStatus" style="display: none; margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 4px;">
+                        <strong>Status:</strong> <span id="healthCheckStatusText"></span>
+                    </div>
                 </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Execute multiple SQL statements from uploaded .sql file</p>
+                
+                <!-- Start Monitoring Panel -->
+                <div class="action-panel">
+                    <h3>▶️ Start Monitoring (Code 3)</h3>
+                    <p>Begin collecting AppD metrics for performance test</p>
                     
-                    <strong>Headers:</strong>
-                    <table class="param-table">
-                        <tr><th>Name</th><th>Type</th><th>Required</th></tr>
-                        <tr><td>X-API-Key</td><td>string</td><td>Yes</td></tr>
-                    </table>
+                    <div class="form-group">
+                        <label>LOB (Line of Business):</label>
+                        <input type="text" id="monitorLOB" placeholder="e.g., Retail" required>
+                    </div>
                     
-                    <strong>Form Data:</strong>
-                    <table class="param-table">
-                        <tr><th>Name</th><th>Type</th><th>Description</th></tr>
-                        <tr><td>file</td><td>file</td><td>.sql file containing SQL statements (semicolon separated)</td></tr>
-                    </table>
+                    <div class="form-group">
+                        <label>Track:</label>
+                        <input type="text" id="monitorTrack" placeholder="e.g., Q4_2026" required>
+                    </div>
                     
-                    <strong>Example:</strong>
-                    <div class="code-block"><code>curl -X POST "http://your-api/api/v1/CQE_NFT/execute-file" \
-  -H "X-API-Key: your-api-key" \
-  -F "file=@queries.sql"</code></div>
+                    <div class="form-group">
+                        <label>Run ID:</label>
+                        <input type="text" id="monitorRunID" placeholder="e.g., RUN_20260225_001" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Applications (comma-separated):</label>
+                        <input type="text" id="monitorApps" placeholder="App1, App2..." required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Collection Interval (seconds):</label>
+                        <select id="monitorInterval">
+                            <option value="300">5 minutes</option>
+                            <option value="600">10 minutes</option>
+                            <option value="1800" selected>30 minutes</option>
+                            <option value="3600">1 hour</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-success" onclick="startMonitoring()">
+                        ▶️ Start Monitoring
+                    </button>
                 </div>
             </div>
             
-            <!-- Health & Status APIs -->
-            <h3 style="margin: 30px 0 15px 0; color: #667eea;">Health & Status</h3>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/health</span>
-                    </div>
-                    <span>▼</span>
+            <!-- Active Sessions -->
+            <div class="sessions-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>📋 Active Monitoring Sessions</h3>
+                    <button class="btn-refresh" onclick="refreshSessions()">
+                        🔄 Refresh
+                    </button>
                 </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Global health check for all databases</p>
-                    
-                    <strong>Response:</strong>
-                    <div class="code-block"><code>{
-  "status": "healthy",
-  "timestamp": "2026-02-25T10:30:00",
-  "version": "2.0.0",
-  "environment": "production",
-  "databases": {
-    "CQE_NFT": {
-      "status": "healthy",
-      "host": "db.example.com",
-      "operations": ["DQL", "DML"],
-      "pool_status": {
-        "opened": 2,
-        "busy": 0,
-        "max": 10
-      }
-    }
-  }
-}</code></div>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/v1/{database}/health</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Database-specific health check</p>
-                    
-                    <strong>Headers:</strong>
-                    <table class="param-table">
-                        <tr><td>X-API-Key</td><td>string</td><td>Yes</td></tr>
-                    </table>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/v1/databases</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">List all configured databases and their status</p>
-                    
-                    <strong>Response:</strong>
-                    <div class="code-block"><code>{
-  "total_databases": 7,
-  "available": 7,
-  "failed": 0,
-  "databases": [
-    {
-      "name": "CQE_NFT",
-      "status": "available",
-      "host": "db.example.com",
-      "allowed_operations": ["DQL", "DML"],
-      "auth_type": "Direct"
-    }
-  ]
-}</code></div>
-                </div>
-            </div>
-            
-            <!-- Configuration APIs -->
-            <h3 style="margin: 30px 0 15px 0; color: #667eea;">Configuration</h3>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/v1/config/api-keys</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Get all configured API keys (for frontend use)</p>
-                    
-                    <strong>Response:</strong>
-                    <div class="code-block"><code>{
-  "api_keys": {
-    "CQE_NFT": ["apk_live_key1...", "apk_live_key2..."],
-    "CD_PTE_READ": ["apk_live_key1..."]
-  },
-  "total_databases": 7
-}</code></div>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/v1/config/environment</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Get environment configuration</p>
-                    
-                    <strong>Response:</strong>
-                    <div class="code-block"><code>{
-  "environment": "production",
-  "version": "2.0.0",
-  "debug": false,
-  "audit_enabled": true,
-  "cyberark_enabled": true
-}</code></div>
-                </div>
-            </div>
-            
-            <!-- Audit APIs -->
-            <h3 style="margin: 30px 0 15px 0; color: #667eea;">Audit Logs</h3>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/v1/audit/logs</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Query audit logs with filters</p>
-                    
-                    <strong>Query Parameters:</strong>
-                    <table class="param-table">
-                        <tr><th>Name</th><th>Type</th><th>Description</th></tr>
-                        <tr><td>start_date</td><td>string</td><td>ISO format: 2026-02-25T00:00:00</td></tr>
-                        <tr><td>end_date</td><td>string</td><td>ISO format</td></tr>
-                        <tr><td>database</td><td>string</td><td>Filter by database name</td></tr>
-                        <tr><td>event_type</td><td>string</td><td>Filter by event type</td></tr>
-                        <tr><td>status</td><td>string</td><td>success or failed</td></tr>
-                        <tr><td>limit</td><td>integer</td><td>Max records (1-1000, default 100)</td></tr>
-                    </table>
-                    
-                    <strong>Example:</strong>
-                    <div class="code-block"><code>curl "http://your-api/api/v1/audit/logs?database=CQE_NFT&status=success&limit=50"</code></div>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/v1/audit/statistics</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Get audit statistics and analytics</p>
-                    
-                    <strong>Response:</strong>
-                    <div class="code-block"><code>{
-  "total_events": 1523,
-  "successful_events": 1489,
-  "failed_events": 34,
-  "avg_execution_time_ms": 45.3,
-  "event_types": {
-    "sql_executed": 1450,
-    "sql_failed": 34
-  },
-  "databases": {
-    "CQE_NFT": 890,
-    "CD_PTE_READ": 633
-  }
-}</code></div>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/v1/audit/recent</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Get recent audit events</p>
-                    
-                    <strong>Query Parameters:</strong>
-                    <table class="param-table">
-                        <tr><td>hours</td><td>integer</td><td>Lookback hours (1-168, default 24)</td></tr>
-                        <tr><td>limit</td><td>integer</td><td>Max records (1-500, default 50)</td></tr>
-                    </table>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/v1/audit/by-database/{database}</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Get audit logs for specific database</p>
-                    
-                    <strong>Example:</strong>
-                    <div class="code-block"><code>curl "http://your-api/api/v1/audit/by-database/CQE_NFT?hours=24"</code></div>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/v1/audit/failed</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Get all failed operations for troubleshooting</p>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-post">POST</span>
-                        <span class="endpoint-path">/api/v1/audit/cleanup</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Delete audit logs older than specified days</p>
-                    
-                    <strong>Query Parameters:</strong>
-                    <table class="param-table">
-                        <tr><td>days_to_keep</td><td>integer</td><td>Days to retain (30-365, default 90)</td></tr>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- UI Routes -->
-            <h3 style="margin: 30px 0 15px 0; color: #667eea;">UI Routes</h3>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Main dashboard with SQL execution interface</p>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/logs</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Audit logs viewer UI with filters and statistics</p>
-                </div>
-            </div>
-            
-            <div class="api-endpoint">
-                <div class="endpoint-header" onclick="toggleEndpoint(this)">
-                    <div>
-                        <span class="endpoint-method method-get">GET</span>
-                        <span class="endpoint-path">/api/docs</span>
-                    </div>
-                    <span>▼</span>
-                </div>
-                <div class="endpoint-body">
-                    <p class="endpoint-description">Interactive OpenAPI (Swagger) documentation</p>
+                
+                <div id="sessionsContainer">
+                    <p style="text-align: center; color: #999;">No active sessions</p>
                 </div>
             </div>
         </div>
         
         <!-- Other Tabs -->
-        <div id="appdynamics" class="tab-content"><h2>AppDynamics Monitoring</h2></div>
-        <div id="kibana" class="tab-content"><h2>Kibana Monitoring</h2></div>
-        <div id="splunk" class="tab-content"><h2>Splunk Monitoring</h2></div>
-        <div id="mongodb" class="tab-content"><h2>MongoDB Analysis</h2></div>
+        <div id="kibana" class="tab-content">
+            <h2>Kibana / Elasticsearch Monitoring</h2>
+            <div class="api-doc">
+                <h3>🔍 Available Endpoints</h3>
+                <ul style="list-style: none; padding-left: 0;">
+                    <li style="margin-bottom: 10px;"><code>POST /api/v1/monitoring/kibana/search</code> - Search logs</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div id="splunk" class="tab-content">
+            <h2>Splunk Monitoring</h2>
+            <div class="api-doc">
+                <h3>📈 Available Endpoints</h3>
+                <ul style="list-style: none; padding-left: 0;">
+                    <li style="margin-bottom: 10px;"><code>POST /api/v1/monitoring/splunk/search</code> - Run Splunk query</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div id="mongodb" class="tab-content">
+            <h2>MongoDB Analysis</h2>
+            <div class="api-doc">
+                <h3>🍃 Available Endpoints</h3>
+                <ul style="list-style: none; padding-left: 0;">
+                    <li style="margin-bottom: 10px;"><code>GET /api/v1/monitoring/mongodb/collections</code> - List collections</li>
+                </ul>
+            </div>
+        </div>
     </div>
     
     <script>
         let apiKeysMap = {};
         let databasesInfo = {};
+        let refreshInterval;
         
         const dbDescriptions = {
             'CQE_NFT': 'Read/Write (DQL + DML). Direct auth.',
@@ -1102,18 +943,28 @@
             for (const db in apiKeysMap) {
                 const keys = apiKeysMap[db];
                 if (!keys || !keys.length) continue;
-                html += '<div class="db-key-section"><h4>' + db + '</h4><ul class="key-list">';
-                keys.forEach((k, i) => html += '<li>Key ' + (i+1) + ': ' + k + '</li>');
+                html += '<div style="background: white; padding: 15px; margin-bottom: 15px; border-radius: 6px; border-left: 4px solid #667eea;"><h4 style="color: #667eea; margin-bottom: 10px;">' + db + '</h4><ul style="list-style: none; padding: 0;">';
+                keys.forEach((k, i) => html += '<li style="padding: 8px; background: #f9f9f9; margin: 5px 0; border-radius: 4px; font-family: Courier New, monospace; font-size: 0.85em;">Key ' + (i+1) + ': ' + k + '</li>');
                 html += '</ul></div>';
             }
             cont.innerHTML = html || '<p>No keys</p>';
         }
         
         function showTab(evt, name) {
+            // Clean up old tab
+            if (name === 'appdynamics') {
+                cleanupAppDynamicsTab();
+            }
+            
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
             document.getElementById(name).classList.add('active');
             evt.currentTarget.classList.add('active');
+            
+            // Initialize new tab
+            if (name === 'appdynamics') {
+                initAppDynamicsTab();
+            }
         }
         
         function updateDatabaseInfo() {
@@ -1224,11 +1075,165 @@
             }
         }
         
-        function toggleEndpoint(header) {
-            const body = header.nextElementSibling;
-            const arrow = header.querySelector('span:last-child');
-            body.classList.toggle('active');
-            arrow.textContent = body.classList.contains('active') ? '▲' : '▼';
+        // AppDynamics Functions
+        function loadThreadPoolStatus() {
+            fetch('/api/v1/monitoring/appdynamics/thread-pool/status')
+                .then(r => r.json())
+                .then(d => {
+                    document.getElementById('activeMonitors').textContent = d.active_monitors;
+                    document.getElementById('availableSlots').textContent = d.available_slots;
+                    document.getElementById('utilization').textContent = d.utilization_percent.toFixed(0) + '%';
+                })
+                .catch(e => console.error('Thread pool load failed:', e));
+        }
+        
+        async function runHealthCheck() {
+            const appsInput = document.getElementById('healthCheckApps').value;
+            const applications = appsInput ? appsInput.split(',').map(a => a.trim()).filter(a => a) : [];
+            
+            const statusDiv = document.getElementById('healthCheckStatus');
+            const statusText = document.getElementById('healthCheckStatusText');
+            
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#fff3cd';
+            statusText.textContent = 'Running health check...';
+            
+            try {
+                const r = await fetch('/api/v1/monitoring/appdynamics/healthcheck', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ applications })
+                });
+                const d = await r.json();
+                statusDiv.style.background = '#d4edda';
+                statusText.textContent = '✓ Health check initiated (Task ID: ' + d.task_id + ')';
+                setTimeout(refreshSessions, 2000);
+            } catch (e) {
+                statusDiv.style.background = '#f8d7da';
+                statusText.textContent = '✗ Error: ' + e.message;
+            }
+        }
+        
+        async function startMonitoring() {
+            const lob = document.getElementById('monitorLOB').value.trim();
+            const track = document.getElementById('monitorTrack').value.trim();
+            const run_id = document.getElementById('monitorRunID').value.trim();
+            const appsInput = document.getElementById('monitorApps').value.trim();
+            const interval = parseInt(document.getElementById('monitorInterval').value);
+            
+            if (!lob || !track || !run_id || !appsInput) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            const applications = appsInput.split(',').map(a => a.trim()).filter(a => a);
+            
+            try {
+                const r = await fetch('/api/v1/monitoring/appdynamics/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lob, track, run_id, applications, interval_seconds: interval })
+                });
+                const d = await r.json();
+                
+                if (d.success) {
+                    alert('✓ Monitoring started!\nSession ID: ' + d.session_id + '\nLOB: ' + lob + '\nTrack: ' + track + '\nRun ID: ' + run_id);
+                    document.getElementById('monitorLOB').value = '';
+                    document.getElementById('monitorTrack').value = '';
+                    document.getElementById('monitorRunID').value = '';
+                    document.getElementById('monitorApps').value = '';
+                    loadThreadPoolStatus();
+                    refreshSessions();
+                }
+            } catch (e) {
+                alert('✗ Error starting monitoring: ' + e.message);
+            }
+        }
+        
+        async function stopMonitoring(sessionId) {
+            if (!confirm('Are you sure you want to stop this monitoring session?')) return;
+            
+            try {
+                const r = await fetch('/api/v1/monitoring/appdynamics/stop/' + sessionId, { method: 'POST' });
+                const d = await r.json();
+                if (d.success) {
+                    alert('✓ Monitoring stopped\nIterations completed: ' + d.iterations_completed);
+                    refreshSessions();
+                    loadThreadPoolStatus();
+                }
+            } catch (e) {
+                alert('✗ Error stopping monitoring: ' + e.message);
+            }
+        }
+        
+        async function viewSession(sessionId) {
+            try {
+                const r = await fetch('/api/v1/monitoring/appdynamics/sessions/' + sessionId);
+                const s = await r.json();
+                alert('Session Details:\n' +
+                    'Session ID: ' + s.session_id + '\n' +
+                    'LOB: ' + s.lob + '\n' +
+                    'Track: ' + s.track + '\n' +
+                    'Run ID: ' + s.run_id + '\n' +
+                    'Applications: ' + s.applications.join(', ') + '\n' +
+                    'Status: ' + s.status + '\n' +
+                    'Iterations: ' + s.iterations_completed);
+            } catch (e) {
+                alert('Error loading session: ' + e.message);
+            }
+        }
+        
+        async function refreshSessions() {
+            try {
+                const r = await fetch('/api/v1/monitoring/appdynamics/sessions');
+                const d = await r.json();
+                const cont = document.getElementById('sessionsContainer');
+                
+                if (d.sessions.length === 0) {
+                    cont.innerHTML = '<p style="text-align: center; color: #999;">No active sessions</p>';
+                    return;
+                }
+                
+                let html = '';
+                d.sessions.forEach(s => {
+                    const cls = s.status;
+                    html += '<div class="session-card ' + cls + '">' +
+                        '<div class="session-header">' +
+                        '<div class="session-title">' + s.lob + ' / ' + s.track + ' / ' + s.run_id + '</div>' +
+                        '<span class="session-status ' + cls + '">' + s.status.toUpperCase() + '</span>' +
+                        '</div>' +
+                        '<div class="session-details">' +
+                        '<div class="session-detail"><strong>Session ID:</strong> ' + s.session_id.substring(0, 8) + '...</div>' +
+                        '<div class="session-detail"><strong>Applications:</strong> ' + s.applications.join(', ') + '</div>' +
+                        '<div class="session-detail"><strong>Iterations:</strong> ' + s.iterations_completed + '</div>' +
+                        '</div>' +
+                        (s.status === 'running' ? '<div class="progress-bar-container"><div class="progress-bar" style="width: 100%"></div></div>' : '') +
+                        '<div class="session-actions">' +
+                        (s.status === 'running' ? '<button class="btn-stop" onclick="stopMonitoring(\'' + s.session_id + '\')">⏹️ Stop</button>' : '') +
+                        '<button class="btn-view" onclick="viewSession(\'' + s.session_id + '\')">👁️ View Details</button>' +
+                        '</div></div>';
+                });
+                cont.innerHTML = html;
+            } catch (e) {
+                console.error('Failed to refresh sessions:', e);
+            }
+        }
+        
+        function initAppDynamicsTab() {
+            loadThreadPoolStatus();
+            refreshSessions();
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(() => {
+                loadThreadPoolStatus();
+                refreshSessions();
+            }, 10000);
+        }
+        
+        function cleanupAppDynamicsTab() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
         }
     </script>
 </body>
