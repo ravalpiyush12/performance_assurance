@@ -1,0 +1,593 @@
+<!-- AppDynamics Monitoring Tab - Beautiful UI -->
+<div id="appdynamics" class="tab-content">
+    <h2>📊 AppDynamics Monitoring Control Panel</h2>
+    <p style="color: #666; margin-bottom: 20px;">
+        Manage AppD health checks and monitoring sessions for performance testing
+    </p>
+    
+    <!-- Thread Pool Status -->
+    <div class="thread-pool-status">
+        <h3>🔧 Thread Pool Status</h3>
+        <div class="status-cards">
+            <div class="status-card">
+                <div class="card-value" id="activeMonitors">0</div>
+                <div class="card-label">Active Monitors</div>
+            </div>
+            <div class="status-card">
+                <div class="card-value" id="availableSlots">10</div>
+                <div class="card-label">Available Slots</div>
+            </div>
+            <div class="status-card">
+                <div class="card-value" id="utilization">0%</div>
+                <div class="card-label">Utilization</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Panels -->
+    <div class="action-grid">
+        <!-- Health Check Panel -->
+        <div class="action-panel">
+            <h3>🏥 Health Check (Code 1)</h3>
+            <p>Discover applications and identify active nodes/tiers</p>
+            
+            <div class="form-group">
+                <label>Applications (comma-separated, or leave empty for all):</label>
+                <input type="text" id="healthCheckApps" placeholder="App1, App2, App3...">
+            </div>
+            
+            <button class="btn" onclick="runHealthCheck()">
+                🔍 Run Health Check
+            </button>
+            
+            <div id="healthCheckStatus" style="display: none; margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 4px;">
+                <strong>Status:</strong> <span id="healthCheckStatusText"></span>
+            </div>
+        </div>
+        
+        <!-- Start Monitoring Panel -->
+        <div class="action-panel">
+            <h3>▶️ Start Monitoring (Code 3)</h3>
+            <p>Begin collecting AppD metrics for performance test</p>
+            
+            <div class="form-group">
+                <label>LOB (Line of Business):</label>
+                <input type="text" id="monitorLOB" placeholder="e.g., Retail" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Track:</label>
+                <input type="text" id="monitorTrack" placeholder="e.g., Q4_2026" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Run ID:</label>
+                <input type="text" id="monitorRunID" placeholder="e.g., RUN_20260225_001" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Applications (comma-separated):</label>
+                <input type="text" id="monitorApps" placeholder="App1, App2..." required>
+            </div>
+            
+            <div class="form-group">
+                <label>Collection Interval (seconds):</label>
+                <select id="monitorInterval">
+                    <option value="300">5 minutes</option>
+                    <option value="600">10 minutes</option>
+                    <option value="1800" selected>30 minutes</option>
+                    <option value="3600">1 hour</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-success" onclick="startMonitoring()">
+                ▶️ Start Monitoring
+            </button>
+        </div>
+    </div>
+    
+    <!-- Active Sessions -->
+    <div class="sessions-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3>📋 Active Monitoring Sessions</h3>
+            <button class="btn-refresh" onclick="refreshSessions()">
+                🔄 Refresh
+            </button>
+        </div>
+        
+        <div id="sessionsContainer">
+            <p style="text-align: center; color: #999;">No active sessions</p>
+        </div>
+    </div>
+</div>
+
+<style>
+/* AppDynamics Monitoring Styles */
+.thread-pool-status {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    color: white;
+}
+
+.thread-pool-status h3 {
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.status-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.status-card {
+    background: rgba(255,255,255,0.2);
+    padding: 20px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.card-value {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.card-label {
+    opacity: 0.9;
+    font-size: 0.9em;
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.action-panel {
+    background: #f8f9fa;
+    padding: 25px;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+}
+
+.action-panel h3 {
+    color: #667eea;
+    margin-bottom: 10px;
+}
+
+.action-panel p {
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 0.9em;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+}
+
+.btn-refresh {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.btn-refresh:hover {
+    background: #5a6268;
+}
+
+.sessions-panel {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.session-card {
+    background: #f8f9fa;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    border-left: 4px solid #667eea;
+}
+
+.session-card.running {
+    border-left-color: #28a745;
+    animation: pulse-green 2s infinite;
+}
+
+.session-card.stopped {
+    border-left-color: #6c757d;
+}
+
+.session-card.failed {
+    border-left-color: #dc3545;
+}
+
+@keyframes pulse-green {
+    0%, 100% { border-left-color: #28a745; }
+    50% { border-left-color: #20c997; }
+}
+
+.session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.session-title {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #333;
+}
+
+.session-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.session-status.running {
+    background: #d4edda;
+    color: #155724;
+}
+
+.session-status.stopped {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.session-status.failed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.session-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+    font-size: 0.9em;
+}
+
+.session-detail {
+    padding: 8px;
+    background: white;
+    border-radius: 4px;
+}
+
+.session-detail strong {
+    color: #667eea;
+}
+
+.session-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-stop {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.btn-stop:hover {
+    background: #c82333;
+}
+
+.btn-view {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.btn-view:hover {
+    background: #138496;
+}
+
+.progress-bar-container {
+    background: #e9ecef;
+    height: 8px;
+    border-radius: 4px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.3s;
+    animation: progress-animation 2s infinite;
+}
+
+@keyframes progress-animation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@media (max-width: 768px) {
+    .action-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+// AppDynamics Monitoring Functions
+
+let refreshInterval;
+
+// Load thread pool status
+async function loadThreadPoolStatus() {
+    try {
+        const response = await fetch('/api/v1/monitoring/appdynamics/thread-pool/status');
+        const data = await response.json();
+        
+        document.getElementById('activeMonitors').textContent = data.active_monitors;
+        document.getElementById('availableSlots').textContent = data.available_slots;
+        document.getElementById('utilization').textContent = data.utilization_percent.toFixed(0) + '%';
+        
+    } catch (error) {
+        console.error('Failed to load thread pool status:', error);
+    }
+}
+
+// Run health check
+async function runHealthCheck() {
+    const appsInput = document.getElementById('healthCheckApps').value;
+    const applications = appsInput ? appsInput.split(',').map(a => a.trim()).filter(a => a) : [];
+    
+    const statusDiv = document.getElementById('healthCheckStatus');
+    const statusText = document.getElementById('healthCheckStatusText');
+    
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = '#fff3cd';
+    statusText.textContent = 'Running health check...';
+    
+    try {
+        const response = await fetch('/api/v1/monitoring/appdynamics/healthcheck', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ applications })
+        });
+        
+        const data = await response.json();
+        
+        statusDiv.style.background = '#d4edda';
+        statusText.textContent = `✓ Health check initiated (Task ID: ${data.task_id})`;
+        
+        // Refresh sessions after health check
+        setTimeout(refreshSessions, 2000);
+        
+    } catch (error) {
+        statusDiv.style.background = '#f8d7da';
+        statusText.textContent = `✗ Error: ${error.message}`;
+    }
+}
+
+// Start monitoring
+async function startMonitoring() {
+    const lob = document.getElementById('monitorLOB').value.trim();
+    const track = document.getElementById('monitorTrack').value.trim();
+    const run_id = document.getElementById('monitorRunID').value.trim();
+    const appsInput = document.getElementById('monitorApps').value.trim();
+    const interval = parseInt(document.getElementById('monitorInterval').value);
+    
+    if (!lob || !track || !run_id || !appsInput) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    const applications = appsInput.split(',').map(a => a.trim()).filter(a => a);
+    
+    try {
+        const response = await fetch('/api/v1/monitoring/appdynamics/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lob,
+                track,
+                run_id,
+                applications,
+                interval_seconds: interval
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`✓ Monitoring started!\nSession ID: ${data.session_id}\nLOB: ${lob}\nTrack: ${track}\nRun ID: ${run_id}`);
+            
+            // Clear form
+            document.getElementById('monitorLOB').value = '';
+            document.getElementById('monitorTrack').value = '';
+            document.getElementById('monitorRunID').value = '';
+            document.getElementById('monitorApps').value = '';
+            
+            // Refresh displays
+            loadThreadPoolStatus();
+            refreshSessions();
+        }
+        
+    } catch (error) {
+        alert(`✗ Error starting monitoring: ${error.message}`);
+    }
+}
+
+// Stop monitoring
+async function stopMonitoring(sessionId) {
+    if (!confirm('Are you sure you want to stop this monitoring session?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/monitoring/appdynamics/stop/${sessionId}`, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`✓ Monitoring stopped\nIterations completed: ${data.iterations_completed}`);
+            refreshSessions();
+            loadThreadPoolStatus();
+        }
+        
+    } catch (error) {
+        alert(`✗ Error stopping monitoring: ${error.message}`);
+    }
+}
+
+// View session details
+async function viewSession(sessionId) {
+    try {
+        const response = await fetch(`/api/v1/monitoring/appdynamics/sessions/${sessionId}`);
+        const session = await response.json();
+        
+        const details = `
+Session Details:
+================
+Session ID: ${session.session_id}
+LOB: ${session.lob}
+Track: ${session.track}
+Run ID: ${session.run_id}
+Applications: ${session.applications.join(', ')}
+Status: ${session.status}
+Start Time: ${session.start_time}
+End Time: ${session.end_time || 'N/A'}
+Iterations: ${session.iterations_completed}
+Last Collection: ${session.last_collection_time || 'N/A'}
+${session.error_message ? 'Error: ' + session.error_message : ''}
+        `;
+        
+        alert(details);
+        
+    } catch (error) {
+        alert(`Error loading session: ${error.message}`);
+    }
+}
+
+// Refresh sessions
+async function refreshSessions() {
+    try {
+        const response = await fetch('/api/v1/monitoring/appdynamics/sessions');
+        const data = await response.json();
+        
+        const container = document.getElementById('sessionsContainer');
+        
+        if (data.sessions.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #999;">No active sessions</p>';
+            return;
+        }
+        
+        let html = '';
+        data.sessions.forEach(session => {
+            const statusClass = session.status;
+            const duration = session.end_time 
+                ? 'Completed' 
+                : `Running (${session.iterations_completed} iterations)`;
+            
+            html += `
+                <div class="session-card ${statusClass}">
+                    <div class="session-header">
+                        <div class="session-title">
+                            ${session.lob} / ${session.track} / ${session.run_id}
+                        </div>
+                        <span class="session-status ${statusClass}">${session.status.toUpperCase()}</span>
+                    </div>
+                    
+                    <div class="session-details">
+                        <div class="session-detail">
+                            <strong>Session ID:</strong> ${session.session_id.substring(0, 8)}...
+                        </div>
+                        <div class="session-detail">
+                            <strong>Applications:</strong> ${session.applications.join(', ')}
+                        </div>
+                        <div class="session-detail">
+                            <strong>Started:</strong> ${new Date(session.start_time).toLocaleString()}
+                        </div>
+                        <div class="session-detail">
+                            <strong>Status:</strong> ${duration}
+                        </div>
+                        ${session.last_collection_time ? `
+                        <div class="session-detail">
+                            <strong>Last Collection:</strong> ${new Date(session.last_collection_time).toLocaleString()}
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    ${session.status === 'running' ? `
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: 100%"></div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="session-actions">
+                        ${session.status === 'running' ? `
+                        <button class="btn-stop" onclick="stopMonitoring('${session.session_id}')">
+                            ⏹️ Stop
+                        </button>
+                        ` : ''}
+                        <button class="btn-view" onclick="viewSession('${session.session_id}')">
+                            👁️ View Details
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Failed to refresh sessions:', error);
+    }
+}
+
+// Initialize when tab is shown
+function initAppDynamicsTab() {
+    loadThreadPoolStatus();
+    refreshSessions();
+    
+    // Auto-refresh every 10 seconds
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+        loadThreadPoolStatus();
+        refreshSessions();
+    }, 10000);
+}
+
+// Clean up on tab change
+function cleanupAppDynamicsTab() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }
+}
+
+// Initialize on page load if AppD tab is active
+window.addEventListener('DOMContentLoaded', function() {
+    const appdTab = document.querySelector('.tab[onclick*="appdynamics"]');
+    if (appdTab && appdTab.classList.contains('active')) {
+        initAppDynamicsTab();
+    }
+});
+</script>
