@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CQE NFT Monitoring API Solutions</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        
+        .quick-links {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 6px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .quick-link {
+            display: inline-block;
+            padding: 8px 16px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .quick-link:hover { transform: translateY(-2px); }
+        
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            background: #f5f5f5;
+            border: none;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .tab:hover { background: #e0e0e0; }
+        
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .btn-success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important; }
+        .btn-danger { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important; }
+        .btn-info { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important; }
+        
+        /* Oracle SQL Specific Styles */
+        .sql-container {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group select,
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            font-family: monospace;
+        }
+        
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+        
+        .results-container {
+            margin-top: 20px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            max-height: 600px;
+            overflow: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+        
+        tr:hover { background: #f5f5f5; }
+        
+        /* AppDynamics Specific Styles */
+        .appd-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .appd-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .thread-pool-status {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .thread-pool-status h3 {
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .status-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .status-card {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 6px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .card-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .card-label {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+        
+        .nodes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .node-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .node-card h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .node-detail {
+            font-size: 0.9em;
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .session-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .session-card.running {
+            border-left-color: #28a745;
+            animation: pulse-green 2s infinite;
+        }
+        
+        .session-card.stopped { border-left-color: #6c757d; }
+        .session-card.failed { border-left-color: #dc3545; }
+        
+        @keyframes pulse-green {
+            0%, 100% { border-left-color: #28a745; }
+            50% { border-left-color: #20c997; }
+        }
+        
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .session-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #333;
+        }
+        
+        .session-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .session-status.running {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .session-status.stopped {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .session-status.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .session-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+        
+        .session-detail {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .session-detail strong {
+            color: #667eea;
+        }
+        
+        .session-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active { display: block; }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .tabs { flex-direction: column; }
+            .status-cards { grid-template-columns: 1fr; }
+            .nodes-grid { grid-template-columns: 1fr; }
+            .session-details { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗄️ CQE NFT Monitoring API Solutions</h1>
+            <p>Multi-Database Management with Integrated Monitoring</p>
+            <div class="quick-links">
+                <a href="/api/docs" class="quick-link" target="_blank">📖 OpenAPI Docs</a>
+                <a href="/logs" class="quick-link">📊 Audit Logs</a>
+                <a href="/health" class="quick-link" target="_blank">❤️ Health Check</a>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab(event, 'oracle')">🔷 Oracle SQL</button>
+            <button class="tab" onclick="showTab(event, 'apikeys')">🔑 API Keys</button>
+            <button class="tab" onclick="showTab(event, 'appdynamics')">📊 AppDynamics</button>
+            <button class="tab" onclick="showTab(event, 'kibana')">🔍 Kibana</button>
+            <button class="tab" onclick="showTab(event, 'mongodb')">🍃 MongoDB</button>
+        </div>
+        
+        <!-- Oracle SQL Tab -->
+        <div id="oracle" class="tab-content active">
+            <h2>🔷 Oracle SQL Execution</h2>
+            <p style="color: #666; margin-bottom: 20px;">Execute SQL queries across multiple Oracle databases</p>
+            
+            <div class="sql-container">
+                <div class="form-group">
+                    <label>Database:</label>
+                    <select id="database">
+                        <option value="">-- Select Database --</option>
+                        <option value="CQE_NFT">CQE_NFT (Main)</option>
+                        <option value="DEVOPS">DEVOPS</option>
+                        <option value="ANALYTICS">ANALYTICS</option>
+                        <!-- Add your databases here -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>SQL Query:</label>
+                    <textarea id="sqlQuery" placeholder="SELECT * FROM your_table WHERE ..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>API Key:</label>
+                    <input type="password" id="apiKey" placeholder="Enter your API key">
+                </div>
+                
+                <button class="btn" onclick="executeSql()">▶️ Execute Query</button>
+                <button class="btn btn-info" style="margin-left: 10px;" onclick="clearSqlResults()">🗑️ Clear</button>
+            </div>
+            
+            <div id="sqlResults" class="results-container" style="display: none;">
+                <h3>Query Results</h3>
+                <div id="sqlResultsContent"></div>
+            </div>
+        </div>
+        
+        <!-- API Keys Tab -->
+        <div id="apikeys" class="tab-content">
+            <h2>🔑 API Keys Reference</h2>
+            <p style="color: #666; margin-bottom: 20px;">Manage and view API keys for database access</p>
+            
+            <div class="sql-container">
+                <h3>Available API Keys</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Database</th>
+                            <th>Allowed Operations</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>CQE_NFT</td>
+                            <td>SELECT, INSERT, UPDATE</td>
+                            <td><span style="color: #28a745;">● Active</span></td>
+                        </tr>
+                        <tr>
+                            <td>DEVOPS</td>
+                            <td>SELECT</td>
+                            <td><span style="color: #28a745;">● Active</span></td>
+                        </tr>
+                        <!-- Add your API keys here -->
+                    </tbody>
+                </table>
+                
+                <div style="margin-top: 20px;">
+                    <button class="btn">➕ Generate New API Key</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- AppDynamics Tab -->
+        <div id="appdynamics" class="tab-content">
+            <h2>📊 AppDynamics Monitoring Control Panel</h2>
+            <p style="color: #666; margin-bottom: 20px;">
+                Manage AppD discovery, health checks, and monitoring sessions for performance testing
+            </p>
+            
+            <!-- Thread Pool Status -->
+            <div class="thread-pool-status">
+                <h3>🔧 Thread Pool Status</h3>
+                <div class="status-cards">
+                    <div class="status-card">
+                        <div class="card-value" id="activeMonitors">0</div>
+                        <div class="card-label">Active Monitors</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="card-value" id="availableSlots">10</div>
+                        <div class="card-label">Available Slots</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="card-value" id="utilization">0%</div>
+                        <div class="card-label">Utilization</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Discovery Section - CORRECTED -->
+            <div class="appd-section">
+                <h3>🔍 Discovery & Configuration (Code 1)</h3>
+                <p style="color: #666; margin-bottom: 15px;">
+                    Create configuration for LOB with AppD applications. Classify active (CPM ≥ 10) vs inactive nodes.
+                </p>
+                
+                <div class="form-group">
+                    <label>Config Name (Unique): *</label>
+                    <input type="text" id="configName" placeholder="e.g., Retail_Q1_2026" required>
+                    <small style="color: #666;">Must be unique for each discovery configuration</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>LOB Name: *</label>
+                    <input type="text" id="discoveryLob" placeholder="e.g., Retail" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Track: *</label>
+                    <input type="text" id="discoveryTrack" placeholder="e.g., Q1_2026" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>AppDynamics Application Names (comma-separated): *</label>
+                    <input type="text" id="discoveryApps" placeholder="e.g., RetailWeb, RetailAPI, RetailMobile" required>
+                    <small style="color: #666;">Enter AppD application names separated by commas</small>
+                </div>
+                
+                <button class="btn" onclick="runDiscovery()">
+                    🔍 Run Discovery & Save Config
+                </button>
+                
+                <div id="discoveryStatus" style="display: none; margin-top: 15px;"></div>
+            </div>
+            
+            <!-- Health Check Section -->
+            <div class="appd-section">
+                <h3>🏥 Health Check</h3>
+                <p style="color: #666; margin-bottom: 15px;">
+                    View active nodes from database (populated by discovery)
+                </p>
+                
+                <div class="form-group">
+                    <label>Select Config Name:</label>
+                    <select id="healthCheckConfig">
+                        <option value="">-- Select Config --</option>
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+                
+                <button class="btn" onclick="runHealthCheck()">
+                    🏥 Get Active Nodes
+                </button>
+                
+                <div id="healthCheckResults" style="margin-top: 20px;"></div>
+            </div>
+            
+            <!-- Start Monitoring Section -->
+            <div class="appd-section">
+                <h3>▶️ Start Monitoring (Code 3)</h3>
+                <p style="color: #666; margin-bottom: 15px;">
+                    Begin collecting AppD metrics for performance test
+                </p>
+                
+                <div class="form-group">
+                    <label>Run ID: *</label>
+                    <input type="text" id="monitorRunId" placeholder="RUN_20260226_001" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Select Config: *</label>
+                    <select id="monitorConfig" required>
+                        <option value="">-- Select Config --</option>
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Test Name:</label>
+                    <input type="text" id="monitorTestName" placeholder="Peak Load Test">
+                </div>
+                
+                <div class="form-group">
+                    <label>Collection Interval:</label>
+                    <select id="monitorInterval">
+                        <option value="300">5 minutes</option>
+                        <option value="600">10 minutes</option>
+                        <option value="1800" selected>30 minutes</option>
+                        <option value="3600">1 hour</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-success" onclick="startMonitoring()">
+                    ▶️ Start Monitoring
+                </button>
+            </div>
+            
+            <!-- Active Sessions -->
+            <div class="appd-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">📋 Active Monitoring Sessions</h3>
+                    <button class="btn" style="padding: 8px 16px; font-size: 0.9em;" onclick="refreshSessions()">
+                        🔄 Refresh
+                    </button>
+                </div>
+                
+                <div id="sessionsContainer">
+                    <p style="text-align: center; color: #999;">No active sessions</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Kibana Tab -->
+        <div id="kibana" class="tab-content">
+            <h2>🔍 Kibana / Elasticsearch Monitoring</h2>
+            <p style="color: #666;">Coming soon...</p>
+        </div>
+        
+        <!-- MongoDB Tab -->
+        <div id="mongodb" class="tab-content">
+            <h2>🍃 MongoDB Analysis</h2>
+            <p style="color: #666;">Coming soon...</p>
+        </div>
+    </div>
+    
+    <script>
+        let appdRefreshInterval;
+        
+        // Tab switching
+        function showTab(evt, tabName) {
+            // Clean up AppD tab
+            if (tabName !== 'appdynamics' && appdRefreshInterval) {
+                clearInterval(appdRefreshInterval);
+            }
+            
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+            
+            // Initialize tabs
+            if (tabName === 'appdynamics') {
+                initAppDTab();
+            } else if (tabName === 'oracle') {
+                loadDatabases();
+            }
+        }
+        
+        // ==========================================
+        // Oracle SQL Functions
+        // ==========================================
+        
+        async function loadDatabases() {
+            try {
+                const response = await fetch('/api/v1/databases');
+                const data = await response.json();
+                
+                const select = document.getElementById('database');
+                select.innerHTML = '<option value="">-- Select Database --</option>';
+                
+                data.databases.forEach(db => {
+                    const option = document.createElement('option');
+                    option.value = db.name;
+                    option.textContent = `${db.name} (${db.type})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load databases:', error);
+            }
+        }
+        
+        async function executeSql() {
+            const database = document.getElementById('database').value;
+            const query = document.getElementById('sqlQuery').value.trim();
+            const apiKey = document.getElementById('apiKey').value;
+            
+            if (!database || !query || !apiKey) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('sqlResults');
+            const contentDiv = document.getElementById('sqlResultsContent');
+            
+            resultsDiv.style.display = 'block';
+            contentDiv.innerHTML = '<div class="loading active"><div class="spinner"></div><p>Executing query...</p></div>';
+            
+            try {
+                const response = await fetch('/api/v1/sql/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify({
+                        database: database,
+                        query: query
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displaySqlResults(data);
+                } else {
+                    contentDiv.innerHTML = `<div class="alert alert-error">Error: ${data.detail || data.error}</div>`;
+                }
+            } catch (error) {
+                contentDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function displaySqlResults(data) {
+            const contentDiv = document.getElementById('sqlResultsContent');
+            
+            if (data.row_count === 0) {
+                contentDiv.innerHTML = '<div class="alert alert-info">Query executed successfully. No rows returned.</div>';
+                return;
+            }
+            
+            let html = `<div class="alert alert-success">✓ Query executed successfully. ${data.row_count} rows returned.</div>`;
+            html += '<table><thead><tr>';
+            
+            data.columns.forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            data.rows.forEach(row => {
+                html += '<tr>';
+                row.forEach(cell => {
+                    html += `<td>${cell !== null ? cell : '<em>NULL</em>'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            contentDiv.innerHTML = html;
+        }
+        
+        function clearSqlResults() {
+            document.getElementById('sqlQuery').value = '';
+            document.getElementById('sqlResults').style.display = 'none';
+        }
+        
+        // ==========================================
+        // AppDynamics Functions
+        // ==========================================
+        
+        function initAppDTab() {
+            loadThreadPoolStatus();
+            loadConfigs();
+            refreshSessions();
+            
+            // Auto-refresh every 10 seconds
+            appdRefreshInterval = setInterval(() => {
+                loadThreadPoolStatus();
+                refreshSessions();
+            }, 10000);
+        }
+        
+        async function loadThreadPoolStatus() {
+            try {
+                const response = await fetch('/api/v1/monitoring/appd/monitoring/thread-pool/status');
+                const data = await response.json();
+                
+                document.getElementById('activeMonitors').textContent = data.active_monitors;
+                document.getElementById('availableSlots').textContent = data.available_slots;
+                document.getElementById('utilization').textContent = data.utilization_percent.toFixed(0) + '%';
+            } catch (error) {
+                console.error('Failed to load thread pool status:', error);
+            }
+        }
+        
+        async function loadConfigs() {
+            // Load available configs for dropdowns
+            // This would call an API endpoint to get saved configs
+            // For now, we'll populate manually
+            const healthSelect = document.getElementById('healthCheckConfig');
+            const monitorSelect = document.getElementById('monitorConfig');
+            
+            // In production, fetch from database
+            // For now, placeholder
+        }
+        
+        async function runDiscovery() {
+            const configName = document.getElementById('configName').value.trim();
+            const lob = document.getElementById('discoveryLob').value.trim();
+            const track = document.getElementById('discoveryTrack').value.trim();
+            const appsInput = document.getElementById('discoveryApps').value.trim();
+            
+            if (!configName || !lob || !track || !appsInput) {
+                alert('Please fill in all required fields (*)');
+                return;
+            }
+            
+            const applications = appsInput.split(',').map(a => a.trim()).filter(a => a);
+            
+            if (applications.length === 0) {
+                alert('Please enter at least one AppDynamics application name');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('discoveryStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'alert alert-info';
+            statusDiv.innerHTML = '⏳ Running discovery for config: ' + configName + '...';
+            
+            try {
+                // First, save config to database
+                const configResponse = await fetch('/api/v1/monitoring/appd/config/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        config_name: configName,
+                        lob_name: lob,
+                        track: track,
+                        applications: applications
+                    })
+                });
+                
+                if (!configResponse.ok) {
+                    throw new Error('Failed to save config. Config name might already exist.');
+                }
+                
+                // Then run discovery
+                const response = await fetch('/api/v1/monitoring/appd/discovery/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        config_name: configName,
+                        lob_name: lob,
+                        applications: applications
+                    })
+                });
+                
+                const data = await response.json();
+                
+                statusDiv.className = 'alert alert-success';
+                statusDiv.innerHTML = '✓ Discovery initiated!<br>' +
+                    'Config: ' + configName + '<br>' +
+                    'LOB: ' + lob + '<br>' +
+                    'Track: ' + track + '<br>' +
+                    'Applications: ' + applications.join(', ') + '<br>' +
+                    '<small>Check database for results</small>';
+                
+                // Clear form
+                document.getElementById('configName').value = '';
+                document.getElementById('discoveryLob').value = '';
+                document.getElementById('discoveryTrack').value = '';
+                document.getElementById('discoveryApps').value = '';
+                
+                // Reload configs
+                loadConfigs();
+                
+            } catch (error) {
+                statusDiv.className = 'alert alert-error';
+                statusDiv.innerHTML = '✗ Error: ' + error.message;
+            }
+        }
+        
+        async function runHealthCheck() {
+            const config = document.getElementById('healthCheckConfig').value;
+            
+            if (!config) {
+                alert('Please select a config');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('healthCheckResults');
+            resultsDiv.innerHTML = '<div class="loading active"><div class="spinner"></div><p>Loading active nodes...</p></div>';
+            
+            try {
+                const response = await fetch('/api/v1/monitoring/appd/health/' + config);
+                const data = await response.json();
+                
+                if (data.total_active_nodes === 0) {
+                    resultsDiv.innerHTML = '<div class="alert alert-info">No active nodes found for ' + config + '. Run discovery first.</div>';
+                    return;
+                }
+                
+                let html = '<h4>Active Nodes: ' + data.total_active_nodes + '</h4>';
+                html += '<div class="nodes-grid">';
+                
+                for (const app in data.applications) {
+                    for (const tier in data.applications[app]) {
+                        const nodes = data.applications[app][tier];
+                        nodes.forEach(node => {
+                            html += '<div class="node-card">';
+                            html += '<h4>' + node.node_name + '</h4>';
+                            html += '<div class="node-detail"><strong>App:</strong> ' + app + '</div>';
+                            html += '<div class="node-detail"><strong>Tier:</strong> ' + tier + '</div>';
+                            html += '<div class="node-detail"><strong>CPM:</strong> ' + node.calls_per_minute.toFixed(2) + '</div>';
+                            html += '</div>';
+                        });
+                    }
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="alert alert-error">✗ Error: ' + error.message + '</div>';
+            }
+        }
+        
+        async function startMonitoring() {
+            const runId = document.getElementById('monitorRunId').value.trim();
+            const config = document.getElementById('monitorConfig').value;
+            const testName = document.getElementById('monitorTestName').value.trim();
+            const interval = parseInt(document.getElementById('monitorInterval').value);
+            
+            if (!runId || !config) {
+                alert('Please fill in all required fields (*)');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/v1/monitoring/appd/monitoring/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        run_id: runId,
+                        config_name: config,
+                        test_name: testName,
+                        interval_seconds: interval
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✓ Monitoring started successfully!\n\n' +
+                        'Run ID: ' + data.run_id + '\n' +
+                        'Config: ' + config + '\n' +
+                        'Interval: ' + (interval / 60) + ' minutes');
+                    
+                    // Clear form
+                    document.getElementById('monitorRunId').value = '';
+                    document.getElementById('monitorTestName').value = '';
+                    
+                    // Refresh sessions
+                    setTimeout(refreshSessions, 1000);
+                } else {
+                    alert('✗ Failed to start monitoring');
+                }
+            } catch (error) {
+                alert('✗ Error: ' + error.message);
+            }
+        }
+        
+        async function refreshSessions() {
+            try {
+                const response = await fetch('/api/v1/monitoring/appd/monitoring/sessions');
+                const data = await response.json();
+                
+                const container = document.getElementById('sessionsContainer');
+                
+                if (data.total_sessions === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #999;">No active sessions</p>';
+                    return;
+                }
+                
+                let html = '';
+                data.sessions.forEach(session => {
+                    const statusClass = session.status.toLowerCase();
+                    html += '<div class="session-card ' + statusClass + '">';
+                    html += '<div class="session-header">';
+                    html += '<div class="session-title">' + session.config_name + ' / ' + session.run_id + '</div>';
+                    html += '<span class="session-status ' + statusClass + '">' + session.status + '</span>';
+                    html += '</div>';
+                    html += '<div class="session-details">';
+                    html += '<div class="session-detail"><strong>Applications:</strong> ' + session.applications.join(', ') + '</div>';
+                    html += '<div class="session-detail"><strong>Iterations:</strong> ' + session.iterations + '</div>';
+                    html += '<div class="session-detail"><strong>Started:</strong> ' + new Date(session.start_time).toLocaleString() + '</div>';
+                    html += '</div>';
+                    
+                    html += '<div class="session-actions">';
+                    if (session.status === 'RUNNING') {
+                        html += '<button class="btn btn-danger" style="padding: 8px 16px; font-size: 0.9em;" onclick="stopMonitoring(\'' + session.run_id + '\')">⏹️ Stop</button>';
+                    }
+                    html += '</div>';
+                    html += '</div>';
+                });
+                
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Failed to refresh sessions:', error);
+            }
+        }
+        
+        async function stopMonitoring(runId) {
+            if (!confirm('Are you sure you want to stop monitoring for ' + runId + '?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/v1/monitoring/appd/monitoring/stop/' + runId, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✓ Monitoring stopped for ' + runId);
+                    refreshSessions();
+                    loadThreadPoolStatus();
+                }
+            } catch (error) {
+                alert('✗ Error: ' + error.message);
+            }
+        }
+        
+        // Initialize on page load
+        window.onload = function() {
+            loadDatabases();
+        };
+    </script>
+</body>
+</html>
