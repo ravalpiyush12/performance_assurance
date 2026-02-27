@@ -8,6 +8,9 @@ from typing import List, Optional
 import threading
 import time
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Import AppD components
 from .config import appd_config
@@ -20,7 +23,7 @@ from .orchestrator import MonitoringOrchestrator
 # Router
 router = APIRouter()
 
-# Global instances
+# Global instances - initialized by initialize_appd_components()
 appd_client = None
 appd_db = None
 discovery_service = None
@@ -30,9 +33,13 @@ monitoring_threads = {}
 thread_lock = threading.Lock()
 
 
-# Request Models
+# ========================================
+# Request/Response Models
+# ========================================
+
 class DiscoveryRequest(BaseModel):
     lob_names: List[str]
+
 
 class StartMonitoringRequest(BaseModel):
     run_id: str
@@ -42,6 +49,38 @@ class StartMonitoringRequest(BaseModel):
     applications: List[str]
     interval_seconds: int = 1800
 
+
+class ConfigSaveRequest(BaseModel):
+    """Request model for saving AppD configuration"""
+    config_name: str
+    lob_name: str
+    track: str
+    applications: List[str]
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "config_name": "Retail_Q1_2026",
+                "lob_name": "Retail",
+                "track": "Q1_2026",
+                "applications": ["RetailWeb", "RetailAPI", "RetailMobile"]
+            }
+        }
+
+
+class ConfigResponse(BaseModel):
+    """Response model for config operations"""
+    success: bool
+    message: str
+    config_name: str
+    lob_name: str
+    track: str
+    applications: List[str]
+
+
+# ========================================
+# Initialization Function
+# ========================================
 
 def initialize_appd_components(oracle_connection_pool):
     """Initialize AppD components - call from main.py startup"""
@@ -56,7 +95,10 @@ def initialize_appd_components(oracle_connection_pool):
     print("[AppD] Initialized successfully", flush=True)
 
 
+# ========================================
 # Discovery Endpoints
+# ========================================
+
 @router.post("/discovery/run")
 async def run_discovery(request: DiscoveryRequest, background_tasks: BackgroundTasks):
     """Run discovery for LOBs"""
@@ -85,7 +127,10 @@ def execute_discovery_task(task_id: str, lob_names: List[str]):
     return results
 
 
+# ========================================
 # Health Check Endpoints
+# ========================================
+
 @router.get("/health/{lob_name}")
 async def get_lob_health(lob_name: str):
     """Get active nodes for LOB"""
@@ -114,7 +159,10 @@ async def get_lob_health(lob_name: str):
     }
 
 
+# ========================================
 # Monitoring Endpoints
+# ========================================
+
 @router.post("/monitoring/start")
 async def start_monitoring(request: StartMonitoringRequest):
     """Start monitoring session"""
@@ -201,66 +249,24 @@ async def get_thread_pool_status():
         "active_threads": active_threads
     }
 
-"""
-Missing AppDynamics Config Endpoints
-Add these to monitoring/appd/routes.py
-"""
-
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
-import logging
-
-logger = logging.getLogger(__name__)
 
 # ========================================
-# Pydantic Models for Config
+# Config Management Endpoints - FIXED
 # ========================================
 
-class ConfigSaveRequest(BaseModel):
-    """Request model for saving AppD configuration"""
-    config_name: str
-    lob_name: str
-    track: str
-    applications: List[str]
-    
-    class Config:
-        schema_extra = {
-            "example": {
-                "config_name": "Retail_Q1_2026",
-                "lob_name": "Retail",
-                "track": "Q1_2026",
-                "applications": ["RetailWeb", "RetailAPI", "RetailMobile"]
-            }
-        }
-
-
-class ConfigResponse(BaseModel):
-    """Response model for config operations"""
-    success: bool
-    message: str
-    config_name: str
-    lob_name: str
-    track: str
-    applications: List[str]
-# ========================================
-# Config Management Endpoints
-# ========================================
-
-@router.post("/config/save", response_model=ConfigResponse, tags=["Configuration"])
+@router.post("/config/save", response_model=ConfigResponse)
 async def save_appd_config(request: ConfigSaveRequest):
     """
     Save AppDynamics configuration for a LOB
     Creates unique config with LOB, Track, and Applications
     """
+    # ✅ FIX: Use global appd_db instead of creating new instance
+    if not appd_db:
+        raise HTTPException(status_code=503, detail="Database not initialized")
+    
     try:
-        from monitoring.appd.database import AppDDatabase
-        
-        db = AppDDatabase(oracle_pool)
-        
         # Check if config_name already exists
-        existing = db.get_config_by_name(request.config_name)
+        existing = appd_db.get_config_by_name(request.config_name)
         if existing:
             raise HTTPException(
                 status_code=400,
@@ -273,11 +279,10 @@ async def save_appd_config(request: ConfigSaveRequest):
             "lob_name": request.lob_name,
             "track": request.track,
             "applications": request.applications,
-            "is_active": "Y",
-            "created_date": datetime.now()
+            "is_active": "Y"
         }
         
-        db.save_config(config_data)
+        appd_db.save_config(config_data)
         
         logger.info(f"Config saved: {request.config_name} for LOB: {request.lob_name}")
         
@@ -300,17 +305,18 @@ async def save_appd_config(request: ConfigSaveRequest):
         )
 
 
-@router.get("/config/list", tags=["Configuration"])
+@router.get("/config/list")
 async def list_appd_configs(active_only: bool = True):
     """
     List all AppDynamics configurations
     Used to populate config dropdowns in UI
     """
+    # ✅ FIX: Use global appd_db
+    if not appd_db:
+        raise HTTPException(status_code=503, detail="Database not initialized")
+    
     try:
-        from monitoring.appd.database import AppDDatabase
-        
-        db = AppDDatabase(oracle_pool)
-        configs = db.list_configs(active_only=active_only)
+        configs = appd_db.list_configs(active_only=active_only)
         
         return {
             "total_configs": len(configs),
@@ -325,16 +331,17 @@ async def list_appd_configs(active_only: bool = True):
         )
 
 
-@router.get("/config/{config_name}", tags=["Configuration"])
+@router.get("/config/{config_name}")
 async def get_appd_config(config_name: str):
     """
     Get specific AppDynamics configuration by name
     """
+    # ✅ FIX: Use global appd_db
+    if not appd_db:
+        raise HTTPException(status_code=503, detail="Database not initialized")
+    
     try:
-        from monitoring.appd.database import AppDDatabase
-        
-        db = AppDDatabase(oracle_pool)
-        config = db.get_config_by_name(config_name)
+        config = appd_db.get_config_by_name(config_name)
         
         if not config:
             raise HTTPException(
@@ -354,19 +361,19 @@ async def get_appd_config(config_name: str):
         )
 
 
-@router.delete("/config/{config_name}", tags=["Configuration"])
+@router.delete("/config/{config_name}")
 async def delete_appd_config(config_name: str):
     """
     Delete AppDynamics configuration
     Marks as inactive rather than actually deleting
     """
+    # ✅ FIX: Use global appd_db
+    if not appd_db:
+        raise HTTPException(status_code=503, detail="Database not initialized")
+    
     try:
-        from monitoring.appd.database import AppDDatabase
-        
-        db = AppDDatabase(oracle_pool)
-        
         # Soft delete - mark as inactive
-        db.deactivate_config(config_name)
+        appd_db.deactivate_config(config_name)
         
         logger.info(f"Config deactivated: {config_name}")
         
