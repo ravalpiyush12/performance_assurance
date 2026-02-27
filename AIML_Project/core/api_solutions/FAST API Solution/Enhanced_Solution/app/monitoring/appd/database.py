@@ -687,3 +687,313 @@ class AppDynamicsDatabase:
             conn.commit()
         finally:
             conn.close()
+
+
+"""
+Database Methods for AppD Config Management
+Add these methods to monitoring/appd/database.py (AppDDatabase class)
+"""
+
+import json
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+# Add these methods to the AppDDatabase class:
+
+def save_config(self, config_data: dict) -> None:
+    """
+    Save AppDynamics configuration to APPD_LOB_CONFIG table
+    
+    Args:
+        config_data: Dictionary containing:
+            - config_name: Unique identifier
+            - lob_name: LOB name
+            - track: Track name
+            - applications: List of AppD application names
+            - is_active: 'Y' or 'N'
+    """
+    conn = self.pool.acquire()
+    cursor = conn.cursor()
+    
+    try:
+        # Convert applications list to JSON string
+        apps_json = json.dumps(config_data['applications'])
+        
+        sql = """
+            INSERT INTO APPD_LOB_CONFIG (
+                LOB_ID,
+                CONFIG_NAME,
+                LOB_NAME,
+                TRACK,
+                APPLICATION_NAMES,
+                IS_ACTIVE,
+                CREATED_DATE,
+                UPDATED_DATE
+            ) VALUES (
+                APPD_LOB_CONFIG_SEQ.NEXTVAL,
+                :config_name,
+                :lob_name,
+                :track,
+                :applications,
+                :is_active,
+                SYSDATE,
+                SYSDATE
+            )
+        """
+        
+        cursor.execute(sql, {
+            'config_name': config_data['config_name'],
+            'lob_name': config_data['lob_name'],
+            'track': config_data['track'],
+            'applications': apps_json,
+            'is_active': config_data.get('is_active', 'Y')
+        })
+        
+        conn.commit()
+        logger.info(f"Config saved: {config_data['config_name']}")
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Failed to save config: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def get_config_by_name(self, config_name: str) -> dict:
+    """
+    Get configuration by config_name
+    
+    Args:
+        config_name: Unique config identifier
+        
+    Returns:
+        Dictionary with config details or None if not found
+    """
+    conn = self.pool.acquire()
+    cursor = conn.cursor()
+    
+    try:
+        sql = """
+            SELECT 
+                LOB_ID,
+                CONFIG_NAME,
+                LOB_NAME,
+                TRACK,
+                APPLICATION_NAMES,
+                LAST_DISCOVERY_RUN,
+                DISCOVERY_SCHEDULE,
+                IS_ACTIVE,
+                CREATED_DATE,
+                UPDATED_DATE
+            FROM APPD_LOB_CONFIG
+            WHERE CONFIG_NAME = :config_name
+        """
+        
+        cursor.execute(sql, {'config_name': config_name})
+        row = cursor.fetchone()
+        
+        if not row:
+            return None
+        
+        # Parse applications JSON
+        apps = json.loads(row[4]) if row[4] else []
+        
+        return {
+            'lob_id': row[0],
+            'config_name': row[1],
+            'lob_name': row[2],
+            'track': row[3],
+            'applications': apps,
+            'last_discovery_run': row[5].isoformat() if row[5] else None,
+            'discovery_schedule': row[6],
+            'is_active': row[7],
+            'created_date': row[8].isoformat() if row[8] else None,
+            'updated_date': row[9].isoformat() if row[9] else None
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get config: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def list_configs(self, active_only: bool = True) -> list:
+    """
+    List all configurations
+    
+    Args:
+        active_only: If True, only return active configs (IS_ACTIVE = 'Y')
+        
+    Returns:
+        List of configuration dictionaries
+    """
+    conn = self.pool.acquire()
+    cursor = conn.cursor()
+    
+    try:
+        sql = """
+            SELECT 
+                LOB_ID,
+                CONFIG_NAME,
+                LOB_NAME,
+                TRACK,
+                APPLICATION_NAMES,
+                LAST_DISCOVERY_RUN,
+                IS_ACTIVE,
+                CREATED_DATE
+            FROM APPD_LOB_CONFIG
+        """
+        
+        if active_only:
+            sql += " WHERE IS_ACTIVE = 'Y'"
+        
+        sql += " ORDER BY CREATED_DATE DESC"
+        
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        
+        configs = []
+        for row in rows:
+            apps = json.loads(row[4]) if row[4] else []
+            
+            configs.append({
+                'lob_id': row[0],
+                'config_name': row[1],
+                'lob_name': row[2],
+                'track': row[3],
+                'applications': apps,
+                'last_discovery_run': row[5].isoformat() if row[5] else None,
+                'is_active': row[6],
+                'created_date': row[7].isoformat() if row[7] else None
+            })
+        
+        return configs
+        
+    except Exception as e:
+        logger.error(f"Failed to list configs: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def update_config(self, config_name: str, update_data: dict) -> None:
+    """
+    Update existing configuration
+    
+    Args:
+        config_name: Config to update
+        update_data: Dictionary with fields to update
+    """
+    conn = self.pool.acquire()
+    cursor = conn.cursor()
+    
+    try:
+        # Build dynamic UPDATE statement
+        set_clauses = []
+        params = {'config_name': config_name}
+        
+        if 'applications' in update_data:
+            set_clauses.append("APPLICATION_NAMES = :applications")
+            params['applications'] = json.dumps(update_data['applications'])
+        
+        if 'track' in update_data:
+            set_clauses.append("TRACK = :track")
+            params['track'] = update_data['track']
+        
+        if 'lob_name' in update_data:
+            set_clauses.append("LOB_NAME = :lob_name")
+            params['lob_name'] = update_data['lob_name']
+        
+        if 'is_active' in update_data:
+            set_clauses.append("IS_ACTIVE = :is_active")
+            params['is_active'] = update_data['is_active']
+        
+        set_clauses.append("UPDATED_DATE = SYSDATE")
+        
+        sql = f"""
+            UPDATE APPD_LOB_CONFIG
+            SET {', '.join(set_clauses)}
+            WHERE CONFIG_NAME = :config_name
+        """
+        
+        cursor.execute(sql, params)
+        conn.commit()
+        
+        logger.info(f"Config updated: {config_name}")
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Failed to update config: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def deactivate_config(self, config_name: str) -> None:
+    """
+    Deactivate configuration (soft delete)
+    
+    Args:
+        config_name: Config to deactivate
+    """
+    conn = self.pool.acquire()
+    cursor = conn.cursor()
+    
+    try:
+        sql = """
+            UPDATE APPD_LOB_CONFIG
+            SET IS_ACTIVE = 'N',
+                UPDATED_DATE = SYSDATE
+            WHERE CONFIG_NAME = :config_name
+        """
+        
+        cursor.execute(sql, {'config_name': config_name})
+        conn.commit()
+        
+        logger.info(f"Config deactivated: {config_name}")
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Failed to deactivate config: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def update_last_discovery_run(self, config_name: str) -> None:
+    """
+    Update the last discovery run timestamp for a config
+    
+    Args:
+        config_name: Config name to update
+    """
+    conn = self.pool.acquire()
+    cursor = conn.cursor()
+    
+    try:
+        sql = """
+            UPDATE APPD_LOB_CONFIG
+            SET LAST_DISCOVERY_RUN = SYSDATE,
+                UPDATED_DATE = SYSDATE
+            WHERE CONFIG_NAME = :config_name
+        """
+        
+        cursor.execute(sql, {'config_name': config_name})
+        conn.commit()
+        
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Failed to update last discovery run: {e}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()            
