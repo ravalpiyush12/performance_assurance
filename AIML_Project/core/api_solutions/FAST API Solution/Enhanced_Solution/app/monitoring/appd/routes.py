@@ -200,3 +200,184 @@ async def get_thread_pool_status():
         "utilization_percent": (len(active_threads) / appd_config.APPD_MAX_CONCURRENT_MONITORS) * 100,
         "active_threads": active_threads
     }
+
+"""
+Missing AppDynamics Config Endpoints
+Add these to monitoring/appd/routes.py
+"""
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+# ========================================
+# Pydantic Models for Config
+# ========================================
+
+class ConfigSaveRequest(BaseModel):
+    """Request model for saving AppD configuration"""
+    config_name: str
+    lob_name: str
+    track: str
+    applications: List[str]
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "config_name": "Retail_Q1_2026",
+                "lob_name": "Retail",
+                "track": "Q1_2026",
+                "applications": ["RetailWeb", "RetailAPI", "RetailMobile"]
+            }
+        }
+
+
+class ConfigResponse(BaseModel):
+    """Response model for config operations"""
+    success: bool
+    message: str
+    config_name: str
+    lob_name: str
+    track: str
+    applications: List[str]
+# ========================================
+# Config Management Endpoints
+# ========================================
+
+@router.post("/config/save", response_model=ConfigResponse, tags=["Configuration"])
+async def save_appd_config(request: ConfigSaveRequest):
+    """
+    Save AppDynamics configuration for a LOB
+    Creates unique config with LOB, Track, and Applications
+    """
+    try:
+        from monitoring.appd.database import AppDDatabase
+        
+        db = AppDDatabase(oracle_pool)
+        
+        # Check if config_name already exists
+        existing = db.get_config_by_name(request.config_name)
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Config name '{request.config_name}' already exists. Please use a unique name."
+            )
+        
+        # Save configuration to database
+        config_data = {
+            "config_name": request.config_name,
+            "lob_name": request.lob_name,
+            "track": request.track,
+            "applications": request.applications,
+            "is_active": "Y",
+            "created_date": datetime.now()
+        }
+        
+        db.save_config(config_data)
+        
+        logger.info(f"Config saved: {request.config_name} for LOB: {request.lob_name}")
+        
+        return ConfigResponse(
+            success=True,
+            message=f"Configuration '{request.config_name}' saved successfully",
+            config_name=request.config_name,
+            lob_name=request.lob_name,
+            track=request.track,
+            applications=request.applications
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to save config: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save configuration: {str(e)}"
+        )
+
+
+@router.get("/config/list", tags=["Configuration"])
+async def list_appd_configs(active_only: bool = True):
+    """
+    List all AppDynamics configurations
+    Used to populate config dropdowns in UI
+    """
+    try:
+        from monitoring.appd.database import AppDDatabase
+        
+        db = AppDDatabase(oracle_pool)
+        configs = db.list_configs(active_only=active_only)
+        
+        return {
+            "total_configs": len(configs),
+            "configs": configs
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to list configs: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list configurations: {str(e)}"
+        )
+
+
+@router.get("/config/{config_name}", tags=["Configuration"])
+async def get_appd_config(config_name: str):
+    """
+    Get specific AppDynamics configuration by name
+    """
+    try:
+        from monitoring.appd.database import AppDDatabase
+        
+        db = AppDDatabase(oracle_pool)
+        config = db.get_config_by_name(config_name)
+        
+        if not config:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Configuration '{config_name}' not found"
+            )
+        
+        return config
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get config: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get configuration: {str(e)}"
+        )
+
+
+@router.delete("/config/{config_name}", tags=["Configuration"])
+async def delete_appd_config(config_name: str):
+    """
+    Delete AppDynamics configuration
+    Marks as inactive rather than actually deleting
+    """
+    try:
+        from monitoring.appd.database import AppDDatabase
+        
+        db = AppDDatabase(oracle_pool)
+        
+        # Soft delete - mark as inactive
+        db.deactivate_config(config_name)
+        
+        logger.info(f"Config deactivated: {config_name}")
+        
+        return {
+            "success": True,
+            "message": f"Configuration '{config_name}' deactivated successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to delete config: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete configuration: {str(e)}"
+        )

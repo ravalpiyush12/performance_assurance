@@ -1217,10 +1217,32 @@
         }
         
         async function loadConfigs() {
-            // Load available configs for dropdowns
-            const healthSelect = document.getElementById('healthCheckConfig');
-            const monitorSelect = document.getElementById('monitorConfig');
-            // In production, fetch from database
+    try {
+        const response = await fetch('/api/v1/monitoring/appd/config/list');
+        const data = await response.json();
+        
+        const healthSelect = document.getElementById('healthCheckConfig');
+        const monitorSelect = document.getElementById('monitorConfig');
+        
+        // Clear existing options
+        healthSelect.innerHTML = '<option value="">-- Select Config --</option>';
+        monitorSelect.innerHTML = '<option value="">-- Select Config --</option>';
+        
+        // Populate with configs
+        data.configs.forEach(config => {
+            const option1 = document.createElement('option');
+            option1.value = config.config_name;
+            option1.textContent = `${config.config_name} (${config.lob_name})`;
+            healthSelect.appendChild(option1);
+            
+            const option2 = document.createElement('option');
+            option2.value = config.config_name;
+            option2.textContent = `${config.config_name} (${config.lob_name})`;
+            monitorSelect.appendChild(option2);
+        });
+        } catch (error) {
+        console.error('Failed to load configs:', error);
+        }
         }
         
         async function runDiscovery() {
