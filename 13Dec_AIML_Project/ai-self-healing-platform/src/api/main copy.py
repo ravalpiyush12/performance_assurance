@@ -1,15 +1,27 @@
 """
-Main API Server - Production Ready with Prometheus & Kubernetes Integration (Version 17 FIXED)
+Main API Server - Production Ready with Prometheus & Kubernetes Integration (Version 17)
 Save as: src/api/main.py
-
-FIXES in this version:
-- ✅ ML Model training status shown in UI
-- ✅ Self-healing actions display correct status (not always "Failed")
-- ✅ Better healing action details (replicas, K8s info)
 
 MODES:
 - PRODUCTION: Pulls REAL metrics from Prometheus, controls Kubernetes
 - DEVELOPMENT: Auto-generated metrics for testing/demo (no external dependencies)
+
+NEW in v17:
+- Prometheus integration for REAL metrics
+- Kubernetes API integration for REAL scaling
+- Monitor external applications (like sample_app.py)
+- Trigger actual HPA scaling based on anomalies
+
+Usage:
+  Development: python -m uvicorn src.api.main:app --reload --port 8000
+  Production:  MODE=production PROMETHEUS_URL=http://prometheus:9090 python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+  
+Environment Variables:
+  MODE: "production" or "development" (default: development)
+  PROMETHEUS_URL: Prometheus server URL (default: http://localhost:9090)
+  KUBERNETES_ENABLED: Enable K8s API calls (default: false)
+  TARGET_APP: Application to monitor (default: sample-app)
+  TARGET_NAMESPACE: K8s namespace (default: default)
 """
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, Depends, HTTPException, status
@@ -137,6 +149,7 @@ if PROMETHEUS_ENABLED and APP_MODE == "production":
     try:
         from prometheus_api_client import PrometheusConnect
         prometheus_client = PrometheusConnect(url=PROMETHEUS_URL, disable_ssl=True)
+        # Test connection
         prometheus_client.check_prometheus_connection()
         logger.info(f"✅ Prometheus connected ({PROMETHEUS_URL})")
     except Exception as e:
@@ -152,6 +165,7 @@ if KUBERNETES_ENABLED:
     try:
         from kubernetes import client, config
         
+        # Try in-cluster config first, then local kubeconfig
         try:
             config.load_incluster_config()
             logger.info("✅ Kubernetes in-cluster config loaded")
@@ -264,9 +278,6 @@ class SystemStatus(BaseModel):
     total_metrics: int
     healing_actions_count: int
     ml_model_trained: bool
-    ml_training_progress: float  # NEW: 0-100% progress
-    ml_metrics_collected: int    # NEW: How many metrics collected
-    ml_metrics_needed: int       # NEW: How many needed to train
     uptime_seconds: float
     cache_enabled: bool = False
     redis_available: bool = False
@@ -281,7 +292,7 @@ class SystemStatus(BaseModel):
 # =============================================================================
 
 async def collect_metrics_from_prometheus():
-    """Collect REAL metrics from Prometheus"""
+    """Collect REAL metrics from Prometheus - INCLUDING LATENCY & ERRORS"""
     if not prometheus_client:
         return
     
@@ -289,7 +300,7 @@ async def collect_metrics_from_prometheus():
     
     while True:
         try:
-            # CPU usage
+            # CPU usage (using irate)
             cpu_query = f'''
                 sum(
                     irate(container_cpu_usage_seconds_total{{
@@ -320,7 +331,7 @@ async def collect_metrics_from_prometheus():
                 )
             '''
             
-            # Latency
+            # LATENCY (Response Time) - NEW!
             latency_query = f'''
                 (
                     sum(
@@ -339,11 +350,38 @@ async def collect_metrics_from_prometheus():
                 ) * 1000
             '''
             
+            # ERROR RATE - NEW!
+            # Calculate percentage of 5xx errors
+            error_rate_query = f'''
+                (
+                    sum(
+                        irate(http_requests_total{{
+                            namespace="{TARGET_NAMESPACE}",
+                            pod=~"{TARGET_APP}-.*",
+                            status=~"5.."
+                        }}[2m])
+                    )
+                    /
+                    sum(
+                        irate(http_requests_total{{
+                            namespace="{TARGET_NAMESPACE}",
+                            pod=~"{TARGET_APP}-.*"
+                        }}[2m])
+                    )
+                ) * 100
+            '''
             # Execute queries
             cpu_result = prometheus_client.custom_query(query=cpu_query)
             mem_result = prometheus_client.custom_query(query=mem_query)
             req_rate_result = prometheus_client.custom_query(query=req_rate_query)
             latency_result = prometheus_client.custom_query(query=latency_query)
+            
+            # Try to get error count
+            try:
+                error_count_result = prometheus_client.custom_query(query=error_count_query)
+                error_count = float(error_count_result[0]['value'][1]) if error_count_result and len(error_count_result) > 0 else 0.0
+            except:
+                error_count = 0.0
             
             # Extract values with NaN handling
             cpu_usage = float(cpu_result[0]['value'][1]) if cpu_result and len(cpu_result) > 0 else 0.0
@@ -351,11 +389,12 @@ async def collect_metrics_from_prometheus():
             memory_percent = (memory_mb / 512) * 100
             requests_per_sec = float(req_rate_result[0]['value'][1]) if req_rate_result and len(req_rate_result) > 0 else 0.0
             
-            # Latency with NaN handling
+            # LATENCY with NaN handling
             if latency_result and len(latency_result) > 0:
                 raw_latency = latency_result[0]['value'][1]
                 try:
                     response_time = float(raw_latency)
+                    # Check if NaN or Inf
                     import math
                     if math.isnan(response_time) or math.isinf(response_time):
                         response_time = 0.0
@@ -364,10 +403,17 @@ async def collect_metrics_from_prometheus():
             else:
                 response_time = 0.0
             
-            # Ensure valid values
+            # Calculate error rate
+            if requests_per_sec > 0:
+                error_rate = (error_count / requests_per_sec) * 100
+            else:
+                error_rate = 0.0
+            
+            # Ensure all values are valid numbers
             cpu_usage = max(0.0, cpu_usage)
             memory_percent = max(0.0, min(100.0, memory_percent))
             response_time = max(0.0, response_time)
+            error_rate = max(0.0, min(100.0, error_rate))
             requests_per_sec = max(0.0, requests_per_sec)
             
             # Create metric
@@ -376,7 +422,7 @@ async def collect_metrics_from_prometheus():
                 'cpu_usage': round(cpu_usage, 2),
                 'memory_usage': round(memory_percent, 2),
                 'response_time': round(response_time, 2),
-                'error_rate': 0.0,
+                'error_rate': round(error_rate, 2),
                 'requests_per_sec': round(requests_per_sec, 2),
                 'disk_io': 1000.0,
                 'network_throughput': 500.0,
@@ -388,7 +434,7 @@ async def collect_metrics_from_prometheus():
             
             logger.info(
                 f"📊 Prometheus → CPU={cpu_usage:.1f}% Memory={memory_mb:.1f}MB "
-                f"Latency={response_time:.0f}ms RPS={requests_per_sec:.1f}"
+                f"Latency={response_time:.0f}ms Error={error_rate:.2f}% RPS={requests_per_sec:.1f}"
             )
             
             await asyncio.sleep(15)
@@ -404,12 +450,15 @@ async def collect_metrics_from_prometheus():
 # =============================================================================
 
 async def scale_deployment(deployment_name: str, namespace: str, replicas: int) -> bool:
-    """Scale a Kubernetes deployment"""
+    """
+    Scale a Kubernetes deployment
+    """
     if not kubernetes_client:
         logger.warning("Kubernetes client not available")
         return False
     
     try:
+        # Get current deployment
         deployment = kubernetes_client.read_namespaced_deployment(
             name=deployment_name,
             namespace=namespace
@@ -421,8 +470,10 @@ async def scale_deployment(deployment_name: str, namespace: str, replicas: int) 
             logger.info(f"Deployment {deployment_name} already at {replicas} replicas")
             return True
         
+        # Update replicas
         deployment.spec.replicas = replicas
         
+        # Patch deployment
         kubernetes_client.patch_namespaced_deployment(
             name=deployment_name,
             namespace=namespace,
@@ -440,7 +491,9 @@ async def scale_deployment(deployment_name: str, namespace: str, replicas: int) 
         return False
 
 async def get_deployment_info(deployment_name: str, namespace: str) -> Optional[Dict]:
-    """Get deployment information"""
+    """
+    Get deployment information
+    """
     if not kubernetes_client:
         return None
     
@@ -571,12 +624,16 @@ def get_current_user_required(credentials: HTTPAuthorizationCredentials = Depend
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
 # =============================================================================
-# DASHBOARD WITH FIXES
+# PUBLIC ENDPOINTS
 # =============================================================================
+"""
+FIXED DASHBOARD WITH PROPER CHART SIZING
+Replace the @app.get("/") endpoint with this
+"""
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Interactive Dashboard - FIXED VERSION"""
+    """Interactive Dashboard - Fixed Chart Sizing"""
     return """
 <!DOCTYPE html>
 <html lang="en">
@@ -687,25 +744,8 @@ async def root():
             </div>
         </div>
 
-        <!-- Integration Status (WITH ML TRAINING STATUS) -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-            <!-- NEW: ML Model Training Status -->
-            <div id="ml-status" class="rounded-xl p-3 md:p-4 border bg-gray-500/10 border-gray-500/30">
-                <div class="flex items-center gap-3">
-                    <span class="text-xl md:text-2xl">🤖</span>
-                    <div class="flex-1">
-                        <p class="text-xs text-purple-300">ML Model</p>
-                        <p id="ml-status-text" class="text-sm font-bold text-white">Checking...</p>
-                        <div id="ml-progress-bar" class="hidden mt-2">
-                            <div class="w-full bg-gray-700 rounded-full h-1.5">
-                                <div id="ml-progress-fill" class="bg-yellow-500 h-1.5 rounded-full transition-all" style="width: 0%"></div>
-                            </div>
-                            <p id="ml-progress-text" class="text-xs text-gray-400 mt-1">0/20 samples</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+        <!-- Integration Status -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6">
             <div id="prometheus-status" class="rounded-xl p-3 md:p-4 border bg-gray-500/10 border-gray-500/30">
                 <div class="flex items-center gap-3">
                     <span class="text-xl md:text-2xl">🖥️</span>
@@ -779,17 +819,26 @@ async def root():
     </div>
 
     <script>
+        // Configuration
         const API_BASE = window.location.origin;
         let cpuMemoryChart, latencyErrorChart;
 
-        // Initialize Charts
+        // Initialize Charts with proper sizing
         function initCharts() {
             const commonConfig = {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
                 plugins: {
-                    legend: { labels: { color: '#ffffff', font: { size: 11 } } },
+                    legend: {
+                        labels: { 
+                            color: '#ffffff',
+                            font: { size: 11 }
+                        }
+                    },
                     tooltip: {
                         backgroundColor: 'rgba(30, 27, 75, 0.9)',
                         titleColor: '#a78bfa',
@@ -801,16 +850,32 @@ async def root():
                 scales: {
                     y: {
                         beginAtZero: true,
-                        grid: { color: 'rgba(255, 255, 255, 0.1)', drawBorder: false },
-                        ticks: { color: '#a78bfa', font: { size: 10 } }
+                        grid: { 
+                            color: 'rgba(255, 255, 255, 0.1)',
+                            drawBorder: false
+                        },
+                        ticks: { 
+                            color: '#a78bfa',
+                            font: { size: 10 }
+                        }
                     },
                     x: {
-                        grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
-                        ticks: { color: '#a78bfa', font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }
+                        grid: { 
+                            color: 'rgba(255, 255, 255, 0.05)',
+                            drawBorder: false
+                        },
+                        ticks: { 
+                            color: '#a78bfa',
+                            font: { size: 10 },
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 8
+                        }
                     }
                 }
             };
 
+            // CPU & Memory Chart
             const cpuMemoryCtx = document.getElementById('cpuMemoryChart').getContext('2d');
             cpuMemoryChart = new Chart(cpuMemoryCtx, {
                 type: 'line',
@@ -842,6 +907,7 @@ async def root():
                 options: commonConfig
             });
 
+            // Latency & Error Chart
             const latencyErrorCtx = document.getElementById('latencyErrorChart').getContext('2d');
             latencyErrorChart = new Chart(latencyErrorCtx, {
                 type: 'line',
@@ -881,14 +947,17 @@ async def root():
                             position: 'right',
                             beginAtZero: true,
                             grid: { drawOnChartArea: false },
-                            ticks: { color: '#a78bfa', font: { size: 10 } }
+                            ticks: { 
+                                color: '#a78bfa',
+                                font: { size: 10 }
+                            }
                         }
                     }
                 }
             });
         }
 
-        // Fetch System Status (WITH ML TRAINING STATUS)
+        // Fetch System Status
         async function fetchSystemStatus() {
             try {
                 const response = await fetch(`${API_BASE}/api/v1/status`);
@@ -908,32 +977,6 @@ async def root():
                     healthElement.className = 'text-2xl md:text-3xl font-bold text-yellow-500';
                 } else {
                     healthElement.className = 'text-2xl md:text-3xl font-bold text-red-500';
-                }
-                
-                // UPDATE ML TRAINING STATUS
-                const mlStatusDiv = document.getElementById('ml-status');
-                const mlStatusText = document.getElementById('ml-status-text');
-                const mlProgressBar = document.getElementById('ml-progress-bar');
-                const mlProgressFill = document.getElementById('ml-progress-fill');
-                const mlProgressText = document.getElementById('ml-progress-text');
-                
-                if (data.ml_model_trained) {
-                    mlStatusDiv.className = 'rounded-xl p-3 md:p-4 border bg-green-500/10 border-green-500/30';
-                    mlStatusText.textContent = '✓ Trained';
-                    mlStatusText.className = 'text-sm font-bold text-green-400';
-                    mlProgressBar.classList.add('hidden');
-                } else {
-                    mlStatusDiv.className = 'rounded-xl p-3 md:p-4 border bg-yellow-500/10 border-yellow-500/30';
-                    mlStatusText.textContent = '⏳ Training';
-                    mlStatusText.className = 'text-sm font-bold text-yellow-400';
-                    mlProgressBar.classList.remove('hidden');
-                    
-                    const progress = data.ml_training_progress || 0;
-                    const collected = data.ml_metrics_collected || 0;
-                    const needed = data.ml_metrics_needed || 20;
-                    
-                    mlProgressFill.style.width = `${progress}%`;
-                    mlProgressText.textContent = `${collected}/${needed} samples`;
                 }
                 
                 updateIntegrationStatus('prometheus-status', data.prometheus_enabled, 'Prometheus', data.prometheus_enabled ? 'Connected' : 'Disabled');
@@ -1043,7 +1086,7 @@ async def root():
             }
         }
 
-        // Fetch Healing Actions (FIXED TO SHOW CORRECT STATUS)
+        // Fetch Healing Actions
         async function fetchHealingActions() {
             try {
                 const response = await fetch(`${API_BASE}/api/v1/healing-actions?limit=10`);
@@ -1057,54 +1100,32 @@ async def root():
                 }
                 
                 healingList.innerHTML = data.map(action => {
-                    // FIX: Use action.status correctly
-                    const status = action.status || 'pending';
-                    const isSuccess = status === 'completed';
-                    const isExecuting = status === 'executing';
-                    const isFailed = status === 'failed';
-                    
-                    const statusBadge = isSuccess 
+                    const successBadge = action.success 
                         ? 'bg-green-500 text-white' 
-                        : isExecuting 
-                        ? 'bg-yellow-500 text-white'
                         : 'bg-red-500 text-white';
                     
-                    const statusText = isSuccess ? '✓ Success' : isExecuting ? '⏳ Running' : '✗ Failed';
-                    const borderColor = isSuccess ? 'border-green-500/30' : isExecuting ? 'border-yellow-500/30' : 'border-red-500/30';
-                    const bgColor = isSuccess ? 'bg-green-500/10' : isExecuting ? 'bg-yellow-500/10' : 'bg-red-500/10';
-                    
                     return `
-                        <div class="p-3 rounded-lg ${bgColor} border ${borderColor}">
+                        <div class="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
                             <div class="flex items-start justify-between gap-2">
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-sm">${isSuccess ? '✓' : isExecuting ? '⏳' : '✗'}</span>
+                                        <span class="text-green-400 text-sm">✓</span>
                                         <span class="font-bold text-white text-sm">${action.action_type}</span>
                                     </div>
-                                    <p class="text-xs text-gray-300">
-                                        Target: ${action.target_resource || action.target}
+                                    <p class="text-xs text-green-200">
+                                        Target: ${action.target_resource}
                                     </p>
-                                    ${action.params && action.params.new_replicas ? `
-                                        <p class="text-xs text-gray-400 mt-1">
-                                            ☸️ K8s: ${action.params.previous_replicas || '?'} → ${action.params.new_replicas} replicas
-                                        </p>
-                                    ` : ''}
                                     ${action.kubernetes_action ? `
-                                        <p class="text-xs text-gray-400 mt-1">
-                                            🎯 Kubernetes Action
+                                        <p class="text-xs text-green-300 mt-1">
+                                            ☸️ K8s: ${action.kubernetes_replicas} replicas
                                         </p>
                                     ` : ''}
-                                    ${action.execution_time_seconds ? `
-                                        <p class="text-xs text-gray-400 mt-1">
-                                            ⏱️ ${action.execution_time_seconds.toFixed(2)}s
-                                        </p>
-                                    ` : ''}
-                                    <p class="text-xs text-gray-500 mt-1">
+                                    <p class="text-xs text-green-300 opacity-60 mt-1">
                                         ${new Date(action.timestamp).toLocaleTimeString()}
                                     </p>
                                 </div>
-                                <span class="text-xs px-2 py-0.5 rounded ${statusBadge} whitespace-nowrap">
-                                    ${statusText}
+                                <span class="text-xs px-2 py-0.5 rounded ${successBadge} whitespace-nowrap">
+                                    ${action.success ? 'Success' : 'Failed'}
                                 </span>
                             </div>
                         </div>
@@ -1182,20 +1203,12 @@ async def get_system_status(current_user: Optional[User] = Depends(get_current_u
     if app_metrics:
         app_metrics.increment_request_count()
     
-    # Calculate ML training progress
-    metrics_collected = len(metrics_history)
-    training_threshold = getattr(anomaly_detector, 'training_threshold', 20)
-    training_progress = min(100.0, (metrics_collected / training_threshold) * 100)
-    
     return SystemStatus(
         health_score=calculate_health_score(),
         active_alerts=len(active_alerts),
         total_metrics=len(metrics_history),
         healing_actions_count=len(healing_actions_taken),
         ml_model_trained=anomaly_detector.is_trained,
-        ml_training_progress=round(training_progress, 1),
-        ml_metrics_collected=metrics_collected,
-        ml_metrics_needed=training_threshold,
         uptime_seconds=(datetime.now() - startup_time).total_seconds(),
         cache_enabled=cache_manager.enabled if cache_manager else False,
         redis_available=REDIS_AVAILABLE,
@@ -1308,7 +1321,24 @@ async def process_metric(metric: Dict):
                     success = await healing_orchestrator.execute_action(action)
                     
                     action_record = action.to_dict()
+                    action_record['kubernetes_action'] = False
                     healing_actions_taken.append(action_record)
+                    
+                    # If Kubernetes is enabled and anomaly is critical, scale target app
+                    if kubernetes_client and anomaly.get('severity') == 'critical':
+                        if anomaly_type in ['CPU_USAGE', 'MEMORY_USAGE', 'RESPONSE_TIME']:
+                            # Get current deployment info
+                            deployment_info = await get_deployment_info(TARGET_APP, TARGET_NAMESPACE)
+                            if deployment_info:
+                                current_replicas = deployment_info['replicas']
+                                new_replicas = min(current_replicas + 2, 10)  # Scale up by 2, max 10
+                                
+                                logger.info(f"🎯 Triggering K8s scaling: {TARGET_APP} {current_replicas} → {new_replicas}")
+                                k8s_success = await scale_deployment(TARGET_APP, TARGET_NAMESPACE, new_replicas)
+                                
+                                if k8s_success:
+                                    action_record['kubernetes_action'] = True
+                                    action_record['kubernetes_replicas'] = new_replicas
                     
                     if success:
                         resolve_alert(anomaly_id)
