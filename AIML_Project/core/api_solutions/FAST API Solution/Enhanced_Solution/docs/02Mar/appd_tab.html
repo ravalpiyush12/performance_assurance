@@ -1,0 +1,685 @@
+<!-- AppDynamics Tab - Complete Updated Version -->
+<div id="appdynamics" class="tab-content">
+    <h2>📊 AppDynamics Monitoring Control Panel</h2>
+    <p style="color: #666; margin-bottom: 20px;">
+        Manage AppD discovery, health checks, and monitoring sessions for performance testing
+    </p>
+    
+    <!-- Thread Pool Status -->
+    <div class="thread-pool-status">
+        <h3>🔧 Thread Pool Status</h3>
+        <div class="status-cards">
+            <div class="status-card">
+                <div class="card-value" id="activeMonitors">0</div>
+                <div class="card-label">Active Monitors</div>
+            </div>
+            <div class="status-card">
+                <div class="card-value" id="availableSlots">10</div>
+                <div class="card-label">Available Slots</div>
+            </div>
+            <div class="status-card">
+                <div class="card-value" id="utilization">0%</div>
+                <div class="card-label">Utilization</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Discovery & Configuration -->
+    <div class="appd-section">
+        <h3>🔍 Discovery & Configuration</h3>
+        <p style="color: #666; margin-bottom: 15px;">
+            Create configuration for LOB with AppD applications. Classify active (CPM ≥ 10) vs inactive nodes.
+        </p>
+        
+        <div class="form-group">
+            <label>LOB Name: *</label>
+            <select id="discoveryLob" required onchange="onLobSelected()">
+                <option value="">-- Select LOB --</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Track: *</label>
+            <input type="text" id="discoveryTrack" placeholder="e.g., CDV3" required onchange="generateConfigName()">
+        </div>
+        
+        <div class="form-group">
+            <label>Config Name (Auto-Generated):</label>
+            <input type="text" id="configName" readonly style="background: #f0f0f0; font-weight: bold; color: #667eea;">
+        </div>
+        
+        <div class="form-group">
+            <label>Select AppDynamics Applications: *</label>
+            <div style="border: 2px solid #ddd; border-radius: 6px; padding: 15px; max-height: 200px; overflow-y: auto; background: white;">
+                <div id="applicationsCheckboxes">
+                    <p style="color: #999;">Select LOB first</p>
+                </div>
+            </div>
+            <small style="color: #666; margin-top: 5px; display: block;">Selected: <span id="selectedAppsCount">0</span></small>
+        </div>
+        
+        <button class="btn" onclick="runDiscovery()">
+            🔍 Run Discovery & Save Config
+        </button>
+        
+        <div id="discoveryStatus" style="display: none; margin-top: 15px;"></div>
+    </div>
+    
+    <!-- Health Check -->
+    <div class="appd-section">
+        <h3>🏥 Health Check Status</h3>
+        <p style="color: #666; margin-bottom: 15px;">
+            View active nodes from database (populated by discovery)
+        </p>
+        
+        <div class="form-group">
+            <label>LOB Name:</label>
+            <select id="healthLob" onchange="onHealthLobChange()">
+                <option value="">-- Select LOB --</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Track:</label>
+            <select id="healthTrack" onchange="onHealthTrackChange()">
+                <option value="">-- Select Track --</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Config Name (Latest):</label>
+            <select id="healthConfig">
+                <option value="">-- Select Config --</option>
+            </select>
+        </div>
+        
+        <button class="btn" onclick="runHealthCheck()">
+            🏥 Get Active Nodes
+        </button>
+        
+        <div id="healthCheckResults" style="margin-top: 20px;"></div>
+    </div>
+    
+    <!-- Start Monitoring -->
+    <div class="appd-section">
+        <h3>▶️ Start Monitoring</h3>
+        <p style="color: #666; margin-bottom: 15px;">
+            Begin collecting AppD metrics for performance test
+        </p>
+        
+        <div class="form-group">
+            <label>LOB Name: *</label>
+            <select id="monitorLob" onchange="onMonitorLobChange()" required>
+                <option value="">-- Select LOB --</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Track: *</label>
+            <select id="monitorTrack" onchange="onMonitorTrackChange()" required>
+                <option value="">-- Select Track --</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Config Name (Latest): *</label>
+            <select id="monitorConfig" required>
+                <option value="">-- Select Config --</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Run ID: *</label>
+            <input type="text" id="monitorRunId" placeholder="RUN_20260302_001" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Test Name:</label>
+            <input type="text" id="monitorTestName" placeholder="Peak Load Test">
+        </div>
+        
+        <div class="form-group">
+            <label>Collection Interval:</label>
+            <select id="monitorInterval">
+                <option value="300">5 minutes</option>
+                <option value="600">10 minutes</option>
+                <option value="1800" selected>30 minutes</option>
+                <option value="3600">1 hour</option>
+            </select>
+        </div>
+        
+        <div class="form-group" style="background: #e3f2fd; padding: 15px; border-radius: 6px;">
+            <label style="color: #1976d2;">Applications (from Config):</label>
+            <div id="monitorAppsPreview" style="color: #555; margin-top: 5px;">
+                <em>Select config to see applications</em>
+            </div>
+        </div>
+        
+        <button class="btn btn-success" onclick="startMonitoring()">
+            ▶️ Start Monitoring
+        </button>
+    </div>
+    
+    <!-- Active Sessions -->
+    <div class="appd-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">📋 Active Monitoring Sessions</h3>
+            <button class="btn" style="padding: 8px 16px; font-size: 0.9em;" onclick="refreshSessions()">
+                🔄 Refresh
+            </button>
+        </div>
+        
+        <div id="sessionsContainer">
+            <p style="text-align: center; color: #999;">No active sessions</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==========================================
+// AppDynamics JavaScript Functions
+// ==========================================
+
+let masterLOBs = [];
+let masterApplications = [];
+let appdRefreshInterval;
+
+function initAppDTab() {
+    loadMasterData();
+    loadThreadPoolStatus();
+    refreshSessions();
+    
+    // Auto-refresh every 10 seconds
+    appdRefreshInterval = setInterval(() => {
+        loadThreadPoolStatus();
+        refreshSessions();
+    }, 10000);
+}
+
+async function loadMasterData() {
+    try {
+        // Load LOBs
+        const lobResponse = await fetch('/api/v1/monitoring/appd/master/lobs');
+        const lobData = await lobResponse.json();
+        masterLOBs = lobData.lobs || [];
+        
+        populateLOBDropdowns();
+        
+        // Load all applications
+        const appResponse = await fetch('/api/v1/monitoring/appd/master/applications');
+        const appData = await appResponse.json();
+        masterApplications = appData.applications || [];
+        
+    } catch (error) {
+        console.error('Failed to load master data:', error);
+    }
+}
+
+function populateLOBDropdowns() {
+    const dropdowns = ['discoveryLob', 'healthLob', 'monitorLob'];
+    
+    dropdowns.forEach(id => {
+        const select = document.getElementById(id);
+        select.innerHTML = '<option value="">-- Select LOB --</option>';
+        
+        masterLOBs.forEach(lob => {
+            const option = document.createElement('option');
+            option.value = lob.lob_name;
+            option.textContent = lob.lob_name;
+            select.appendChild(option);
+        });
+    });
+}
+
+function onLobSelected() {
+    const lob = document.getElementById('discoveryLob').value;
+    
+    if (!lob) {
+        document.getElementById('applicationsCheckboxes').innerHTML = '<p style="color: #999;">Select LOB first</p>';
+        document.getElementById('selectedAppsCount').textContent = '0';
+        return;
+    }
+    
+    // Filter applications by LOB
+    const apps = masterApplications.filter(app => app.lob_name === lob);
+    
+    if (apps.length === 0) {
+        document.getElementById('applicationsCheckboxes').innerHTML = '<p style="color: #999;">No applications found for this LOB</p>';
+        document.getElementById('selectedAppsCount').textContent = '0';
+        return;
+    }
+    
+    let html = '';
+    apps.forEach(app => {
+        html += `
+            <div style="padding: 8px; border-bottom: 1px solid #f0f0f0;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                    <input type="checkbox" 
+                           value="${app.application_name}" 
+                           onchange="updateSelectedAppsCount()"
+                           style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;">
+                    <div>
+                        <div style="font-weight: 600; color: #333;">${app.application_name}</div>
+                        ${app.description ? '<div style="font-size: 0.85em; color: #666;">' + app.description + '</div>' : ''}
+                    </div>
+                </label>
+            </div>
+        `;
+    });
+    
+    document.getElementById('applicationsCheckboxes').innerHTML = html;
+    generateConfigName();
+}
+
+function updateSelectedAppsCount() {
+    const checkboxes = document.querySelectorAll('#applicationsCheckboxes input[type="checkbox"]:checked');
+    document.getElementById('selectedAppsCount').textContent = checkboxes.length;
+}
+
+function generateConfigName() {
+    const lob = document.getElementById('discoveryLob').value;
+    const track = document.getElementById('discoveryTrack').value.trim();
+    
+    if (!lob || !track) {
+        document.getElementById('configName').value = '';
+        return;
+    }
+    
+    // Format: NFT_LOB_Track_DDMmmYYYY_HHMM
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[now.getMonth()];
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    // Clean LOB name (remove spaces, special chars)
+    const cleanLob = lob.replace(/[^a-zA-Z0-9]/g, '_');
+    const cleanTrack = track.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    const configName = `NFT_${cleanLob}_${cleanTrack}_${day}${month}${year}_${hours}${minutes}`;
+    document.getElementById('configName').value = configName;
+}
+
+async function runDiscovery() {
+    const configName = document.getElementById('configName').value.trim();
+    const lob = document.getElementById('discoveryLob').value;
+    const track = document.getElementById('discoveryTrack').value.trim();
+    
+    if (!lob || !track || !configName) {
+        alert('Please select LOB and enter Track');
+        return;
+    }
+    
+    // Get selected applications
+    const checkboxes = document.querySelectorAll('#applicationsCheckboxes input[type="checkbox"]:checked');
+    const applications = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (applications.length === 0) {
+        alert('Please select at least one application');
+        return;
+    }
+    
+    const statusDiv = document.getElementById('discoveryStatus');
+    statusDiv.style.display = 'block';
+    statusDiv.className = 'alert alert-info';
+    statusDiv.innerHTML = '⏳ Running discovery for config: ' + configName + '...';
+    
+    try {
+        // Save config
+        const configResponse = await fetch('/api/v1/monitoring/appd/config/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                config_name: configName,
+                lob_name: lob,
+                track: track,
+                applications: applications
+            })
+        });
+        
+        if (!configResponse.ok) {
+            const errorData = await configResponse.json();
+            throw new Error(errorData.detail || 'Failed to save config');
+        }
+        
+        // Run discovery
+        const discoveryResponse = await fetch('/api/v1/monitoring/appd/discovery/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                config_name: configName,
+                lob_name: lob,
+                applications: applications
+            })
+        });
+        
+        const data = await discoveryResponse.json();
+        
+        statusDiv.className = 'alert alert-success';
+        statusDiv.innerHTML = '✓ Discovery initiated!<br>' +
+            '<strong>Config:</strong> ' + configName + '<br>' +
+            '<strong>LOB:</strong> ' + lob + '<br>' +
+            '<strong>Track:</strong> ' + track + '<br>' +
+            '<strong>Applications:</strong> ' + applications.join(', ') + '<br>' +
+            '<small>Check database for results</small>';
+        
+        // Reset form
+        document.getElementById('discoveryLob').value = '';
+        document.getElementById('discoveryTrack').value = '';
+        document.getElementById('configName').value = '';
+        document.getElementById('applicationsCheckboxes').innerHTML = '<p style="color: #999;">Select LOB first</p>';
+        document.getElementById('selectedAppsCount').textContent = '0';
+        
+    } catch (error) {
+        statusDiv.className = 'alert alert-error';
+        statusDiv.innerHTML = '✗ Error: ' + error.message;
+    }
+}
+
+async function onHealthLobChange() {
+    const lob = document.getElementById('healthLob').value;
+    const trackSelect = document.getElementById('healthTrack');
+    const configSelect = document.getElementById('healthConfig');
+    
+    trackSelect.innerHTML = '<option value="">-- Select Track --</option>';
+    configSelect.innerHTML = '<option value="">-- Select Config --</option>';
+    
+    if (!lob) return;
+    
+    try {
+        const response = await fetch(`/api/v1/monitoring/appd/configs/tracks/${encodeURIComponent(lob)}`);
+        const data = await response.json();
+        
+        data.tracks.forEach(track => {
+            const option = document.createElement('option');
+            option.value = track;
+            option.textContent = track;
+            trackSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Failed to load tracks:', error);
+    }
+}
+
+async function onHealthTrackChange() {
+    const lob = document.getElementById('healthLob').value;
+    const track = document.getElementById('healthTrack').value;
+    const configSelect = document.getElementById('healthConfig');
+    
+    configSelect.innerHTML = '<option value="">-- Select Config --</option>';
+    
+    if (!lob || !track) return;
+    
+    try {
+        const response = await fetch(`/api/v1/monitoring/appd/configs/by-lob-track?lob_name=${encodeURIComponent(lob)}&track=${encodeURIComponent(track)}`);
+        const data = await response.json();
+        
+        if (data.config) {
+            const option = document.createElement('option');
+            option.value = data.config.config_name;
+            option.textContent = data.config.config_name + ' (Latest)';
+            configSelect.appendChild(option);
+            configSelect.value = data.config.config_name;
+        }
+    } catch (error) {
+        console.error('Failed to load config:', error);
+    }
+}
+
+async function runHealthCheck() {
+    const config = document.getElementById('healthConfig').value;
+    
+    if (!config) {
+        alert('Please select LOB, Track, and Config');
+        return;
+    }
+    
+    const resultsDiv = document.getElementById('healthCheckResults');
+    resultsDiv.innerHTML = '<div class="loading active"><div class="spinner"></div><p>Loading active nodes...</p></div>';
+    
+    try {
+        const response = await fetch('/api/v1/monitoring/appd/health/' + encodeURIComponent(config));
+        const data = await response.json();
+        
+        if (data.total_active_nodes === 0) {
+            resultsDiv.innerHTML = '<div class="alert alert-info">No active nodes found for ' + config + '. Run discovery first.</div>';
+            return;
+        }
+        
+        // Create table format
+        let html = '<h4 style="color: #667eea; margin-bottom: 15px;">✓ Active Nodes: ' + data.total_active_nodes + '</h4>';
+        html += '<div style="overflow-x: auto;">';
+        html += '<table style="width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden;">';
+        html += '<thead><tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">';
+        html += '<th style="padding: 12px; text-align: left;">Application</th>';
+        html += '<th style="padding: 12px; text-align: left;">Tier</th>';
+        html += '<th style="padding: 12px; text-align: left;">Node Name</th>';
+        html += '<th style="padding: 12px; text-align: right;">CPM</th>';
+        html += '<th style="padding: 12px; text-align: center;">Status</th>';
+        html += '</tr></thead><tbody>';
+        
+        let rowIndex = 0;
+        for (const app in data.applications) {
+            for (const tier in data.applications[app]) {
+                const nodes = data.applications[app][tier];
+                nodes.forEach(node => {
+                    const bgColor = rowIndex % 2 === 0 ? '#f9f9f9' : 'white';
+                    html += '<tr style="background: ' + bgColor + ';">';
+                    html += '<td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">' + app + '</td>';
+                    html += '<td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">' + tier + '</td>';
+                    html += '<td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><strong>' + node.node_name + '</strong></td>';
+                    html += '<td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: right;">' + node.calls_per_minute.toFixed(2) + '</td>';
+                    html += '<td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">';
+                    html += '<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: 600;">ACTIVE</span>';
+                    html += '</td></tr>';
+                    rowIndex++;
+                });
+            }
+        }
+        
+        html += '</tbody></table></div>';
+        resultsDiv.innerHTML = html;
+        
+    } catch (error) {
+        resultsDiv.innerHTML = '<div class="alert alert-error">✗ Error: ' + error.message + '</div>';
+    }
+}
+
+async function onMonitorLobChange() {
+    const lob = document.getElementById('monitorLob').value;
+    const trackSelect = document.getElementById('monitorTrack');
+    const configSelect = document.getElementById('monitorConfig');
+    
+    trackSelect.innerHTML = '<option value="">-- Select Track --</option>';
+    configSelect.innerHTML = '<option value="">-- Select Config --</option>';
+    document.getElementById('monitorAppsPreview').innerHTML = '<em>Select config to see applications</em>';
+    
+    if (!lob) return;
+    
+    try {
+        const response = await fetch(`/api/v1/monitoring/appd/configs/tracks/${encodeURIComponent(lob)}`);
+        const data = await response.json();
+        
+        data.tracks.forEach(track => {
+            const option = document.createElement('option');
+            option.value = track;
+            option.textContent = track;
+            trackSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Failed to load tracks:', error);
+    }
+}
+
+async function onMonitorTrackChange() {
+    const lob = document.getElementById('monitorLob').value;
+    const track = document.getElementById('monitorTrack').value;
+    const configSelect = document.getElementById('monitorConfig');
+    
+    configSelect.innerHTML = '<option value="">-- Select Config --</option>';
+    document.getElementById('monitorAppsPreview').innerHTML = '<em>Select config to see applications</em>';
+    
+    if (!lob || !track) return;
+    
+    try {
+        const response = await fetch(`/api/v1/monitoring/appd/configs/by-lob-track?lob_name=${encodeURIComponent(lob)}&track=${encodeURIComponent(track)}`);
+        const data = await response.json();
+        
+        if (data.config) {
+            const option = document.createElement('option');
+            option.value = data.config.config_name;
+            option.textContent = data.config.config_name + ' (Latest)';
+            option.dataset.applications = JSON.stringify(data.config.applications);
+            configSelect.appendChild(option);
+            configSelect.value = data.config.config_name;
+            
+            // Show applications preview
+            showMonitorAppsPreview(data.config.applications);
+        }
+    } catch (error) {
+        console.error('Failed to load config:', error);
+    }
+}
+
+function showMonitorAppsPreview(apps) {
+    if (!apps || apps.length === 0) {
+        document.getElementById('monitorAppsPreview').innerHTML = '<em>No applications</em>';
+        return;
+    }
+    
+    let html = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+    apps.forEach(app => {
+        html += '<span style="background: #667eea; color: white; padding: 6px 12px; border-radius: 12px; font-size: 0.85em;">' + app + '</span>';
+    });
+    html += '</div>';
+    document.getElementById('monitorAppsPreview').innerHTML = html;
+}
+
+async function startMonitoring() {
+    const runId = document.getElementById('monitorRunId').value.trim();
+    const configName = document.getElementById('monitorConfig').value;
+    const lobName = document.getElementById('monitorLob').value;
+    const track = document.getElementById('monitorTrack').value;
+    const testName = document.getElementById('monitorTestName').value.trim();
+    const interval = parseInt(document.getElementById('monitorInterval').value);
+    
+    if (!runId || !configName || !lobName || !track) {
+        alert('Please fill in all required fields (*)');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/v1/monitoring/appd/monitoring/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                run_id: runId,
+                config_name: configName,
+                lob_name: lobName,
+                track: track,
+                test_name: testName,
+                interval_seconds: interval
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✓ Monitoring started successfully!\n\n' +
+                'Run ID: ' + data.run_id + '\n' +
+                'Config: ' + data.config_name + '\n' +
+                'LOB: ' + data.lob_name + '\n' +
+                'Track: ' + data.track + '\n' +
+                'Applications: ' + data.applications.join(', ') + '\n' +
+                'Interval: ' + (interval / 60) + ' minutes');
+            
+            document.getElementById('monitorRunId').value = '';
+            document.getElementById('monitorTestName').value = '';
+            
+            setTimeout(refreshSessions, 1000);
+        } else {
+            alert('✗ Failed to start monitoring');
+        }
+    } catch (error) {
+        alert('✗ Error: ' + error.message);
+    }
+}
+
+async function loadThreadPoolStatus() {
+    try {
+        const response = await fetch('/api/v1/monitoring/appd/monitoring/thread-pool/status');
+        const data = await response.json();
+        
+        document.getElementById('activeMonitors').textContent = data.active_monitors;
+        document.getElementById('availableSlots').textContent = data.available_slots;
+        document.getElementById('utilization').textContent = data.utilization_percent.toFixed(0) + '%';
+    } catch (error) {
+        console.error('Failed to load thread pool status:', error);
+    }
+}
+
+async function refreshSessions() {
+    try {
+        const response = await fetch('/api/v1/monitoring/appd/monitoring/sessions');
+        const data = await response.json();
+        
+        const container = document.getElementById('sessionsContainer');
+        
+        if (data.total_sessions === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #999;">No active sessions</p>';
+            return;
+        }
+        
+        let html = '';
+        data.sessions.forEach(session => {
+            const statusClass = session.status.toLowerCase();
+            html += '<div class="session-card ' + statusClass + '">';
+            html += '<div class="session-header">';
+            html += '<div class="session-title">' + session.lob_name + ' / ' + session.track + ' / ' + session.run_id + '</div>';
+            html += '<span class="session-status ' + statusClass + '">' + session.status + '</span>';
+            html += '</div>';
+            html += '<div class="session-details">';
+            html += '<div class="session-detail"><strong>Config:</strong> ' + session.config_name + '</div>';
+            html += '<div class="session-detail"><strong>Applications:</strong> ' + session.applications.join(', ') + '</div>';
+            html += '<div class="session-detail"><strong>Iterations:</strong> ' + (session.iterations || 0) + '</div>';
+            html += '<div class="session-detail"><strong>Started:</strong> ' + new Date(session.start_time).toLocaleString() + '</div>';
+            html += '</div>';
+            
+            html += '<div class="session-actions">';
+            if (session.status === 'RUNNING') {
+                html += '<button class="btn-stop" onclick="stopMonitoring(\'' + session.run_id + '\')">⏹️ Stop</button>';
+            }
+            html += '</div>';
+            html += '</div>';
+        });
+        
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Failed to refresh sessions:', error);
+    }
+}
+
+async function stopMonitoring(runId) {
+    if (!confirm('Are you sure you want to stop monitoring for ' + runId + '?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/v1/monitoring/appd/monitoring/stop/' + runId, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✓ Monitoring stopped for ' + runId);
+            refreshSessions();
+            loadThreadPoolStatus();
+        }
+    } catch (error) {
+        alert('✗ Error: ' + error.message);
+    }
+}
+</script>
