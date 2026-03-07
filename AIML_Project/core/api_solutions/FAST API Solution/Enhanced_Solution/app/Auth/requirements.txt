@@ -1,0 +1,22 @@
+# TOTP Authentication System - Python Dependencies
+# Install with: pip install -r requirements.txt --break-system-packages
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Authentication & Security
+pyotp==2.9.0              # TOTP generation and validation
+bcrypt==4.1.1             # Password hashing
+pyjwt==2.8.0              # JWT token support (optional)
+qrcode[pil]==7.4.2        # QR code generation for TOTP setup
+
+# Database
+cx-Oracle==8.3.0          # Oracle database connectivity
+
+# Validation
+pydantic[email]==2.5.0    # Email validation
+
+# Utilities
+python-dotenv==1.0.0      # Environment variable management

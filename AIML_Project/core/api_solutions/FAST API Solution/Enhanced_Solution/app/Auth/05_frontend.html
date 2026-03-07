@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring System - Secure Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Login Modal */
+        #loginModal {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 450px;
+        }
+        
+        #loginModal h2 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        #loginModal p {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .alert {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        
+        .alert-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        
+        /* Main App (hidden until logged in) */
+        #app {
+            display: none;
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        
+        #app.visible {
+            display: block;
+        }
+        
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .logout-btn {
+            padding: 8px 20px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .logout-btn:hover {
+            background: #d32f2f;
+        }
+        
+        .content {
+            padding: 20px 0;
+        }
+        
+        .welcome-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        
+        .welcome-box h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .stat-card {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-card h4 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Modal -->
+    <div id="loginModal">
+        <h2>🔐 Secure Login</h2>
+        <p>Enter your credentials and authenticator code to access the monitoring system</p>
+        
+        <div class="form-group">
+            <label for="loginUsername">Username</label>
+            <input type="text" id="loginUsername" placeholder="Enter your username" autocomplete="username">
+        </div>
+        
+        <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
+        </div>
+        
+        <div class="form-group">
+            <label for="loginTotp">Authenticator Code</label>
+            <input 
+                type="text" 
+                id="loginTotp" 
+                placeholder="000000" 
+                maxlength="6" 
+                pattern="[0-9]{6}"
+                autocomplete="one-time-code"
+            >
+            <small>Open Google Authenticator app and enter the 6-digit code</small>
+        </div>
+        
+        <button onclick="performLogin()" class="btn">
+            🔓 Login
+        </button>
+        
+        <div id="loginError" class="alert alert-error" style="display: none;"></div>
+    </div>
+
+    <!-- Main Application (shown after login) -->
+    <div id="app">
+        <div class="app-header">
+            <h1>Monitoring System</h1>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div>
+                    <div style="font-weight: 600;" id="displayUsername">User</div>
+                    <div style="font-size: 12px; color: #999;" id="displayRole">Role</div>
+                </div>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="welcome-box">
+                <h3>Welcome back, <span id="welcomeName">User</span>!</h3>
+                <p>You are logged in with <strong id="welcomeRole">viewer</strong> permissions</p>
+            </div>
+            
+            <h3 style="margin-bottom: 15px;">Your Permissions:</h3>
+            <div id="permissionsList" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 30px;">
+                <!-- Permissions will be inserted here -->
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>Session Expires In</h4>
+                    <div class="value" id="sessionExpiry">--</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Role</h4>
+                    <div class="value" id="userRole">--</div>
+                </div>
+                <div class="stat-card">
+                    <h4>User ID</h4>
+                    <div class="value" id="userId">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // Global Variables
+        // ==========================================
+        let currentUser = null;
+        let sessionToken = null;
+        const API_BASE = 'http://localhost:8000/api/v1';
+
+        // ==========================================
+        // Authentication Functions
+        // ==========================================
+
+        async function performLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const totpCode = document.getElementById('loginTotp').value.trim();
+            
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.style.display = 'none';
+            
+            // Validation
+            if (!username || !password) {
+                errorDiv.textContent = 'Please enter username and password';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            if (!totpCode) {
+                errorDiv.textContent = 'Please enter 6-digit authenticator code';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            if (totpCode.length !== 6 || !/^\d+$/.test(totpCode)) {
+                errorDiv.textContent = 'Authenticator code must be 6 digits';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        totp_code: totpCode
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Store session token
+                    sessionToken = data.session_token;
+                    localStorage.setItem('session_token', sessionToken);
+                    
+                    // Store user info
+                    currentUser = {
+                        user_id: data.user_id,
+                        username: data.username,
+                        email: data.email,
+                        full_name: data.full_name,
+                        role: data.role
+                    };
+                    
+                    console.log('✓ Login successful:', currentUser);
+                    
+                    // Clear form
+                    document.getElementById('loginUsername').value = '';
+                    document.getElementById('loginPassword').value = '';
+                    document.getElementById('loginTotp').value = '';
+                    
+                    // Load user details and show app
+                    await loadUserDetails();
+                    showApp();
+                    
+                } else {
+                    errorDiv.textContent = data.detail || 'Login failed. Please check your credentials.';
+                    errorDiv.style.display = 'block';
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                errorDiv.textContent = 'Login failed: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        async function loadUserDetails() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Update user info with permissions
+                    currentUser = {
+                        ...currentUser,
+                        permissions: data.permissions,
+                        session_expires: data.session_expires
+                    };
+                    
+                    console.log('✓ User details loaded:', currentUser);
+                }
+            } catch (error) {
+                console.error('Error loading user details:', error);
+            }
+        }
+
+        function showApp() {
+            // Hide login modal
+            document.getElementById('loginModal').style.display = 'none';
+            
+            // Show app
+            document.getElementById('app').classList.add('visible');
+            
+            // Update UI with user info
+            const avatar = currentUser.full_name 
+                ? currentUser.full_name.charAt(0).toUpperCase()
+                : currentUser.username.charAt(0).toUpperCase();
+            
+            document.getElementById('userAvatar').textContent = avatar;
+            document.getElementById('displayUsername').textContent = currentUser.full_name || currentUser.username;
+            document.getElementById('displayRole').textContent = currentUser.role;
+            document.getElementById('welcomeName').textContent = currentUser.full_name || currentUser.username;
+            document.getElementById('welcomeRole').textContent = currentUser.role;
+            document.getElementById('userRole').textContent = currentUser.role;
+            document.getElementById('userId').textContent = currentUser.user_id;
+            
+            // Display permissions
+            const permissionsDiv = document.getElementById('permissionsList');
+            permissionsDiv.innerHTML = '';
+            
+            if (currentUser.permissions && currentUser.permissions.length > 0) {
+                currentUser.permissions.forEach(perm => {
+                    const badge = document.createElement('span');
+                    badge.style.cssText = 'padding: 5px 12px; background: #667eea; color: white; border-radius: 20px; font-size: 12px; font-weight: 600;';
+                    badge.textContent = perm;
+                    permissionsDiv.appendChild(badge);
+                });
+            } else {
+                permissionsDiv.innerHTML = '<span style="color: #999;">No permissions assigned</span>';
+            }
+            
+            // Update session expiry countdown
+            updateSessionExpiry();
+            setInterval(updateSessionExpiry, 60000); // Update every minute
+        }
+
+        function updateSessionExpiry() {
+            if (!currentUser || !currentUser.session_expires) {
+                document.getElementById('sessionExpiry').textContent = '--';
+                return;
+            }
+            
+            const expires = new Date(currentUser.session_expires);
+            const now = new Date();
+            const diff = expires - now;
+            
+            if (diff <= 0) {
+                document.getElementById('sessionExpiry').textContent = 'Expired';
+                logout();
+                return;
+            }
+            
+            const minutes = Math.floor(diff / 60000);
+            document.getElementById('sessionExpiry').textContent = minutes + ' min';
+        }
+
+        async function logout() {
+            if (!sessionToken) {
+                showLogin();
+                return;
+            }
+            
+            try {
+                await fetch(`${API_BASE}/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            
+            // Clear local data
+            sessionToken = null;
+            currentUser = null;
+            localStorage.removeItem('session_token');
+            
+            // Show login
+            showLogin();
+        }
+
+        function showLogin() {
+            document.getElementById('app').classList.remove('visible');
+            document.getElementById('loginModal').style.display = 'block';
+        }
+
+        // ==========================================
+        // Auto-login if session exists
+        // ==========================================
+
+        window.addEventListener('DOMContentLoaded', async function() {
+            const savedToken = localStorage.getItem('session_token');
+            
+            if (savedToken) {
+                sessionToken = savedToken;
+                
+                // Validate token
+                try {
+                    const response = await fetch(`${API_BASE}/auth/me`, {
+                        headers: {
+                            'Authorization': `Bearer ${sessionToken}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        currentUser = {
+                            user_id: data.user_id,
+                            username: data.username,
+                            email: data.email,
+                            full_name: data.full_name,
+                            role: data.role,
+                            permissions: data.permissions,
+                            session_expires: data.session_expires
+                        };
+                        
+                        console.log('✓ Auto-login successful');
+                        showApp();
+                    } else {
+                        // Token invalid/expired
+                        localStorage.removeItem('session_token');
+                        sessionToken = null;
+                    }
+                } catch (error) {
+                    console.error('Auto-login error:', error);
+                    localStorage.removeItem('session_token');
+                    sessionToken = null;
+                }
+            }
+        });
+
+        // ==========================================
+        // Helper: Authenticated Fetch
+        // ==========================================
+
+        async function authenticatedFetch(url, options = {}) {
+            if (!sessionToken) {
+                throw new Error('Not authenticated');
+            }
+            
+            options.headers = options.headers || {};
+            options.headers['Authorization'] = `Bearer ${sessionToken}`;
+            
+            const response = await fetch(url, options);
+            
+            if (response.status === 401) {
+                // Session expired
+                logout();
+                throw new Error('Session expired');
+            }
+            
+            return response;
+        }
+
+        // ==========================================
+        // Example: Protected API Call
+        // ==========================================
+
+        async function uploadAWR(file, pcRunId) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('pc_run_id', pcRunId);
+            
+            try {
+                const response = await authenticatedFetch(
+                    `${API_BASE}/monitoring/awr/upload`,
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+                
+                const data = await response.json();
+                console.log('Upload result:', data);
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
