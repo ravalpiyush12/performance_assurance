@@ -1,620 +1,306 @@
-# TOTP Authentication System - Complete Setup Guide
+# TOTP Authentication System - python-oracledb 2.0.0
 
-## 📋 Table of Contents
-1. [Prerequisites](#prerequisites)
-2. [Installation Steps](#installation-steps)
-3. [Database Setup](#database-setup)
-4. [Backend Setup](#backend-setup)
-5. [Frontend Setup](#frontend-setup)
-6. [First Login](#first-login)
-7. [Creating Users](#creating-users)
-8. [Integrating with Existing Code](#integrating-with-existing-code)
-9. [Testing](#testing)
-10. [Troubleshooting](#troubleshooting)
+## 🎯 Overview
+
+Complete TOTP (Time-Based One-Time Password) authentication system **updated for python-oracledb 2.0.0**.
+
+**Key Advantage: NO Oracle Instant Client Required!**
 
 ---
 
-## 📦 Prerequisites
+## 🚀 What's New in This Version
 
-- Python 3.8 or higher
-- Oracle Database 12c or higher
-- Oracle Instant Client (for cx_Oracle)
-- Google Authenticator app (on mobile phone)
+✅ **Uses python-oracledb 2.0.0** (official Oracle driver)  
+✅ **Thin Mode** - No Oracle Instant Client needed  
+✅ **Pure Python** - Easier deployment  
+✅ **Faster** - Optimized connection pooling  
+✅ **Better errors** - Clearer error messages  
+✅ **Future proof** - Actively maintained by Oracle  
 
 ---
 
-## 🚀 Installation Steps
+## 📦 Quick Start (5 Minutes)
 
-### Step 1: Install Python Dependencies
-
+### 1. Install Dependencies
 ```bash
-# Navigate to the project directory
-cd /path/to/totp_auth_complete
-
-# Install all required packages
 pip install -r requirements.txt --break-system-packages
 ```
 
-**Dependencies installed:**
-- `fastapi` - Web framework
-- `uvicorn` - ASGI server
-- `pyotp` - TOTP implementation
-- `bcrypt` - Password hashing
-- `qrcode` - QR code generation
-- `cx-Oracle` - Oracle database driver
-- `pydantic` - Data validation
+**Key dependency: `oracledb==2.0.0`** (replaces cx_Oracle)
 
----
-
-## 🗄️ Database Setup
-
-### Step 1: Run Database Schema Script
-
+### 2. Setup Database
 ```bash
-# Connect to Oracle as your application user
-sqlplus your_db_user/your_password@your_database
-
-# Run the schema script
-@01_database_schema.sql
+sqlplus user/pass@db @01_database_schema.sql
 ```
 
-This will create:
-- ✅ `AUTH_USERS` - User accounts table
-- ✅ `AUTH_SESSIONS` - Active sessions table
-- ✅ `AUTH_AUDIT_LOG` - Authentication audit log
-- ✅ `AUTH_ROLES` - Roles and permissions
-- ✅ Default admin user (username: `admin`, password: `Admin@123`)
-
-### Step 2: Verify Database Setup
-
-```sql
--- Check tables
-SELECT TABLE_NAME FROM USER_TABLES WHERE TABLE_NAME LIKE 'AUTH_%';
-
--- Expected output:
--- AUTH_USERS
--- AUTH_SESSIONS
--- AUTH_AUDIT_LOG
--- AUTH_ROLES
-
--- Check default roles
-SELECT ROLE_NAME, DESCRIPTION FROM AUTH_ROLES;
-
--- Expected roles:
--- admin, performance_engineer, test_lead, viewer
-
--- Check default admin user
-SELECT USERNAME, EMAIL, ROLE, IS_ACTIVE, MFA_ENABLED FROM AUTH_USERS;
-
--- Expected:
--- admin | admin@company.com | admin | Y | N
-```
-
----
-
-## ⚙️ Backend Setup
-
-### Step 1: Configure Database Connection
-
-Edit `04_main.py` and update database credentials:
+### 3. Configure Database Connection
+Edit `04_main.py`:
 
 ```python
 DB_CONFIG = {
-    'user': 'your_db_user',        # Your Oracle username
-    'password': 'your_db_password', # Your Oracle password
-    'dsn': 'localhost:1521/ORCL',   # Your Oracle DSN
+    'user': 'your_db_user',
+    'password': 'your_db_password',
+    'dsn': 'localhost:1521/ORCL',  # host:port/service_name
     'min': 2,
-    'max': 10,
-    'increment': 1
+    'max': 10
 }
 ```
 
-### Step 2: Copy Files to Your Project
-
+### 4. Start Server
 ```bash
-# Copy authentication files to your project
-cp 02_authentication.py /path/to/your/project/auth/authentication.py
-cp 03_routes.py /path/to/your/project/auth/routes.py
-
-# Or create auth directory
-mkdir -p /path/to/your/project/auth
-cp 02_authentication.py /path/to/your/project/auth/
-cp 03_routes.py /path/to/your/project/auth/
+python 04_main.py
 ```
 
-### Step 3: Integrate with Your Existing main.py
-
-In your existing `main.py`, add:
-
-```python
-from auth.routes import router as auth_router, init_auth_routes
-from auth.routes import get_current_user, require_permission
-
-# Initialize on startup
-@app.on_event("startup")
-async def startup_event():
-    # Your existing initialization
-    init_database()
-    
-    # Initialize authentication
-    init_auth_routes(db_pool, session_expiry_minutes=60)
-
-# Include authentication routes
-app.include_router(auth_router)
-```
-
-### Step 4: Start the Backend
-
-```bash
-# Method 1: Using uvicorn directly
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# Method 2: Using Python
-python main.py
-```
-
-You should see:
-```
-INFO:     Uvicorn running on http://0.0.0.0:8000
-INFO:     ✓ Database connection pool created
-INFO:     ✓ Authentication routes initialized
-INFO:     ✓ Application started successfully
-```
+### 5. Login
+- Open: `http://localhost:8000`
+- Username: `admin`
+- Password: `Admin@123`
+- TOTP: (leave blank for first login)
 
 ---
 
-## 🖥️ Frontend Setup
+## 🔑 Key Differences from cx_Oracle Version
 
-### Option 1: Use Standalone Login Page
-
-```bash
-# Open the frontend HTML file in a browser
-open 05_frontend.html
-
-# Or copy to your static files directory
-cp 05_frontend.html /path/to/your/static/login.html
-```
-
-### Option 2: Integrate Login Modal into Existing UI
-
-Add this to your existing `index.html`:
-
-```html
-<!-- At the top of <body> -->
-<div id="loginModal" style="display: none; position: fixed; ...">
-    <!-- Copy login modal HTML from 05_frontend.html -->
-</div>
-
-<!-- At the bottom before </body> -->
-<script>
-    // Copy authentication functions from 05_frontend.html
-    let sessionToken = null;
-    let currentUser = null;
-    
-    async function performLogin() { ... }
-    async function authenticatedFetch() { ... }
-    // ... etc
-</script>
-```
-
-Update all your API calls to use authenticated fetch:
-
-```javascript
-// Before (no authentication)
-await fetch('/api/v1/monitoring/awr/upload', {...})
-
-// After (with authentication)
-await authenticatedFetch('/api/v1/monitoring/awr/upload', {...})
-```
+| Aspect | cx_Oracle | python-oracledb 2.0.0 |
+|--------|-----------|------------------------|
+| **Import** | `import cx_Oracle` | `import oracledb` |
+| **Pool Creation** | `SessionPool()` | `create_pool()` |
+| **Instant Client** | Required | **NOT required** (Thin mode) |
+| **Variable Types** | `cx_Oracle.NUMBER` | `int` (Python types) |
+| **Performance** | Good | **Better** |
+| **Deployment** | Complex | **Simple** |
 
 ---
 
-## 🔑 First Login
+## 📁 Files Included
 
-### Step 1: Login as Admin
-
-1. Open your application in browser: `http://localhost:8000`
-2. Login with default credentials:
-   - Username: `admin`
-   - Password: `Admin@123`
-   - TOTP Code: Leave blank (MFA not enabled yet)
-
-3. **⚠️ IMPORTANT: Change admin password immediately!**
-
-### Step 2: Enable MFA for Admin
-
-After first login, you need to enable TOTP for admin:
-
-```sql
--- In Oracle, enable MFA for admin
-UPDATE AUTH_USERS 
-SET MFA_ENABLED = 'Y', 
-    TOTP_SECRET = 'JBSWY3DPEHPK3PXP'  -- Example secret
-WHERE USERNAME = 'admin';
-COMMIT;
-```
-
-Generate a new TOTP secret:
-
-```python
-# Run this Python script to generate new secret
-import pyotp
-secret = pyotp.random_base32()
-print(f"TOTP Secret: {secret}")
-
-# Generate QR code URL
-totp = pyotp.TOTP(secret)
-url = totp.provisioning_uri('admin@company.com', 'Monitoring System')
-print(f"QR Code URL: {url}")
-```
-
-Scan the QR code with Google Authenticator app.
+1. **requirements.txt** - Python dependencies (with oracledb 2.0.0)
+2. **01_database_schema.sql** - Database schema (unchanged)
+3. **02_authentication.py** - Auth logic (updated for oracledb)
+4. **03_routes.py** - FastAPI routes (unchanged)
+5. **04_main.py** - Application (updated for oracledb)
+6. **05_frontend.html** - Login UI (unchanged)
+7. **test_auth.py** - Test suite (unchanged)
+8. **MIGRATION_GUIDE.md** - Migration from cx_Oracle
+9. **README.md** - This file
 
 ---
 
-## 👥 Creating Users
+## 🎯 Features
 
-### Method 1: Using API (Requires Admin Login)
+### Security
+- ✅ Two-factor authentication (Password + TOTP)
+- ✅ bcrypt password hashing
+- ✅ Session expiry (60 min default)
+- ✅ Account lockout (5 failed attempts)
+- ✅ Full audit trail
+- ✅ Role-based access control
 
-```bash
-# Create a new user via API
-curl -X POST http://localhost:8000/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
-  -d '{
-    "username": "john.doe",
-    "email": "john@company.com",
-    "password": "SecurePass123!",
-    "full_name": "John Doe",
-    "role": "performance_engineer"
-  }'
-```
+### Database
+- ✅ **Thin Mode** - No Instant Client!
+- ✅ Connection pooling
+- ✅ Automatic reconnection
+- ✅ Better error handling
 
-Response includes:
-- `totp_secret` - Save this securely!
-- `qr_code_base64` - QR code image to scan
-- `setup_instructions` - Steps for user
-
-### Method 2: Using Python Script
-
-Create `create_user.py`:
-
-```python
-import cx_Oracle
-from authentication import AuthenticationManager
-
-# Connect to database
-pool = cx_Oracle.SessionPool(
-    user='your_user',
-    password='your_password',
-    dsn='localhost:1521/ORCL',
-    min=1, max=1
-)
-
-# Create user
-auth_manager = AuthenticationManager(pool)
-result = auth_manager.create_user(
-    username='jane.smith',
-    email='jane@company.com',
-    password='TempPass456!',
-    full_name='Jane Smith',
-    role='performance_engineer',
-    created_by='admin'
-)
-
-print(f"✓ User created: {result['username']}")
-print(f"TOTP Secret: {result['totp_secret']}")
-print(f"QR Code URL: {result['provisioning_uri']}")
-
-pool.close()
-```
-
-Run: `python create_user.py`
-
-### Method 3: Direct SQL (Not Recommended)
-
-Only use for emergency admin account:
-
-```sql
--- Don't use this for normal user creation!
--- This is only for recovery purposes
-
-INSERT INTO AUTH_USERS (
-    USER_ID, USERNAME, EMAIL, PASSWORD_HASH, 
-    ROLE, IS_ACTIVE, MFA_ENABLED
-) VALUES (
-    AUTH_USER_SEQ.NEXTVAL,
-    'emergency_admin',
-    'emergency@company.com',
-    '$2b$12$YOUR_BCRYPT_HASH_HERE',
-    'admin',
-    'Y',
-    'N'
-);
-COMMIT;
-```
+### Cost
+- ✅ **$0** - All libraries are free
 
 ---
 
-## 🔗 Integrating with Existing Code
+## 🔒 Protecting Your Endpoints
 
-### Protect AWR Upload Endpoint
-
-**Before:**
-```python
-@app.post("/api/v1/monitoring/awr/upload")
-async def upload_awr_report(
-    file: UploadFile,
-    pc_run_id: str
-):
-    # Anyone can upload
-    save_awr_analysis(...)
-```
-
-**After:**
 ```python
 from auth.routes import require_permission
 
 @app.post("/api/v1/monitoring/awr/upload")
-async def upload_awr_report(
+async def upload_awr(
     file: UploadFile,
-    pc_run_id: str,
-    user: dict = Depends(require_permission("write"))  # ← Add this
+    user: dict = Depends(require_permission("write"))
 ):
-    # Only users with 'write' permission can upload
-    logger.info(f"AWR upload by {user['username']}")
+    logger.info(f"Upload by {user['username']}")
     
-    # Set Oracle context with actual username
-    set_oracle_user_context(user['username'])
-    
-    save_awr_analysis(...)
-```
-
-### Protect Test Registration
-
-```python
-@app.post("/api/v1/pc/test-run/register")
-async def register_test(
-    pc_run_id: str,
-    lob_name: str,
-    user: dict = Depends(require_permission("register_test"))  # ← Add this
-):
-    logger.info(f"Test registration by {user['username']}")
-    
-    # Save with actual username
-    create_master_run(
-        ...,
-        created_by=user['username']  # ← Audit trail
-    )
-```
-
-### Set Oracle User Context
-
-```python
-def set_oracle_user_context(username: str, conn):
-    """Set Oracle session context with authenticated username"""
+    # Set Oracle session context
+    conn = db_pool.acquire()
     cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            BEGIN
-                DBMS_SESSION.SET_IDENTIFIER(:username);
-                DBMS_APPLICATION_INFO.SET_CLIENT_INFO(:username);
-            END;
-        """, {'username': username})
-        conn.commit()
-    finally:
-        cursor.close()
+    cursor.execute(
+        "BEGIN DBMS_SESSION.SET_IDENTIFIER(:u); END;",
+        {'u': user['username']}
+    )
+    cursor.close()
+    db_pool.release(conn)
+    
+    # Your code...
+    return {"uploaded_by": user['username']}
 ```
-
-Now all Oracle audit logs will show the actual username!
 
 ---
 
 ## 🧪 Testing
 
-### Test 1: Health Check
-
 ```bash
-curl http://localhost:8000/api/v1/auth/health
+# Run automated tests
+python test_auth.py
 ```
 
-Expected:
-```json
-{
-  "status": "healthy",
-  "service": "authentication",
-  "auth_enabled": true
-}
+Tests verify:
+- ✅ oracledb 2.0.0 installed
+- ✅ Server running
+- ✅ Database connection (Thin mode)
+- ✅ Login working
+- ✅ Authentication working
+- ✅ Permissions working
+
+---
+
+## 🔧 Configuration Options
+
+### Thin Mode (Default - No Instant Client)
+```python
+pool = oracledb.create_pool(
+    user='user',
+    password='pass',
+    dsn='host:1521/service',
+    min=2,
+    max=10
+)
 ```
 
-### Test 2: Login
+### Thick Mode (With Instant Client)
+```python
+# Initialize Oracle Client first
+oracledb.init_oracle_client(lib_dir="/path/to/instantclient")
 
+# Then create pool
+pool = oracledb.create_pool(...)
+```
+
+**Use Thin mode unless you need specific Thick mode features!**
+
+---
+
+## 📊 Connection Pool Best Practices
+
+```python
+# Acquire connection
+conn = pool.acquire()
+cursor = conn.cursor()
+
+try:
+    # Use connection
+    cursor.execute("SELECT ...")
+    result = cursor.fetchone()
+    conn.commit()
+finally:
+    # Always release back to pool
+    cursor.close()
+    pool.release(conn)  # Important!
+```
+
+---
+
+## 🆘 Troubleshooting
+
+### Error: "ModuleNotFoundError: No module named 'oracledb'"
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "password": "Admin@123",
-    "totp_code": "123456"
-  }'
+pip install oracledb==2.0.0 --break-system-packages
 ```
 
-Expected:
-```json
-{
-  "success": true,
-  "session_token": "...",
-  "user_id": 1,
-  "username": "admin",
-  "role": "admin",
-  "expires": "2026-03-07T15:30:00"
-}
+### Error: "DPY-6005: cannot connect to database"
+**Check:**
+1. Database is running
+2. DSN format: `host:port/service_name`
+3. Firewall allows port 1521
+4. Credentials are correct
+
+**Test connection:**
+```python
+import oracledb
+conn = oracledb.connect(
+    user='test',
+    password='test',
+    dsn='localhost/ORCL'
+)
+print("✓ Connected")
+conn.close()
 ```
 
-### Test 3: Protected Endpoint
+### Error: Variable type issues
+```python
+# OLD (cx_Oracle)
+var = cursor.var(cx_Oracle.NUMBER)
 
-```bash
-# Without token (should fail)
-curl http://localhost:8000/api/v1/auth/me
-
-# Expected: 401 Unauthorized
-
-# With token (should work)
-curl http://localhost:8000/api/v1/auth/me \
-  -H "Authorization: Bearer YOUR_SESSION_TOKEN"
-
-# Expected: User info
-```
-
-### Test 4: Permissions
-
-```bash
-# Try to access admin endpoint as viewer
-curl http://localhost:8000/api/v1/auth/sessions \
-  -H "Authorization: Bearer VIEWER_TOKEN"
-
-# Expected: 403 Permission denied
+# NEW (oracledb)
+var = cursor.var(int)  # Use Python types!
 ```
 
 ---
 
-## 🔧 Troubleshooting
+## 🔄 Migrating from cx_Oracle?
 
-### Issue 1: "Database connection failed"
+See **MIGRATION_GUIDE.md** for complete migration steps.
 
-**Solution:**
-1. Check Oracle database is running
-2. Verify DB_CONFIG in main.py
-3. Test connection:
-   ```python
-   import cx_Oracle
-   conn = cx_Oracle.connect('user/pass@localhost:1521/ORCL')
-   print("✓ Connected")
-   conn.close()
-   ```
-
-### Issue 2: "Invalid TOTP code"
-
-**Solution:**
-1. Check phone time is synchronized
-2. Try using valid_window=2 in pyotp.verify()
-3. Verify TOTP secret is correct
-4. Check time zone settings
-
-### Issue 3: "Session expired immediately"
-
-**Solution:**
-1. Check server time vs database time
-2. Verify session_expiry_minutes setting
-3. Check AUTH_SESSIONS table:
-   ```sql
-   SELECT SESSION_ID, EXPIRES_DATE, SYSDATE FROM AUTH_SESSIONS;
-   ```
-
-### Issue 4: "401 Unauthorized on protected endpoints"
-
-**Solution:**
-1. Check Authorization header format: `Bearer TOKEN`
-2. Verify token hasn't expired
-3. Check token exists in AUTH_SESSIONS table
-4. Check user is active:
-   ```sql
-   SELECT IS_ACTIVE FROM AUTH_USERS WHERE USERNAME = 'your_user';
-   ```
-
-### Issue 5: "Cannot create user - unique constraint"
-
-**Solution:**
-Username already exists. Use different username or check:
-```sql
-SELECT USERNAME, IS_ACTIVE FROM AUTH_USERS;
-```
+**TL;DR:**
+1. Uninstall cx_Oracle
+2. Install oracledb 2.0.0
+3. Change `import cx_Oracle` → `import oracledb`
+4. Change `SessionPool()` → `create_pool()`
+5. Change variable types to Python types
+6. Test!
 
 ---
 
-## 📊 Roles and Permissions Reference
+## 📚 Documentation
 
-| Role | Permissions | Description |
-|------|-------------|-------------|
-| **admin** | read, write, delete, configure, user_manage | Full system access |
-| **performance_engineer** | read, write, register_test | Can register tests and upload monitoring data |
-| **test_lead** | read, write, register_test, approve | Can manage test lifecycle |
-| **viewer** | read | Read-only access |
-
-### Adding Custom Permissions
-
-```sql
--- Add new role
-INSERT INTO AUTH_ROLES (ROLE_NAME, PERMISSIONS, DESCRIPTION) VALUES (
-    'data_analyst',
-    '["read","export","analyze"]',
-    'Can read and analyze data'
-);
-COMMIT;
-
--- Update existing role
-UPDATE AUTH_ROLES 
-SET PERMISSIONS = '["read","write","export"]'
-WHERE ROLE_NAME = 'viewer';
-COMMIT;
-```
+- **Installation:** This file
+- **Migration:** MIGRATION_GUIDE.md
+- **API Reference:** See code docstrings
+- **Official Docs:** https://python-oracledb.readthedocs.io/
 
 ---
 
-## 🎉 Success Checklist
+## 🎉 Advantages of This Version
 
-- [ ] Database schema created successfully
-- [ ] Default admin user exists
-- [ ] Backend starts without errors
-- [ ] Can login as admin
-- [ ] Created at least one test user
-- [ ] User can scan QR code with Google Authenticator
-- [ ] TOTP login works
-- [ ] Protected endpoints require authentication
-- [ ] Permission checking works
-- [ ] Audit log records login attempts
-- [ ] Session expires correctly
-- [ ] Logout works
+### vs cx_Oracle:
+✅ **No Instant Client** (Thin mode)  
+✅ **Faster** (optimized)  
+✅ **Easier deployment** (pure Python)  
+✅ **Better errors**  
+✅ **Future proof** (maintained)  
 
----
-
-## 📚 Next Steps
-
-1. **Security:**
-   - Change default admin password
-   - Enable MFA for all users
-   - Configure IP whitelisting
-   - Set up SSL/TLS certificates
-
-2. **Monitoring:**
-   - Check AUTH_AUDIT_LOG regularly
-   - Monitor failed login attempts
-   - Review active sessions
-
-3. **Maintenance:**
-   - Rotate passwords quarterly
-   - Remove inactive users
-   - Backup AUTH_USERS table
-   - Update dependencies
+### vs API Keys:
+✅ **User audit trail** (know who did what)  
+✅ **MFA** (password + TOTP)  
+✅ **Account lockout** (security)  
+✅ **Session management**  
+✅ **Role-based access**  
 
 ---
 
-## 🆘 Support
+## 🚀 Next Steps
 
-If you encounter issues:
-
-1. Check logs: `tail -f app.log`
-2. Check database: `SELECT * FROM AUTH_AUDIT_LOG ORDER BY TIMESTAMP DESC`
-3. Verify configuration in main.py
-4. Test database connection separately
+1. Install dependencies
+2. Setup database
+3. Configure DB connection
+4. Start server
+5. Login and test
+6. Protect your endpoints!
 
 ---
 
-**Installation Complete! 🎊**
+## 📞 Support
 
-Your TOTP authentication system is now ready to use.
+All documentation is self-contained:
+- Installation issues? Check this file
+- Migration? Check MIGRATION_GUIDE.md
+- Testing? Run `python test_auth.py`
 
-Default Admin Credentials:
+---
+
+**Default Admin Credentials:**
 - Username: `admin`
 - Password: `Admin@123`
-- **⚠️ Change this immediately after first login!**
+- **⚠️ Change immediately after first login!**
+
+---
+
+**This version uses python-oracledb 2.0.0 - No Oracle Instant Client required!** 🎊

@@ -1,14 +1,21 @@
 """
 TOTP Authentication Manager
-Complete implementation with TOTP, password hashing, session management
+Updated for python-oracledb 2.0.0 (Thin Mode)
+
+Key Changes from cx_Oracle:
+- import oracledb instead of cx_Oracle
+- Use oracledb.create_pool() instead of SessionPool
+- Connection pool API slightly different
+- Better error handling
+- Thin mode = No Oracle Instant Client required!
 """
+import oracledb
 import pyotp
 import bcrypt
 import secrets
 import json
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
-import cx_Oracle
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,6 +33,8 @@ class AuthenticationManager:
     - Account lockout after failed attempts
     - Full audit logging
     - Role-based access control
+    
+    Updated for oracledb 2.0.0 (python-oracledb)
     """
     
     def __init__(self, db_pool, session_expiry_minutes=60):
@@ -33,12 +42,12 @@ class AuthenticationManager:
         Initialize authentication manager
         
         Args:
-            db_pool: Oracle connection pool
+            db_pool: Oracle connection pool (oracledb.ConnectionPool)
             session_expiry_minutes: Session expiry time (default: 60 minutes)
         """
         self.pool = db_pool
         self.session_expiry_minutes = session_expiry_minutes
-        logger.info("AuthenticationManager initialized")
+        logger.info("AuthenticationManager initialized with oracledb 2.0.0")
     
     # ==========================================
     # User Management
@@ -80,6 +89,9 @@ class AuthenticationManager:
             # Generate TOTP secret (Base32 encoded)
             totp_secret = pyotp.random_base32()
             
+            # IMPORTANT: oracledb 2.0.0 uses different variable syntax
+            user_id_var = cursor.var(int)
+            
             # Insert user
             cursor.execute("""
                 INSERT INTO AUTH_USERS (
@@ -99,10 +111,11 @@ class AuthenticationManager:
                 'totp_secret': totp_secret,
                 'role': role,
                 'created_by': created_by,
-                'user_id': cursor.var(cx_Oracle.NUMBER)
+                'user_id': user_id_var
             })
             
-            user_id = int(cursor.getvalue()[0])
+            # Get the returned user_id
+            user_id = user_id_var.getvalue()[0]
             conn.commit()
             
             # Generate provisioning URI for QR code
@@ -123,12 +136,12 @@ class AuthenticationManager:
                 'username': username,
                 'email': email,
                 'role': role,
-                'totp_secret': totp_secret,  # Show once for user to save
+                'totp_secret': totp_secret,
                 'provisioning_uri': provisioning_uri,
                 'message': 'User created. Scan QR code with Google Authenticator app.'
             }
             
-        except cx_Oracle.IntegrityError as e:
+        except oracledb.IntegrityError as e:
             conn.rollback()
             error_msg = str(e)
             if 'unique constraint' in error_msg.lower():
@@ -140,7 +153,7 @@ class AuthenticationManager:
             raise
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)
     
     # ==========================================
     # Authentication
@@ -220,7 +233,6 @@ class AuthenticationManager:
                     return None
                 
                 totp = pyotp.TOTP(totp_secret)
-                # valid_window=1 allows 30 seconds clock skew
                 if not totp.verify(totp_code, valid_window=1):
                     self._handle_failed_login(user_id, username, ip_address)
                     logger.warning(f"Login failed: Invalid TOTP - {username}")
@@ -283,7 +295,7 @@ class AuthenticationManager:
             return None
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)
     
     # ==========================================
     # Session Management
@@ -355,7 +367,7 @@ class AuthenticationManager:
             
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)
     
     def logout(self, session_token: str, username: str = None):
         """
@@ -394,7 +406,7 @@ class AuthenticationManager:
             
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)
     
     # ==========================================
     # Permission Checking
@@ -432,7 +444,7 @@ class AuthenticationManager:
             
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)
     
     def get_user_permissions(self, username: str) -> List[str]:
         """Get list of permissions for user"""
@@ -456,7 +468,7 @@ class AuthenticationManager:
             
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)
     
     # ==========================================
     # Helper Methods
@@ -497,7 +509,7 @@ class AuthenticationManager:
             
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)
     
     def _log_audit(
         self,
@@ -541,7 +553,7 @@ class AuthenticationManager:
             logger.error(f"Audit logging failed: {e}")
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)
     
     # ==========================================
     # Admin Functions
@@ -580,7 +592,7 @@ class AuthenticationManager:
             
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)
     
     def get_audit_log(
         self,
@@ -633,4 +645,4 @@ class AuthenticationManager:
             
         finally:
             cursor.close()
-            conn.close()
+            self.pool.release(conn)

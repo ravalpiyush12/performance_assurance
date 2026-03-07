@@ -1,4 +1,5 @@
 # TOTP Authentication System - Python Dependencies
+# Updated for python-oracledb 2.0.0 (Thin Mode)
 # Install with: pip install -r requirements.txt --break-system-packages
 
 # Web Framework
@@ -12,11 +13,12 @@ bcrypt==4.1.1             # Password hashing
 pyjwt==2.8.0              # JWT token support (optional)
 qrcode[pil]==7.4.2        # QR code generation for TOTP setup
 
-# Database
-cx-Oracle==8.3.0          # Oracle database connectivity
+# Database - NEW: python-oracledb 2.0.0 (replaces cx_Oracle)
+oracledb==2.0.0           # Oracle database connectivity (Thin mode - no Instant Client needed!)
 
 # Validation
 pydantic[email]==2.5.0    # Email validation
 
 # Utilities
 python-dotenv==1.0.0      # Environment variable management
+requests==2.31.0          # For testing
