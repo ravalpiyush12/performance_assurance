@@ -302,4 +302,3 @@ javascriptconst LOB_MONITORING_MAP = {
 3. After login → Monitoring dashboard
 4. Only LOB-allowed tabs visible
 5. Features shown/hidden by permissions
-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
