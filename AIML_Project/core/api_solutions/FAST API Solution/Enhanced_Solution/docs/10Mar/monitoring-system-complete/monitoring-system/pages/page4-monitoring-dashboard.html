@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Dashboard - CQE NFT</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/tabs.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Top Navigation Bar -->
+        <div class="top-navbar">
+            <div class="navbar-left">
+                <h1>📊 Monitoring Dashboard - <span id="currentLOBName">LOB</span></h1>
+            </div>
+            
+            <div class="navbar-center">
+                <a href="/api/docs" target="_blank" class="nav-link">📚 API Docs</a>
+                <a href="/logs" target="_blank" class="nav-link">📋 Audit Logs</a>
+            </div>
+            
+            <div class="navbar-right">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <div class="user-name" id="displayUsername">User</div>
+                        <div class="user-role" id="displayRole">Role</div>
+                        <div class="session-timer" id="sessionTimer">⏱ 60 min left</div>
+                    </div>
+                </div>
+                <button class="btn btn-logout" onclick="Auth.logout()">Logout</button>
+            </div>
+        </div>
+        
+        <!-- Admin Section -->
+        <div id="adminSection" style="display: none;">
+            <div class="admin-panel">
+                <h3>👥 User Management</h3>
+                <button class="btn btn-primary" onclick="showCreateUserForm()">➕ Create User</button>
+                <button class="btn btn-secondary" onclick="loadUsers()">🔄 Refresh User List</button>
+                
+                <div id="createUserForm" style="display: none; margin-top: 20px;">
+                    <h4>Create New User</h4>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Username <span class="required">*</span></label>
+                            <input type="text" id="newUsername" placeholder="john.doe">
+                        </div>
+                        <div class="form-group">
+                            <label>Email <span class="required">*</span></label>
+                            <input type="email" id="newEmail" placeholder="john@company.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="newFullName" placeholder="John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label>Password <span class="required">*</span></label>
+                            <input type="password" id="newPassword" placeholder="Min 8 characters">
+                        </div>
+                        <div class="form-group">
+                            <label>Role</label>
+                            <select id="newRole">
+                                <option value="viewer">Viewer</option>
+                                <option value="performance_engineer">Performance Engineer</option>
+                                <option value="test_lead">Test Lead</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="createUser()">✓ Create User</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('createUserForm').style.display='none'">Cancel</button>
+                    <div id="createUserStatus"></div>
+                </div>
+                
+                <div id="usersList" style="margin-top: 20px;">
+                    <div class="loading">Click "Refresh User List" to load users</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Tabs -->
+        <div class="tabs-container">
+            <div class="tab-header">
+                <button class="tab active" onclick="switchMainTab(event, 'registerTest')">📝 Register Test</button>
+                <button class="tab" onclick="switchMainTab(event, 'appdynamics')">📊 AppDynamics</button>
+                <button class="tab" onclick="switchMainTab(event, 'awr')">📉 AWR Analysis</button>
+                <button class="tab" onclick="switchMainTab(event, 'kibana')">📈 Kibana</button>
+                <button class="tab" onclick="switchMainTab(event, 'splunk')">🔍 Splunk</button>
+                <button class="tab" onclick="switchMainTab(event, 'mongodb')">🍃 MongoDB</button>
+                <button class="tab" onclick="switchMainTab(event, 'pc')">⚡ Performance Center</button>
+            </div>
+            
+            <div id="tabsContent">
+                <!-- Tab content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+    
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/navigation.js"></script>
+    <script src="../js/tabs/register-test.js"></script>
+    <script src="../js/tabs/appdynamics.js"></script>
+    <script src="../js/tabs/awr-analysis.js"></script>
+    <script src="../js/tabs/kibana.js"></script>
+    <script src="../js/tabs/splunk.js"></script>
+    <script src="../js/tabs/mongodb.js"></script>
+    <script src="../js/tabs/performance-center.js"></script>
+    
+    <script>
+        window.addEventListener('DOMContentLoaded', async function() {
+            // Check authentication
+            const authenticated = await checkAuthentication();
+            if (!authenticated) return;
+            
+            // Get LOB
+            STATE.currentLOB = localStorage.getItem('selected_lob');
+            if (!STATE.currentLOB) {
+                window.location.href = 'page1-lob-selector.html';
+                return;
+            }
+            
+            // Display user info
+            document.getElementById('currentLOBName').textContent = STATE.currentLOB;
+            document.getElementById('displayUsername').textContent = STATE.currentUser.username;
+            document.getElementById('displayRole').textContent = STATE.currentUser.role;
+            document.getElementById('userAvatar').textContent = STATE.currentUser.username.charAt(0).toUpperCase();
+            
+            // Show admin section if admin
+            if (Auth.isAdmin()) {
+                document.getElementById('adminSection').style.display = 'block';
+            }
+            
+            // Start session timer
+            startSessionTimer();
+            
+            // Load all tabs
+            loadAllTabs();
+            
+            // Show first tab
+            document.getElementById('registerTest').classList.add('active');
+        });
+        
+        function loadAllTabs() {
+            const tabsContent = document.getElementById('tabsContent');
+            tabsContent.innerHTML = `
+                <div id="registerTest" class="tab-content">${getRegisterTestHTML()}</div>
+                <div id="appdynamics" class="tab-content">${getAppDynamicsHTML()}</div>
+                <div id="awr" class="tab-content">${getAWRHTML()}</div>
+                <div id="kibana" class="tab-content">${getKibanaHTML()}</div>
+                <div id="splunk" class="tab-content">${getSplunkHTML()}</div>
+                <div id="mongodb" class="tab-content">${getMongoDBHTML()}</div>
+                <div id="pc" class="tab-content">${getPerformanceCenterHTML()}</div>
+            `;
+        }
+        
+        async function showCreateUserForm() {
+            document.getElementById('createUserForm').style.display = 'block';
+        }
+        
+        async function createUser() {
+            const username = document.getElementById('newUsername').value.trim();
+            const email = document.getElementById('newEmail').value.trim();
+            const fullName = document.getElementById('newFullName').value.trim();
+            const password = document.getElementById('newPassword').value.trim();
+            const role = document.getElementById('newRole').value;
+            
+            if (!username || !email || !password) {
+                showError('createUserStatus', 'Please fill in all required fields');
+                return;
+            }
+            
+            try {
+                const response = await Auth.authenticatedFetch(`${CONFIG.API_BASE}/auth/create-user`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username, email, full_name: fullName, password, role })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showSuccess('createUserStatus', `✓ User created: ${username}`);
+                    document.getElementById('createUserForm').reset();
+                    setTimeout(() => {
+                        document.getElementById('createUserForm').style.display = 'none';
+                        loadUsers();
+                    }, 2000);
+                } else {
+                    showError('createUserStatus', data.detail || 'Failed to create user');
+                }
+            } catch (error) {
+                showError('createUserStatus', error.message);
+            }
+        }
+        
+        async function loadUsers() {
+            showLoading('usersList', 'Loading users...');
+            
+            try {
+                const response = await Auth.authenticatedFetch(`${CONFIG.API_BASE}/auth/users`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const users = data.users || [];
+                    let html = '';
+                    
+                    users.forEach(user => {
+                        html += `
+                            <div class="user-item">
+                                <div>
+                                    <div class="user-item-name">${user.username}</div>
+                                    <div class="user-item-details">
+                                        <span class="user-role-badge">${user.role}</span>
+                                        ${user.is_active === 'Y' ? '✅ Active' : '❌ Inactive'} •
+                                        ${user.mfa_enabled === 'Y' ? '🔒 MFA Enabled' : '🔓 MFA Disabled'}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    document.getElementById('usersList').innerHTML = html || '<p>No users found</p>';
+                } else {
+                    showError('usersList', 'Failed to load users');
+                }
+            } catch (error) {
+                showError('usersList', error.message);
+            }
+        }
+    </script>
+</body>
+</html>

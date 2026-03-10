@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Dashboard - CQE NFT Monitoring</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/landing.css">
+</head>
+<body>
+    <div class="container">
+        <div class="dashboard-header">
+            <div>
+                <h1>📊 <span id="selectedLOBDisplay">LOB</span> - Health Status Dashboard</h1>
+                <p style="color: #666; margin-top: 5px;">Real-time monitoring health status</p>
+            </div>
+            <button class="btn btn-secondary" onclick="window.location.href='page1-lob-selector.html'">
+                ← Change LOB
+            </button>
+        </div>
+        
+        <div class="health-grid">
+            <h2 class="section-title">System Health Status</h2>
+            <div id="healthCards" class="health-cards">
+                <div class="loading">Loading health status...</div>
+            </div>
+        </div>
+        
+        <div class="action-buttons-section">
+            <button class="btn btn-primary" onclick="window.location.href='page3-login.html'">
+                🔒 Access Monitoring Tools
+            </button>
+            <button class="btn btn-refresh" onclick="loadHealthStatus()">
+                🔄 Refresh Health Status
+            </button>
+        </div>
+    </div>
+    
+    <script src="../js/config.js"></script>
+    <script>
+        let currentLOB = null;
+        
+        window.addEventListener('DOMContentLoaded', function() {
+            currentLOB = localStorage.getItem('selected_lob');
+            if (!currentLOB) {
+                window.location.href = 'page1-lob-selector.html';
+                return;
+            }
+            
+            document.getElementById('selectedLOBDisplay').textContent = currentLOB;
+            loadHealthStatus();
+        });
+        
+        function loadHealthStatus() {
+            const healthCards = document.getElementById('healthCards');
+            const tools = CONFIG.LOB_MONITORING_MAP[currentLOB] || [];
+            
+            if (tools.length === 0) {
+                healthCards.innerHTML = '<p class="loading">No monitoring tools configured for this LOB</p>';
+                return;
+            }
+            
+            let html = '';
+            tools.forEach(toolKey => {
+                const tool = CONFIG.MONITORING_TOOLS[toolKey];
+                html += `
+                    <div class="health-card healthy" id="health-${toolKey}">
+                        <div class="health-card-icon">${tool.icon}</div>
+                        <div class="health-card-name">${tool.name}</div>
+                        <div class="health-card-status">
+                            <span class="status-dot healthy"></span>
+                            <span class="status-text">✓ Operational</span>
+                        </div>
+                        <div class="health-card-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Uptime:</span>
+                                <span class="metric-value">99.9%</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Last Check:</span>
+                                <span class="metric-value">Just now</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            healthCards.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
