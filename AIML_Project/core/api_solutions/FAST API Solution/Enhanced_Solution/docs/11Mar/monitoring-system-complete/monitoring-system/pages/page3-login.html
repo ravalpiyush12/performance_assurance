@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - CQE NFT Monitoring</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h2>🔐 Secure Login</h2>
+                <p>Enter your credentials to access monitoring tools</p>
+                <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                    LOB: <strong id="displayLOB">--</strong>
+                </p>
+            </div>
+            
+            <div class="form-group">
+                <label for="loginUsername">Username</label>
+                <input type="text" id="loginUsername" placeholder="Enter your username" autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
+            </div>
+            
+            <div class="form-group">
+                <label for="loginTotp">Authenticator Code (Optional)</label>
+                <input type="text" id="loginTotp" placeholder="Leave blank if MFA not enabled" maxlength="6" autocomplete="one-time-code">
+                <small>Enter 6-digit code from Google Authenticator</small>
+            </div>
+            
+            <button class="btn btn-primary btn-block" onclick="performLogin()">
+                🔓 Login
+            </button>
+            
+            <button class="btn btn-secondary btn-block" onclick="window.location.href='page2-health-dashboard.html'">
+                ← Back to Health Dashboard
+            </button>
+            
+            <div id="loginError" class="alert alert-error" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            const lob = localStorage.getItem('selected_lob');
+            if (!lob) {
+                window.location.href = 'page1-lob-selector.html';
+                return;
+            }
+            document.getElementById('displayLOB').textContent = lob;
+            
+            // Check if already logged in
+            const token = localStorage.getItem('session_token');
+            if (token) {
+                Auth.validateSession(token).then(valid => {
+                    if (valid) window.location.href = 'page4-monitoring-dashboard.html';
+                });
+            }
+        });
+        
+        async function performLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const totpCode = document.getElementById('loginTotp').value.trim();
+            const errorDiv = document.getElementById('loginError');
+            
+            errorDiv.style.display = 'none';
+            
+            if (!username || !password) {
+                errorDiv.textContent = '⚠ Please enter username and password';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            if (totpCode && (totpCode.length !== 6 || !/^\d+$/.test(totpCode))) {
+                errorDiv.textContent = '⚠ TOTP code must be 6 digits or leave blank';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            const result = await Auth.login(username, password, totpCode);
+            
+            if (result.success) {
+                window.location.href = 'page4-monitoring-dashboard.html';
+            } else {
+                errorDiv.textContent = '❌ ' + result.error;
+                errorDiv.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

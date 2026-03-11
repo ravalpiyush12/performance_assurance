@@ -1,0 +1,200 @@
+/* ==========================================
+   LANDING & HEALTH DASHBOARD STYLES
+   ========================================== */
+
+.landing-header,
+.dashboard-header {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.landing-header {
+    text-align: center;
+}
+
+.landing-header h1 {
+    color: #333;
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.landing-header .version {
+    color: #667eea;
+    font-size: 14px;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.dashboard-header h1 {
+    color: #333;
+    font-size: 24px;
+}
+
+.landing-content {
+    background: white;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.lob-selection-card {
+    background: #f8f9fa;
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.lob-selection-card label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.action-buttons,
+.action-buttons-section {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.quick-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.quick-link {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    text-align: center;
+    transition: transform 0.3s;
+}
+
+.quick-link:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.quick-link h3 {
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.quick-link p {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* Health Cards */
+.health-grid {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.health-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.health-card {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    transition: transform 0.2s;
+}
+
+.health-card:hover {
+    transform: translateY(-2px);
+}
+
+.health-card.healthy {
+    border-left-color: #4caf50;
+    background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+}
+
+.health-card.warning {
+    border-left-color: #ff9800;
+    background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+}
+
+.health-card.error {
+    border-left-color: #f44336;
+    background: linear-gradient(135deg, #ff7979 0%, #ff6b6b 100%);
+}
+
+.health-card-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.health-card-name {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.health-card-status {
+    margin-bottom: 15px;
+}
+
+.status-text {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.health-card-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.metric {
+    font-size: 12px;
+}
+
+.metric-label {
+    color: #666;
+    display: block;
+}
+
+.metric-value {
+    font-weight: 600;
+    color: #333;
+}
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .health-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .quick-links {
+        grid-template-columns: 1fr;
+    }
+}

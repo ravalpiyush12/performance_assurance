@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOB Selection - CQE NFT Monitoring</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/landing.css">
+</head>
+<body>
+    <div class="container">
+        <div class="landing-header">
+            <h1>🔐 CQE NFT Monitoring Platform</h1>
+            <p class="version">Multi-Database Management Platform with Integrated Monitoring</p>
+        </div>
+        
+        <div class="landing-content">
+            <h2 class="section-title">📊 Select Your Line of Business</h2>
+            
+            <div class="lob-selection-card">
+                <label for="lobSelector">Choose LOB to Begin:</label>
+                <select id="lobSelector">
+                    <option value="">-- Select Line of Business --</option>
+                </select>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="proceedToHealthDashboard()" id="proceedBtn" disabled>
+                    View Health Status Dashboard →
+                </button>
+            </div>
+            
+            <div class="quick-links">
+                <a href="/api/docs" class="quick-link" target="_blank">
+                    <h3>📚 API Docs</h3>
+                    <p>View API documentation</p>
+                </a>
+                <a href="/logs" class="quick-link" target="_blank">
+                    <h3>📋 Audit Logs</h3>
+                    <p>View system audit trail</p>
+                </a>
+                <a href="/health" class="quick-link" target="_blank">
+                    <h3>❤️ Health Checks</h3>
+                    <p>System health dashboard</p>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../js/config.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            const lobSelector = document.getElementById('lobSelector');
+            const proceedBtn = document.getElementById('proceedBtn');
+            
+            // Populate LOBs
+            Object.keys(CONFIG.LOB_MONITORING_MAP).forEach(lob => {
+                const option = document.createElement('option');
+                option.value = lob;
+                option.textContent = lob;
+                lobSelector.appendChild(option);
+            });
+            
+            // Enable proceed button when LOB selected
+            lobSelector.addEventListener('change', function() {
+                if (this.value) {
+                    proceedBtn.disabled = false;
+                    localStorage.setItem('selected_lob', this.value);
+                } else {
+                    proceedBtn.disabled = true;
+                }
+            });
+        });
+        
+        function proceedToHealthDashboard() {
+            const selectedLOB = document.getElementById('lobSelector').value;
+            if (selectedLOB) {
+                window.location.href = 'page2-health-dashboard.html';
+            }
+        }
+    </script>
+</body>
+</html>

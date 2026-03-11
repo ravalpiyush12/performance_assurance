@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication - Monitoring System</title>
+    <style>
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        /* Login/Setup Modal */
+        .qr-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .qr-modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .qr-modal-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .qr-modal-header h3 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        /* QR Code Container */
+        #qrCodeContainer img {
+            max-width: 250px;
+            max-height: 250px;
+            margin: 20px auto;
+            display: block;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            background: white;
+        }
+        
+        .instructions {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .instructions h4 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            color: #666;
+            line-height: 1.8;
+        }
+        
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        /* Alert Styles */
+        .alert {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+            display: none;
+        }
+        
+        .alert-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #81c784;
+            display: none;
+        }
+        
+        /* Button Styles */
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* User List Styles */
+        .user-list {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .user-list h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-card h4 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            color: #333;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        /* User Item Styles */
+        .user-item {
+            background: #f9f9f9;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .user-info {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .user-details {
+            color: #666;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+        
+        .user-role {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        
+        /* Admin Panel */
+        .admin-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: 20px auto;
+        }
+        
+        .admin-panel h3 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        /* Session Info */
+        .session-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #2196f3;
+        }
+        
+        .session-info h4 {
+            color: #0d47a1;
+            margin-bottom: 10px;
+        }
+        
+        /* Permissions List */
+        .permissions-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .permission-badge {
+            background: #4caf50;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        /* Welcome Section */
+        .welcome-box {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            max-width: 500px;
+            margin: 50px auto;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .welcome-box h3 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        /* QR Code Modal */
+        #qrCodeModal {
+            display: none;
+        }
+        
+        /* Login Modal */
+        #loginModal {
+            /* Styles already defined in qr-modal-overlay */
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- ========================================
+         QR CODE SETUP MODAL
+         ======================================== -->
+    <div id="qrCodeModal" class="qr-modal-overlay">
+        <div class="qr-modal-content">
+            <div class="qr-modal-header">
+                <h3>📱 Setup Google Authenticator</h3>
+                <p style="color: #666;">Scan this QR code with your authenticator app</p>
+            </div>
+            
+            <div class="instructions">
+                <h4>Setup Instructions:</h4>
+                <ol>
+                    <li>Install Google Authenticator on your phone</li>
+                    <li>Open the app and tap '+' to add account</li>
+                    <li>Scan the QR code below</li>
+                    <li>Use the 6-digit code from app to login</li>
+                </ol>
+            </div>
+            
+            <div id="qrCodeContainer">
+                <!-- QR Code image will be inserted here -->
+            </div>
+            
+            <div class="form-group">
+                <label for="totpCode">Enter 6-Digit Code to Verify Setup:</label>
+                <input type="text" id="totpCode" placeholder="000000" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code">
+            </div>
+            
+            <button class="btn btn-primary" onclick="closeQRModal()">✓ I've Scanned the QR Code</button>
+            
+            <div id="qrSetupError" class="alert alert-error"></div>
+        </div>
+    </div>
+    
+    <!-- ========================================
+         LOGIN MODAL
+         ======================================== -->
+    <div id="loginModal" class="qr-modal-overlay">
+        <div class="qr-modal-content">
+            <h3>🔐 Secure Login</h3>
+            <p style="color: #666; margin-bottom: 25px;">Enter your credentials to access the monitoring system</p>
+            
+            <div class="form-group">
+                <label for="loginUsername">Username</label>
+                <input type="text" id="loginUsername" placeholder="Enter your username" autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
+            </div>
+            
+            <div class="form-group">
+                <label for="loginTotp">Authenticator Code (Optional)</label>
+                <input type="text" id="loginTotp" placeholder="Leave blank if not enabled" maxlength="6" autocomplete="one-time-code">
+                <small>Open Google Authenticator app and enter the 6-digit code</small>
+            </div>
+            
+            <button class="btn btn-primary" onclick="performLogin()">🔓 Login</button>
+            
+            <div id="loginError" class="alert alert-error"></div>
+        </div>
+    </div>
+    
+    <!-- ========================================
+         MAIN APPLICATION (AFTER LOGIN)
+         ======================================== -->
+    <div id="app" style="display: none;">
+        
+        <!-- Session Info -->
+        <div class="session-info">
+            <h4>📊 Session Expires In: <span id="sessionExpiry"></span></h4>
+            <div id="userInfo">
+                <div><strong>User ID:</strong> <span id="userId"></span></div>
+                <div><strong>Username:</strong> <span id="username"></span></div>
+                <div><strong>Role:</strong> <span id="userRole"></span></div>
+            </div>
+            <div class="permissions-list" id="permissions">
+                <!-- Permissions badges populated here -->
+            </div>
+        </div>
+        
+        <!-- Admin Panel -->
+        <div id="adminSection" style="display: none;">
+            <div class="admin-panel">
+                <h3>👥 Admin Panel - User Management</h3>
+                
+                <button class="btn btn-primary" onclick="document.getElementById('addUserForm').style.display='block'">
+                    ➕ Add New User
+                </button>
+                
+                <div id="addUserForm" style="display: none; margin-top: 20px;">
+                    <h4>Create New User</h4>
+                    
+                    <div class="form-group">
+                        <label for="newUsername">Username</label>
+                        <input type="text" id="newUsername" placeholder="john.doe" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newEmail">Email</label>
+                        <input type="email" id="newEmail" placeholder="john@company.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newFullName">Full Name</label>
+                        <input type="text" id="newFullName" placeholder="John Doe">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newPassword">Password</label>
+                        <input type="password" id="newPassword" placeholder="Min 8 characters" required>
+                        <small>Password must be at least 8 characters long</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newRole">Role</label>
+                        <select id="newRole" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                            <option value="viewer">Viewer</option>
+                            <option value="performance_engineer">Performance Engineer</option>
+                            <option value="test_lead">Test Lead</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="createUser()">✓ Create User</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('addUserForm').style.display='none'">Cancel</button>
+                    
+                    <div id="createUserError" class="alert alert-error"></div>
+                    <div id="createUserSuccess" class="alert alert-success"></div>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="loadUsers()" style="margin-top: 20px;">
+                    🔄 Refresh User List
+                </button>
+            </div>
+        </div>
+        
+        <!-- User List -->
+        <div class="user-list">
+            <h2>📋 User List</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>Total Users</h4>
+                    <div class="value" id="totalUsers">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Active Users</h4>
+                    <div class="value" id="activeUsers">0</div>
+                </div>
+                <div class="stat-card">
+                    <h4>MFA Enabled</h4>
+                    <div class="value" id="mfaUsers">0</div>
+                </div>
+            </div>
+            
+            <div id="usersList">
+                <div class="loading">Loading users...</div>
+            </div>
+        </div>
+        
+        <!-- Logout Button -->
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn btn-secondary" onclick="logout()" style="max-width: 300px;">
+                🚪 Logout
+            </button>
+        </div>
+        
+    </div>
+    
+    <script>
+        // ========================================
+        // CONFIGURATION
+        // ========================================
+        const API_BASE = 'http://localhost:8000/api/v1';
+        
+        // Global State
+        let sessionToken = null;
+        let currentUser = null;
+        
+        // ========================================
+        // AUTHENTICATION FUNCTIONS
+        // ========================================
+        
+        async function performLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const totpCode = document.getElementById('loginTotp').value.trim();
+            
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.style.display = 'none';
+            
+            // Validation
+            if (!username || !password) {
+                errorDiv.textContent = '⚠ Please fill in all required fields';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Basic email validation
+            if (!username.includes('@') && !username.match(/^[a-zA-Z0-9._-]+$/)) {
+                errorDiv.textContent = '⚠ Please enter a valid email address';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // TOTP validation (if provided)
+            if (totpCode && (totpCode.length !== 6 || !/^\d+$/.test(totpCode))) {
+                errorDiv.textContent = '⚠ TOTP code must be 6 digits or leave blank';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                console.log('🔄 Calling $login()...');
+                
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        totp_code: totpCode || null
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('✓ $login() returned:', data);
+                
+                if (response.ok && data.success) {
+                    // Store session info
+                    sessionToken = data.session_token;
+                    localStorage.setItem('session_token', sessionToken);
+                    
+                    currentUser = {
+                        user_id: data.user_id,
+                        username: data.username,
+                        email: data.email,
+                        full_name: data.full_name,
+                        role: data.role
+                    };
+                    
+                    console.log('✓ Login successful:', currentUser);
+                    
+                    // Load user details
+                    await loadUserDetails();
+                    
+                    // Show app
+                    showApp();
+                    
+                } else {
+                    errorDiv.textContent = '❌ ' + (data.detail || 'Login failed. Please check your credentials.');
+                    errorDiv.style.display = 'block';
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                errorDiv.textContent = '❌ Login failed: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+        
+        async function loadUserDetails() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/auth/me`);
+                const data = await response.json();
+                
+                if (data.permissions) {
+                    currentUser.permissions = data.permissions;
+                }
+                
+            } catch (error) {
+                console.error('Error loading user details:', error);
+            }
+        }
+        
+        function showApp() {
+            // Hide login modal
+            document.getElementById('loginModal').style.display = 'none';
+            
+            // Clear login form
+            document.getElementById('loginUsername').value = '';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginTotp').value = '';
+            
+            // Show app
+            document.getElementById('app').style.display = 'block';
+            
+            // Update UI with user info
+            document.getElementById('userId').textContent = currentUser.user_id;
+            document.getElementById('username').textContent = currentUser.username;
+            document.getElementById('userRole').textContent = currentUser.role;
+            
+            // Display permissions
+            const permissionsDiv = document.getElementById('permissions');
+            if (currentUser.permissions && currentUser.permissions.length > 0) {
+                permissionsDiv.innerHTML = currentUser.permissions
+                    .map(perm => `<span class="permission-badge">${perm}</span>`)
+                    .join('');
+            }
+            
+            // Show admin panel if user is admin
+            if (currentUser.role === 'admin') {
+                document.getElementById('adminSection').style.display = 'block';
+            }
+            
+            // Update session expiry (if available)
+            updateSessionExpiry();
+            
+            // Load users
+            loadUsers();
+        }
+        
+        function updateSessionExpiry() {
+            // TODO: Calculate and display session expiry
+            document.getElementById('sessionExpiry').textContent = '60 minutes';
+        }
+        
+        async function logout() {
+            if (sessionToken) {
+                try {
+                    await fetch(`${API_BASE}/auth/logout`, {
+                        method: 'POST',
+                        headers: {'Authorization': `Bearer ${sessionToken}`}
+                    });
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            }
+            
+            // Clear session data
+            sessionToken = null;
+            currentUser = null;
+            localStorage.removeItem('session_token');
+            
+            // Hide app
+            document.getElementById('app').style.display = 'none';
+            
+            // Show login modal
+            document.getElementById('loginModal').style.display = 'flex';
+        }
+        
+        async function authenticatedFetch(url, options = {}) {
+            if (!sessionToken) {
+                throw new Error('Not authenticated');
+            }
+            
+            options.headers = options.headers || {};
+            options.headers['Authorization'] = `Bearer ${sessionToken}`;
+            
+            const response = await fetch(url, options);
+            
+            if (response.status === 401) {
+                // Session expired
+                logout();
+                alert('❌ Session expired. Please login again.');
+                throw new Error('Session expired');
+            }
+            
+            return response;
+        }
+        
+        // ========================================
+        // ADMIN FUNCTIONS
+        // ========================================
+        
+        async function createUser() {
+            const username = document.getElementById('newUsername').value.trim();
+            const email = document.getElementById('newEmail').value.trim();
+            const fullName = document.getElementById('newFullName').value.trim();
+            const password = document.getElementById('newPassword').value.trim();
+            const role = document.getElementById('newRole').value;
+            
+            const errorDiv = document.getElementById('createUserError');
+            const successDiv = document.getElementById('createUserSuccess');
+            
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            
+            // Validation
+            if (!username || !email || !password || !role) {
+                errorDiv.textContent = '⚠ Please fill in all required fields';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Basic password validation
+            if (password.length < 8) {
+                errorDiv.textContent = '⚠ Password must be at least 8 characters long';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                console.log('Creating user:', username);
+                
+                const response = await authenticatedFetch(`${API_BASE}/auth/create-user`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: username,
+                        email: email,
+                        full_name: fullName,
+                        password: password,
+                        role: role
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    successDiv.textContent = `✓ User created successfully! ${data.user.username}`;
+                    successDiv.style.display = 'block';
+                    
+                    // Show QR code if TOTP is enabled
+                    if (data.qr_code_base64) {
+                        document.getElementById('qrCodeContainer').innerHTML = 
+                            `<img src="data:image/png;base64,${data.qr_code_base64}" alt="QR Code for ${username}"/>
+                             <p style="text-align: center; color: #666; margin-top: 10px;">
+                                 <strong>TOTP Secret:</strong> ${data.totp_secret}<br/>
+                                 <small>QR Code saved for TOTP setup</small>
+                             </p>`;
+                    }
+                    
+                    // Clear form
+                    document.getElementById('newUsername').value = '';
+                    document.getElementById('newEmail').value = '';
+                    document.getElementById('newFullName').value = '';
+                    document.getElementById('newPassword').value = '';
+                    
+                    // Refresh user list
+                    setTimeout(() => {
+                        loadUsers();
+                        document.getElementById('addUserForm').style.display = 'none';
+                    }, 2000);
+                    
+                } else {
+                    errorDiv.textContent = '❌ ' + (data.detail || data.error || 'Failed to create user');
+                    errorDiv.style.display = 'block';
+                }
+                
+            } catch (error) {
+                console.error('Create user error:', error);
+                errorDiv.textContent = '❌ Error creating user: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+        
+        async function loadUsers() {
+            const usersDiv = document.getElementById('usersList');
+            usersDiv.innerHTML = '<div class="loading">Loading users...</div>';
+            
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/auth/users`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const users = data.users || [];
+                    
+                    // Update stats
+                    document.getElementById('totalUsers').textContent = users.length;
+                    document.getElementById('activeUsers').textContent = 
+                        users.filter(u => u.is_active === 'Y').length;
+                    document.getElementById('mfaUsers').textContent = 
+                        users.filter(u => u.mfa_enabled === 'Y').length;
+                    
+                    // Build user list HTML
+                    if (users.length === 0) {
+                        usersDiv.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No users found.</p>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    users.forEach(user => {
+                        const isActive = user.is_active === 'Y';
+                        const mfaEnabled = user.mfa_enabled === 'Y';
+                        
+                        html += `
+                            <div class="user-item">
+                                <div class="user-info">
+                                    <div class="user-name">${user.username}</div>
+                                    <div class="user-details">
+                                        <span class="user-role">${user.role}</span>
+                                        ${isActive ? '✅ Active' : '❌ Inactive'} •
+                                        ${mfaEnabled ? '🔒 MFA Enabled' : '🔓 MFA Disabled'} •
+                                        <strong>Created:</strong> ${new Date(user.created_date).toLocaleDateString()}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    usersDiv.innerHTML = html;
+                    
+                } else {
+                    usersDiv.innerHTML = '<p style="color: #e74c3c; text-align: center;">Error loading users</p>';
+                }
+                
+            } catch (error) {
+                console.error('Load users error:', error);
+                usersDiv.innerHTML = `<p style="color: #e74c3c; text-align: center;">Error loading users: ${error.message}</p>`;
+            }
+        }
+        
+        // ========================================
+        // QR CODE MODAL
+        // ========================================
+        
+        function closeQRModal() {
+            document.getElementById('qrCodeModal').style.display = 'none';
+        }
+        
+        // ========================================
+        // AUTO-LOGIN ON PAGE LOAD
+        // ========================================
+        
+        window.addEventListener('DOMContentLoaded', async function() {
+            const savedToken = localStorage.getItem('session_token');
+            
+            if (savedToken) {
+                sessionToken = savedToken;
+                
+                try {
+                    const response = await fetch(`${API_BASE}/auth/me`, {
+                        headers: {'Authorization': `Bearer ${savedToken}`}
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        currentUser = {
+                            user_id: data.user_id,
+                            username: data.username,
+                            email: data.email,
+                            full_name: data.full_name,
+                            role: data.role,
+                            permissions: data.permissions
+                        };
+                        
+                        console.log('✓ Auto-login successful');
+                        showApp();
+                    } else {
+                        // Token invalid
+                        localStorage.removeItem('session_token');
+                        sessionToken = null;
+                    }
+                } catch (error) {
+                    console.error('Auto-login failed:', error);
+                    localStorage.removeItem('session_token');
+                    sessionToken = null;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
