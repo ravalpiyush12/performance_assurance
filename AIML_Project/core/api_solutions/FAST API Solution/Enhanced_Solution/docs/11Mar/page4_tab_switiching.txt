@@ -1,0 +1,61 @@
+// ==========================================
+// FIX FOR PAGE4-MONITORING-DASHBOARD.HTML
+// Add this to your switchMainTab function
+// ==========================================
+
+function switchMainTab(event, tabName) {
+    console.log('🔄 Switching to tab:', tabName);
+    
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active from all tab buttons
+    document.querySelectorAll('.tab-header .tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    const targetTab = document.getElementById(tabName);
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
+    
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+    }
+    
+    // CRITICAL: Call init function for the tab
+    const initFuncName = `init_${tabName}`;
+    console.log('🔧 Looking for init function:', initFuncName);
+    
+    if (typeof window[initFuncName] === 'function') {
+        console.log('✓ Calling', initFuncName);
+        window[initFuncName]();
+    } else {
+        console.warn('⚠ No init function found:', initFuncName);
+    }
+}
+
+// ==========================================
+// ALSO ADD THIS TO YOUR PAGE LOAD
+// ==========================================
+
+window.addEventListener('DOMContentLoaded', async function() {
+    // ... your existing auth check code ...
+    
+    // After authentication and user info display:
+    
+    // Load all tabs
+    loadAllTabs();
+    
+    // Show first tab
+    document.getElementById('registerTest').classList.add('active');
+    
+    // CRITICAL: Initialize the first tab
+    console.log('🚀 Initializing first tab: Register Test');
+    if (typeof init_registerTest === 'function') {
+        init_registerTest();
+    }
+});
