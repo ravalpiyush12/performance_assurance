@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Monitoring - Setup</title>
+    <link rel="stylesheet" href="../../css/global.css">
+</head>
+<body>
+    <div class="container">
+        <div class="platform-header">
+            <h1>⚡ Test Monitoring Activity</h1>
+            <p>Configure your monitoring session before login</p>
+        </div>
+
+        <div class="card" style="max-width:700px;margin:0 auto;">
+            <h2 style="font-weight:800;margin-bottom:25px;">Step 1: Select LOB and Track</h2>
+            
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                <span>Select your LOB and Track template. After login, the track configuration will be pre-loaded for monitoring.</span>
+            </div>
+
+            <div class="form-group">
+                <label>Line of Business <span class="required">*</span></label>
+                <select id="lobSelect" onchange="loadTracks()">
+                    <option value="">-- Select LOB --</option>
+                    <option value="Digital Technology">Digital Technology</option>
+                    <option value="Payments">Payments</option>
+                    <option value="Corporate">Corporate</option>
+                    <option value="Retail Banking">Retail Banking</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Track Template <span class="required">*</span></label>
+                <select id="trackSelect" disabled>
+                    <option value="">-- Select Track --</option>
+                </select>
+                <small>Track contains pre-configured monitoring settings (AppD apps, dashboards, etc.)</small>
+            </div>
+
+            <div id="trackPreview" class="hidden" style="margin-top:25px;padding:20px;background:#f9fafb;border-radius:12px;border-left:4px solid var(--primary);">
+                <h4 style="font-weight:800;margin-bottom:15px;">Track Configuration Preview</h4>
+                <div id="trackDetails"></div>
+            </div>
+
+            <div style="margin-top:30px;display:flex;gap:15px;">
+                <button class="btn btn-secondary" onclick="window.location.href='../landing.html'">← Back to Home</button>
+                <button class="btn btn-primary" id="continueBtn" onclick="continueToLogin()" disabled>Continue to Validation →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DUMMY TRACK DATA - Replace with API call
+        const TRACKS_DATA = {
+            'Digital Technology': [
+                { 
+                    name: 'CDV3', 
+                    appd_apps: ['icg-tts-cirp-ng-173720_PTE', 'CDV3_NFT_Digital_Technology', 'CIRP_Digital_Tech'],
+                    kibana_dashboard: 'Performance_Monitoring_CDV3',
+                    splunk_dashboard: 'Application_Logs_CDV3',
+                    mongodb_collections: 'metrics_cdv3, logs_cdv3'
+                },
+                { 
+                    name: 'Track1',
+                    appd_apps: ['ServiceTech_API', 'Digital_Platform_Core'],
+                    kibana_dashboard: 'Performance_Monitoring_Track1',
+                    splunk_dashboard: 'Application_Logs_Track1',
+                    mongodb_collections: 'metrics_track1'
+                },
+                { 
+                    name: 'Track2',
+                    appd_apps: ['Payment_Gateway_API'],
+                    kibana_dashboard: 'Performance_Monitoring_Track2',
+                    splunk_dashboard: 'Application_Logs_Track2',
+                    mongodb_collections: 'metrics_track2'
+                }
+            ],
+            'Payments': [
+                { 
+                    name: 'PayTrack1',
+                    appd_apps: ['Payment_Gateway_API', 'Transaction_Processor'],
+                    kibana_dashboard: 'Payment_Logs',
+                    splunk_dashboard: 'Payment_Events',
+                    mongodb_collections: 'payment_metrics'
+                },
+                { 
+                    name: 'PayTrack2',
+                    appd_apps: ['Payment_Reconciliation'],
+                    kibana_dashboard: 'Reconciliation_Logs',
+                    splunk_dashboard: 'Reconciliation_Events',
+                    mongodb_collections: 'reconciliation_metrics'
+                }
+            ],
+            'Corporate': [
+                { 
+                    name: 'CorpTrack1',
+                    appd_apps: ['Corporate_Portal', 'Corporate_API'],
+                    kibana_dashboard: 'Corporate_Logs',
+                    splunk_dashboard: 'Corporate_Events',
+                    mongodb_collections: 'corporate_metrics'
+                }
+            ],
+            'Retail Banking': [
+                { 
+                    name: 'RetailTrack1',
+                    appd_apps: ['Retail_Portal', 'Retail_API'],
+                    kibana_dashboard: 'Retail_Logs',
+                    splunk_dashboard: 'Retail_Events',
+                    mongodb_collections: 'retail_metrics'
+                }
+            ]
+        };
+
+        let selectedTrackData = null;
+
+        function loadTracks() {
+            const lob = document.getElementById('lobSelect').value;
+            const trackSelect = document.getElementById('trackSelect');
+            
+            trackSelect.innerHTML = '<option value="">-- Select Track --</option>';
+            document.getElementById('trackPreview').classList.add('hidden');
+            document.getElementById('continueBtn').disabled = true;
+            
+            if (lob && TRACKS_DATA[lob]) {
+                TRACKS_DATA[lob].forEach(track => {
+                    const option = document.createElement('option');
+                    option.value = track.name;
+                    option.textContent = track.name;
+                    option.dataset.trackData = JSON.stringify(track);
+                    trackSelect.appendChild(option);
+                });
+                trackSelect.disabled = false;
+                trackSelect.onchange = showTrackPreview;
+            } else {
+                trackSelect.disabled = true;
+            }
+        }
+
+        function showTrackPreview() {
+            const trackSelect = document.getElementById('trackSelect');
+            const selectedOption = trackSelect.options[trackSelect.selectedIndex];
+            
+            if (selectedOption.value) {
+                selectedTrackData = JSON.parse(selectedOption.dataset.trackData);
+                
+                const previewHTML = `
+                    <div style="font-size:14px;">
+                        <div style="margin-bottom:12px;">
+                            <strong style="color:#6b7280;">AppDynamics Applications:</strong>
+                            <div style="margin-top:8px;">
+                                ${selectedTrackData.appd_apps.map(app => 
+                                    `<div style="padding:8px 12px;background:white;border-radius:6px;margin-bottom:6px;border-left:3px solid #3b82f6;">
+                                        ✓ ${app}
+                                    </div>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        <div style="margin-bottom:8px;">
+                            <strong style="color:#6b7280;">Kibana Dashboard:</strong> ${selectedTrackData.kibana_dashboard}
+                        </div>
+                        <div style="margin-bottom:8px;">
+                            <strong style="color:#6b7280;">Splunk Dashboard:</strong> ${selectedTrackData.splunk_dashboard}
+                        </div>
+                        <div>
+                            <strong style="color:#6b7280;">MongoDB Collections:</strong> ${selectedTrackData.mongodb_collections}
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('trackDetails').innerHTML = previewHTML;
+                document.getElementById('trackPreview').classList.remove('hidden');
+                document.getElementById('continueBtn').disabled = false;
+            } else {
+                document.getElementById('trackPreview').classList.add('hidden');
+                document.getElementById('continueBtn').disabled = true;
+            }
+        }
+
+        function continueToLogin() {
+            const lob = document.getElementById('lobSelect').value;
+            const track = document.getElementById('trackSelect').value;
+            
+            if (!lob || !track) {
+                alert('⚠ Please select both LOB and Track');
+                return;
+            }
+            
+            // Store selections in sessionStorage
+            sessionStorage.setItem('monitoringSetup', JSON.stringify({
+                lob: lob,
+                track: track,
+                trackData: selectedTrackData
+            }));
+            
+            // Redirect to validation
+            window.location.href = 'validate.html';
+        }
+    </script>
+</body>
+</html>

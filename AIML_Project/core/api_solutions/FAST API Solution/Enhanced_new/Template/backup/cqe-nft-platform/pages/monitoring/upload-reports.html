@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Test Reports</title>
+    <link rel="stylesheet" href="../../css/global.css">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="start-monitoring.html" class="nav-link">← Back to Monitoring</a>
+        <a href="../admin/api-docs.html" class="nav-link">📖 API Docs</a>
+        <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+    </div>
+
+    <div class="container" style="margin-top:80px;">
+        <div class="platform-header">
+            <h1>📤 Upload Test Reports</h1>
+            <p>Upload AWR and Performance Center reports for delayed processing</p>
+        </div>
+
+        <div class="card">
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                <span>Use this section when AWR and PC reports become available later (typically 1 day after test completion)</span>
+            </div>
+
+            <h3 style="font-weight:800;margin:25px 0 20px;">Select Test</h3>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>LOB</label>
+                    <input type="text" id="lob" value="Digital Technology" readonly style="background:#f9fafb;">
+                </div>
+
+                <div class="form-group">
+                    <label>Track <span class="required">*</span></label>
+                    <select id="track">
+                        <option value="">-- Select Track --</option>
+                        <option value="CDV3">CDV3</option>
+                        <option value="Track1">Track1</option>
+                        <option value="Track2">Track2</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Release Name <span class="required">*</span></label>
+                    <select id="release">
+                        <option value="">-- Select Release --</option>
+                        <option value="Release 2.5">Release 2.5</option>
+                        <option value="Release 2.4">Release 2.4</option>
+                        <option value="Release 2.3">Release 2.3</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>PC Run ID <span class="required">*</span></label>
+                    <input type="text" id="pcRunId" placeholder="e.g., 65989">
+                </div>
+            </div>
+
+            <h3 style="font-weight:800;margin:25px 0 20px;">Upload Files</h3>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>AWR HTML Report</label>
+                    <input type="file" id="awrFile" accept=".html">
+                    <small>Upload AWR HTML report file</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Performance Center ZIP</label>
+                    <input type="file" id="pcFile" accept=".zip">
+                    <small>Upload PC results ZIP file</small>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="uploadReports()" style="width:100%;margin-top:20px;">
+                📤 Upload & Process Reports
+            </button>
+        </div>
+
+        <div id="uploadResults" class="card hidden">
+            <h3 style="font-weight:800;margin-bottom:20px;">✓ Upload Complete</h3>
+            
+            <div class="alert alert-success">
+                <span>✓</span>
+                <span>Reports processed and data stored successfully in Oracle database!</span>
+            </div>
+
+            <h4 style="font-weight:700;margin:20px 0 15px;">Storage Summary</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Table Name</th>
+                        <th>Records Inserted</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>ORACLE_AWR_METRICS</strong></td>
+                        <td>847</td>
+                        <td><span class="badge badge-success">Success</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>ORACLE_AWR_TOP_SQL</strong></td>
+                        <td>234</td>
+                        <td><span class="badge badge-success">Success</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>PC_TRANSACTION_DETAILS</strong></td>
+                        <td>456</td>
+                        <td><span class="badge badge-success">Success</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>PC_PERFORMANCE_METRICS</strong></td>
+                        <td>892</td>
+                        <td><span class="badge badge-success">Success</span></td>
+                    </tr>
+                    <tr style="background:#f0fdf4;">
+                        <td><strong>TOTAL</strong></td>
+                        <td><strong>2,429</strong></td>
+                        <td><span class="badge badge-success">Complete</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <button class="btn btn-primary" onclick="location.reload()" style="width:100%;margin-top:20px;">
+                Upload More Reports
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const setup = JSON.parse(sessionStorage.getItem('monitoringSetup') || '{}');
+        if (setup.lob) {
+            document.getElementById('lob').value = setup.lob;
+        }
+
+        function uploadReports() {
+            const track = document.getElementById('track').value;
+            const release = document.getElementById('release').value;
+            const pcRunId = document.getElementById('pcRunId').value;
+            const awrFile = document.getElementById('awrFile').files[0];
+            const pcFile = document.getElementById('pcFile').files[0];
+
+            if (!track || !release || !pcRunId) {
+                alert('⚠ Please fill all required fields');
+                return;
+            }
+
+            if (!awrFile && !pcFile) {
+                alert('⚠ Please select at least one file to upload');
+                return;
+            }
+
+            // Simulate upload
+            document.getElementById('uploadResults').classList.remove('hidden');
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = '../landing.html';
+        }
+    </script>
+</body>
+</html>

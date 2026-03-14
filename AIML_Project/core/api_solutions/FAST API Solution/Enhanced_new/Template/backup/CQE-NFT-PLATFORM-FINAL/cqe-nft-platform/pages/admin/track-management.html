@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Management</title>
+    <link rel="stylesheet" href="../../css/global.css">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+        <a href="api-docs.html" class="nav-link">📖 API Docs</a>
+        <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+        <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+    </div>
+
+    <div class="container" style="margin-top:80px;">
+        <div class="platform-header">
+            <h1>⚙️ Track Template Management</h1>
+            <p>Configure monitoring templates for tracks</p>
+        </div>
+
+        <div class="card">
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                <span>Track templates define which AppD applications, dashboards, and collections are used for monitoring. Performance Engineers will see these as read-only when starting monitoring.</span>
+            </div>
+
+            <h3 style="font-weight:800;margin:25px 0 20px;">Select Track to Configure</h3>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>LOB</label>
+                    <select id="lob" onchange="loadTracks()">
+                        <option value="">-- Select LOB --</option>
+                        <option value="Digital Technology">Digital Technology</option>
+                        <option value="Payments">Payments</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Retail Banking">Retail Banking</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Track</label>
+                    <select id="track" onchange="loadTrackConfig()" disabled>
+                        <option value="">-- Select Track --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="configSection" class="hidden">
+                <h3 style="font-weight:800;margin:30px 0 20px;">Track Configuration</h3>
+
+                <div class="form-group">
+                    <label>Track Name</label>
+                    <input type="text" id="trackName" readonly style="background:#f9fafb;">
+                </div>
+
+                <h4 style="font-weight:700;margin:20px 0 15px;">AppDynamics Applications</h4>
+                <div id="appdApps" style="margin-bottom:20px;"></div>
+                <button class="btn btn-secondary" onclick="addAppdApp()" style="margin-bottom:20px;">+ Add Application</button>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Kibana Dashboard Name</label>
+                        <input type="text" id="kibanaDashboard" placeholder="e.g., Performance_Monitoring_CDV3">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Splunk Dashboard Name</label>
+                        <input type="text" id="splunkDashboard" placeholder="e.g., Application_Logs_CDV3">
+                    </div>
+
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <label>MongoDB Collections</label>
+                        <input type="text" id="mongoCollections" placeholder="e.g., metrics_cdv3, logs_cdv3">
+                        <small>Comma-separated collection names</small>
+                    </div>
+                </div>
+
+                <button class="btn btn-success" onclick="saveTrack()" style="width:100%;margin-top:20px;">
+                    💾 Save Track Configuration
+                </button>
+            </div>
+        </div>
+
+        <div id="successMsg" class="card hidden">
+            <div class="alert alert-success">
+                <span>✓</span>
+                <span>Track configuration saved successfully!</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TRACKS = {
+            'Digital Technology': ['CDV3', 'Track1', 'Track2'],
+            'Payments': ['PayTrack1', 'PayTrack2'],
+            'Corporate': ['CorpTrack1'],
+            'Retail Banking': ['RetailTrack1']
+        };
+
+        const TRACK_CONFIGS = {
+            'CDV3': {
+                appd_apps: ['icg-tts-cirp-ng-173720_PTE', 'CDV3_NFT_Digital_Technology'],
+                kibana_dashboard: 'Performance_Monitoring_CDV3',
+                splunk_dashboard: 'Application_Logs_CDV3',
+                mongodb_collections: 'metrics_cdv3, logs_cdv3'
+            }
+        };
+
+        function loadTracks() {
+            const lob = document.getElementById('lob').value;
+            const trackSelect = document.getElementById('track');
+            
+            trackSelect.innerHTML = '<option value="">-- Select Track --</option>';
+            document.getElementById('configSection').classList.add('hidden');
+            
+            if (lob && TRACKS[lob]) {
+                TRACKS[lob].forEach(track => {
+                    trackSelect.innerHTML += `<option value="${track}">${track}</option>`;
+                });
+                trackSelect.disabled = false;
+            } else {
+                trackSelect.disabled = true;
+            }
+        }
+
+        function loadTrackConfig() {
+            const track = document.getElementById('track').value;
+            if (!track) return;
+
+            document.getElementById('trackName').value = track;
+            
+            const config = TRACK_CONFIGS[track] || { appd_apps: [], kibana_dashboard: '', splunk_dashboard: '', mongodb_collections: '' };
+            
+            document.getElementById('kibanaDashboard').value = config.kibana_dashboard;
+            document.getElementById('splunkDashboard').value = config.splunk_dashboard;
+            document.getElementById('mongoCollections').value = config.mongodb_collections;
+            
+            const appdContainer = document.getElementById('appdApps');
+            appdContainer.innerHTML = '';
+            config.appd_apps.forEach(app => {
+                appdContainer.innerHTML += `
+                    <div style="display:flex;gap:10px;margin-bottom:10px;">
+                        <input type="text" value="${app}" style="flex:1;">
+                        <button class="btn btn-danger" style="padding:10px 20px;" onclick="this.parentElement.remove()">✕</button>
+                    </div>
+                `;
+            });
+
+            document.getElementById('configSection').classList.remove('hidden');
+        }
+
+        function addAppdApp() {
+            const container = document.getElementById('appdApps');
+            container.innerHTML += `
+                <div style="display:flex;gap:10px;margin-bottom:10px;">
+                    <input type="text" placeholder="Enter AppD Application Name" style="flex:1;">
+                    <button class="btn btn-danger" style="padding:10px 20px;" onclick="this.parentElement.remove()">✕</button>
+                </div>
+            `;
+        }
+
+        function saveTrack() {
+            document.getElementById('successMsg').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('successMsg').classList.add('hidden');
+            }, 3000);
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = '../landing.html';
+        }
+    </script>
+</body>
+</html>

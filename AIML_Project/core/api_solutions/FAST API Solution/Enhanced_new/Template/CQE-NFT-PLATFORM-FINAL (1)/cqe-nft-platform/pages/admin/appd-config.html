@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AppDynamics Configuration</title>
+    <link rel="stylesheet" href="../../css/global.css">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+        <a href="api-docs.html" class="nav-link">📖 API Docs</a>
+        <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+        <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+    </div>
+
+    <div class="container" style="margin-top:80px;">
+        <div class="platform-header">
+            <h1>📊 AppDynamics Configuration</h1>
+            <p>Manage AppD applications and monitoring settings</p>
+        </div>
+
+        <div class="card">
+            <h3 style="font-weight:800;margin-bottom:20px;">Registered Applications</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Application Name</th>
+                        <th>Application ID</th>
+                        <th>Track</th>
+                        <th>Tiers</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>icg-tts-cirp-ng-173720_PTE</strong></td>
+                        <td>173720</td>
+                        <td>CDV3</td>
+                        <td>3 tiers</td>
+                        <td><span class="badge badge-success">Active</span></td>
+                        <td><button class="btn btn-secondary" style="padding:8px 16px;font-size:13px;">Edit</button></td>
+                    </tr>
+                    <tr>
+                        <td><strong>CDV3_NFT_Digital_Technology</strong></td>
+                        <td>165432</td>
+                        <td>CDV3</td>
+                        <td>2 tiers</td>
+                        <td><span class="badge badge-success">Active</span></td>
+                        <td><button class="btn btn-secondary" style="padding:8px 16px;font-size:13px;">Edit</button></td>
+                    </tr>
+                    <tr>
+                        <td><strong>CIRP_Digital_Tech</strong></td>
+                        <td>158721</td>
+                        <td>CDV3</td>
+                        <td>2 tiers</td>
+                        <td><span class="badge badge-success">Active</span></td>
+                        <td><button class="btn btn-secondary" style="padding:8px 16px;font-size:13px;">Edit</button></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Payment_Gateway_API</strong></td>
+                        <td>142389</td>
+                        <td>PayTrack1</td>
+                        <td>3 tiers</td>
+                        <td><span class="badge badge-success">Active</span></td>
+                        <td><button class="btn btn-secondary" style="padding:8px 16px;font-size:13px;">Edit</button></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <button class="btn btn-primary" onclick="alert('Add New Application')" style="margin-top:20px;">
+                ➕ Add New Application
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = '../landing.html';
+        }
+    </script>
+</body>
+</html>

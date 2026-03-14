@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Test Monitoring</title>
+    <link rel="stylesheet" href="../../css/global.css">
+</head>
+<body>
+    <div class="container">
+        <div class="platform-header">
+            <h1>🔐 Login to Monitoring System</h1>
+            <p>Authenticate to access monitoring features</p>
+        </div>
+
+        <div class="card" style="max-width:500px;margin:0 auto;">
+            <div id="setupInfo" class="alert alert-info" style="margin-bottom:25px;">
+                <span>ℹ️</span>
+                <span>LOB: <strong id="displayLob">-</strong> | Track: <strong id="displayTrack">-</strong></span>
+            </div>
+
+            <div class="form-group">
+                <label>Username <span class="required">*</span></label>
+                <input type="text" id="username" placeholder="Enter your username" value="admin@company.com">
+            </div>
+
+            <div class="form-group">
+                <label>Password <span class="required">*</span></label>
+                <input type="password" id="password" placeholder="Enter your password" value="admin123">
+            </div>
+
+            <div class="form-group">
+                <label>TOTP Code <span class="required">*</span></label>
+                <input type="text" id="totp" placeholder="Enter 6-digit code" maxlength="6" value="123456">
+            </div>
+
+            <div class="form-group">
+                <label>Login As <span class="required">*</span></label>
+                <select id="role">
+                    <option value="admin">Admin</option>
+                    <option value="performance_engineer">Performance Engineer</option>
+                </select>
+            </div>
+
+            <div style="margin-top:30px;display:flex;gap:15px;">
+                <button class="btn btn-secondary" onclick="history.back()">← Back</button>
+                <button class="btn btn-primary" onclick="login()">🔐 Login</button>
+            </div>
+
+            <div style="margin-top:20px;padding:15px;background:#fffbeb;border-radius:8px;border-left:4px solid #f59e0b;">
+                <div style="font-size:13px;color:#92400e;">
+                    <strong>Demo Credentials:</strong><br>
+                    Username: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0e6f6a6367604e6d61637e6f6077206d6163">[email&#160;protected]</a> | Password: admin123 | TOTP: 123456
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+        // Load setup info
+        const setup = JSON.parse(sessionStorage.getItem('monitoringSetup') || '{}');
+        document.getElementById('displayLob').textContent = setup.lob || '-';
+        document.getElementById('displayTrack').textContent = setup.track || '-';
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const totp = document.getElementById('totp').value;
+            const role = document.getElementById('role').value;
+
+            if (!username || !password || !totp) {
+                alert('⚠ Please fill all fields');
+                return;
+            }
+
+            // Store session
+            sessionStorage.setItem('userSession', JSON.stringify({
+                username: username,
+                role: role,
+                loginTime: new Date().toISOString()
+            }));
+
+            // Redirect based on role
+            i

@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Test Report</title>
+    <link rel="stylesheet" href="../../css/global.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .report-header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+        }
+
+        .report-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .report-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .meta-item {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .meta-label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .meta-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #f3f4f6;
+        }
+
+        .section-icon {
+            font-size: 32px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            margin: 20px 0;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .metric-unit {
+            font-size: 14px;
+            color: #9ca3af;
+            font-weight: 600;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .data-table th {
+            background: #f9fafb;
+            padding: 12px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid #e5e7eb;
+            font-size: 13px;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 14px;
+        }
+
+        .data-table tr:hover td {
+            background: #f9fafb;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- REPORT HEADER -->
+        <div class="report-header">
+            <div class="report-title" id="reportTitle">Test Report Loading...</div>
+            <div class="report-meta">
+                <div class="meta-item">
+                    <div class="meta-label">PC Run ID</div>
+                    <div class="meta-value" id="pcRunId">-</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">LOB</div>
+                    <div class="meta-value" id="lob">-</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Release</div>
+                    <div class="meta-value" id="release">-</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Test Date</div>
+                    <div class="meta-value" id="testDate">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PERFORMANCE CENTER -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-icon">⚡</span>
+                <span class="section-title">Performance Center Results</span>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Average Response Time</div>
+                    <div class="metric-value">2.34 <span class="metric-unit">sec</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Peak Throughput</div>
+                    <div class="metric-value">1,245 <span class="metric-unit">req/sec</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Transactions</div>
+                    <div class="metric-value">89,234</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Error Rate</div>
+                    <div class="metric-value">0.23 <span class="metric-unit">%</span></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div>
+                    <h4 style="font-weight:700;margin-bottom:15px;">Response Time Over Time</h4>
+                    <div class="chart-container">
+                        <canvas id="pcResponseTimeChart"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h4 style="font-weight:700;margin-bottom:15px;">Throughput</h4>
+                    <div class="chart-container">
+                        <canvas id="pcThroughputChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <h4 style="font-weight:700;margin:30px 0 15px;">Transaction Summary</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Transaction Name</th>
+                        <th>Count</th>
+                        <th>Avg Response (sec)</th>
+                        <th>Min (sec)</th>
+                        <th>Max (sec)</th>
+                        <th>90th Percentile</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Login</strong></td>
+                        <td>5,234</td>
+                        <td>1.23</td>
+                        <td>0.45</td>
+                        <td>8.92</td>
+                        <td>2.34</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Search Products</strong></td>
+                        <td>12,456</td>
+                        <td>2.45</td>
+                        <td>0.89</td>
+                        <td>12.34</td>
+                        <td>4.56</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Add to Cart</strong></td>
+                        <td>8,123</td>
+                        <td>1.89</td>
+                        <td>0.67</td>
+                        <td>9.45</td>
+                        <td>3.12</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Checkout</strong></td>
+                        <td>4,567</td>
+                        <td>3.45</td>
+                        <td>1.23</td>
+                        <td>15.67</td>
+                        <td>5.89</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- APPDYNAMICS -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-icon">📊</span>
+                <span class="section-title">AppDynamics Metrics</span>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card" style="border-left-color:#10b981;">
+                    <div class="metric-label">Avg Response Time</div>
+                    <div class="metric-value">1,234 <span class="metric-unit">ms</span></div>
+                </div>
+                <div class="metric-card" style="border-left-color:#10b981;">
+                    <div class="metric-label">Calls Per Minute</div>
+                    <div class="metric-value">8,945</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#ef4444;">
+                    <div class="metric-label">Error Count</div>
+                    <div class="metric-value">234</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#10b981;">
+                    <div class="metric-label">Slow Calls</div>
+                    <div class="metric-value">45 <span class="metric-unit">calls</span></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div>
+                    <h4 style="font-weight:700;margin-bottom:15px;">Response Time by Application</h4>
+                    <div class="chart-container">
+                        <canvas id="appdResponseChart"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h4 style="font-weight:700;margin-bottom:15px;">Error Rate Timeline</h4>
+                    <div class="chart-container">
+                        <canvas id="appdErrorChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <h4 style="font-weight:700;margin:30px 0 15px;">Business Transactions</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Transaction</th>
+                        <th>Application</th>
+                        <th>Calls</th>
+                        <th>Avg Response (ms)</th>
+                        <th>Errors</th>
+                        <th>Slow Calls</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>/api/login</strong></td>
+                        <td>icg-tts-cirp-ng-173720_PTE</td>
+                        <td>5,234</td>
+                        <td>456</td>
+                        <td>12</td>
+                        <td>5</td>
+                    </tr>
+                    <tr>
+                        <td><strong>/api/products/search</strong></td>
+                        <td>CDV3_NFT_Digital_Technology</td>
+                        <td>12,456</td>
+                        <td>892</td>
+                        <td>34</td>
+                        <td>15</td>
+                    </tr>
+                    <tr>
+                        <td><strong>/api/cart/add</strong></td>
+                        <td>CDV3_NFT_Digital_Technology</td>
+                        <td>8,123</td>
+                        <td>623</td>
+                        <td>8</td>
+                        <td>3</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ORACLE AWR -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-icon">🗄️</span>
+                <span class="section-title">Oracle AWR Analysis</span>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card" style="border-left-color:#f59e0b;">
+                    <div class="metric-label">CPU Usage (Avg)</div>
+                    <div class="metric-value">67 <span class="metric-unit">%</span></div>
+                </div>
+                <div class="metric-card" style="border-left-color:#f59e0b;">
+                    <div class="metric-label">DB Time</div>
+                    <div class="metric-value">234 <span class="metric-unit">min</span></div>
+                </div>
+                <div class="metric-card" style="border-left-color:#f59e0b;">
+                    <div class="metric-label">Physical Reads</div>
+                    <div class="metric-value">1.2M</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#f59e0b;">
+                    <div class="metric-label">Logical Reads</div>
+                    <div class="metric-value">45.6M</div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div>
+                    <h4 style="font-weight:700;margin-bottom:15px;">CPU Usage Over Time</h4>
+                    <div class="chart-container">
+                        <canvas id="awrCpuChart"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h4 style="font-weight:700;margin-bottom:15px;">I/O Statistics</h4>
+                    <div class="chart-container">
+                        <canvas id="awrIoChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <h4 style="font-weight:700;margin:30px 0 15px;">Top SQL Queries (by Elapsed Time)</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>SQL ID</th>
+                        <th>Executions</th>
+                        <th>Elapsed Time (sec)</th>
+                        <th>CPU Time (sec)</th>
+                        <th>Reads</th>
+                        <th>Writes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>8xk9d2p3qw1</code></td>
+                        <td>1,234</td>
+                        <td>456.78</td>
+                        <td>234.56</td>
+                        <td>234,567</td>
+                        <td>12,345</td>
+                    </tr>
+                    <tr>
+                        <td><code>5mn3h7k2pl9</code></td>
+                        <td>5,678</td>
+                        <td>389.45</td>
+                        <td>189.23</td>
+                        <td>456,789</td>
+                        <td>23,456</td>
+                    </tr>
+                    <tr>
+                        <td><code>2qr8j4n6vb3</code></td>
+                        <td>2,345</td>
+                        <td>278.90</td>
+                        <td>145.67</td>
+                        <td>345,678</td>
+                        <td>15,678</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- KIBANA -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-icon">📈</span>
+                <span class="section-title">Kibana Log Analysis</span>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card" style="border-left-color:#3b82f6;">
+                    <div class="metric-label">Total Log Entries</div>
+                    <div class="metric-value">1.2M</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#ef4444;">
+                    <div class="metric-label">Error Logs</div>
+                    <div class="metric-value">8,934</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#f59e0b;">
+                    <div class="metric-label">Warning Logs</div>
+                    <div class="metric-value">23,456</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#10b981;">
+                    <div class="metric-label">Info Logs</div>
+                    <div class="metric-value">1.1M</div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div>
+                    <h4 style="font-weight:700;margin-bottom:15px;">Error Count Timeline</h4>
+                    <div class="chart-container">
+                        <canvas id="kibanaErrorChart"></canvas>
+                    </div>
+                </div>
+                <div>
+                    <h4 style="font-weight:700;margin-bottom:15px;">Log Severity Distribution</h4>
+                    <div class="chart-container">
+                        <canvas id="kibanaSeverityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <h4 style="font-weight:700;margin:30px 0 15px;">Top Errors</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Error Message</th>
+                        <th>Count</th>
+                        <th>First Occurrence</th>
+                        <th>Last Occurrence</th>
+                        <th>Affected Service</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>Connection timeout to database</code></td>
+                        <td>234</td>
+                        <td>08:15:23</td>
+                        <td>08:45:12</td>
+                        <td>API Service</td>
+                    </tr>
+                    <tr>
+                        <td><code>Invalid authentication token</code></td>
+                        <td>156</td>
+                        <td>08:20:45</td>
+                        <td>08:50:34</td>
+                        <td>Auth Service</td>
+                    </tr>
+                    <tr>
+                        <td><code>Rate limit exceeded</code></td>
+                        <td>89</td>
+                        <td>08:25:12</td>
+                        <td>08:55:23</td>
+                        <td>Gateway</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SPLUNK -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-icon">🔍</span>
+                <span class="section-title">Splunk Event Analysis</span>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card" style="border-left-color:#8b5cf6;">
+                    <div class="metric-label">Total Events</div>
+                    <div class="metric-value">6,721</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#ef4444;">
+                    <div class="metric-label">Critical Events</div>
+                    <div class="metric-value">45</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#f59e0b;">
+                    <div class="metric-label">Warning Events</div>
+                    <div class="metric-value">234</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#10b981;">
+                    <div class="metric-label">Info Events</div>
+                    <div class="metric-value">6,442</div>
+                </div>
+            </div>
+
+            <div>
+                <h4 style="font-weight:700;margin-bottom:15px;">Event Timeline</h4>
+                <div class="chart-container">
+                    <canvas id="splunkTimelineChart"></canvas>
+                </div>
+            </div>
+
+            <h4 style="font-weight:700;margin:30px 0 15px;">Critical Events</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Event Type</th>
+                        <th>Source</th>
+                        <th>Message</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>08:15:23</td>
+                        <td>System</td>
+                        <td>LoadBalancer-01</td>
+                        <td>Backend pool health degraded</td>
+                        <td><span class="badge badge-error">Critical</span></td>
+                    </tr>
+                    <tr>
+                        <td>08:20:45</td>
+                        <td>Application</td>
+                        <td>API-Server-03</td>
+                        <td>Memory threshold exceeded</td>
+                        <td><span class="badge badge-error">Critical</span></td>
+                    </tr>
+                    <tr>
+                        <td>08:25:12</td>
+                        <td>Network</td>
+                        <td>Router-02</td>
+                        <td>High packet loss detected</td>
+                        <td><span class="badge badge-warning">Warning</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- MONGODB -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-icon">🍃</span>
+                <span class="section-title">MongoDB Metrics</span>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card" style="border-left-color:#10b981;">
+                    <div class="metric-label">Operations/Second (Avg)</div>
+                    <div class="metric-value">1,234</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#10b981;">
+                    <div class="metric-label">Query Time (Avg)</div>
+                    <div class="metric-value">45 <span class="metric-unit">ms</span></div>
+                </div>
+                <div class="metric-card" style="border-left-color:#10b981;">
+                    <div class="metric-label">Total Documents</div>
+                    <div class="metric-value">2.3M</div>
+                </div>
+                <div class="metric-card" style="border-left-color:#10b981;">
+                    <div class="metric-label">Connections</div>
+                    <div class="metric-value">234</div>
+                </div>
+            </div>
+
+            <div>
+                <h4 style="font-weight:700;margin-bottom:15px;">Operations Per Second</h4>
+                <div class="chart-container">
+                    <canvas id="mongoOpsChart"></canvas>
+                </div>
+            </div>
+
+            <h4 style="font-weight:700;margin:30px 0 15px;">Query Performance</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Collection</th>
+                        <th>Operation</th>
+                        <th>Count</th>
+                        <th>Avg Time (ms)</th>
+                        <th>Slow Queries</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>users</strong></td>
+                        <td>find</td>
+                        <td>5,234</td>
+                        <td>23</td>
+                        <td>12</td>
+                    </tr>
+                    <tr>
+                        <td><strong>products</strong></td>
+                        <td>find</td>
+                        <td>12,456</td>
+                        <td>45</td>
+                        <td>34</td>
+                    </tr>
+                    <tr>
+                        <td><strong>orders</strong></td>
+                        <td>insert</td>
+                        <td>4,567</td>
+                        <td>67</td>
+                        <td>8</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- DATABASE QUERIES -->
+        <div class="section">
+            <div class="section-header">
+                <span class="section-icon">💾</span>
+                <span class="section-title">Database Query Results</span>
+            </div>
+
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                <span>Custom database queries executed during test: 45 queries across 7 databases</span>
+            </div>
+
+            <h4 style="font-weight:700;margin:20px 0 15px;">Query Execution Summary</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Database</th>
+                        <th>Query Type</th>
+                        <th>Executions</th>
+                        <th>Avg Time (ms)</th>
+                        <th>Success Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>CQE_NFT</strong></td>
+                        <td>SELECT</td>
+                        <td>234</td>
+                        <td>145</td>
+                        <td>100%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CD_PTE_READ</strong></td>
+                        <td>SELECT</td>
+                        <td>456</td>
+                        <td>189</td>
+                        <td>100%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>PRODDB01</strong></td>
+                        <td>INSERT</td>
+                        <td>123</td>
+                        <td>234</td>
+                        <td>99.2%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top:30px;">
+            <button class="btn btn-secondary" onclick="history.back()">← Back to Test Selection</button>
+            <button class="btn btn-primary" onclick="exportReport()">📥 Export PDF Report</button>
+        </div>
+    </div>
+
+    <script>
+        // Load test info from sessionStorage
+        const testInfo = JSON.parse(sessionStorage.getItem('selectedTest') || '{}');
+        
+        document.getElementById('reportTitle').textContent = testInfo.test_name || 'Test Report';
+        document.getElementById('pcRunId').textContent = testInfo.pc_run_id || '-';
+        document.getElementById('lob').textContent = testInfo.lob || '-';
+        document.getElementById('release').textContent = testInfo.release || '-';
+        document.getElementById('testDate').textContent = '2026-03-14';
+
+        // Common chart configuration
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            }
+        };
+
+        // PC Response Time Chart
+        new Chart(document.getElementById('pcResponseTimeChart'), {
+            type: 'line',
+            data: {
+                labels: ['0min', '5min', '10min', '15min', '20min', '25min', '30min'],
+                datasets: [{
+                    label: 'Response Time (sec)',
+                    data: [1.2, 1.8, 2.3, 2.1, 2.5, 2.8, 2.4],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: commonOptions
+        });
+
+        // PC Throughput Chart
+        new Chart(document.getElementById('pcThroughputChart'), {
+            type: 'bar',
+            data: {
+                labels: ['0min', '5min', '10min', '15min', '20min', '25min', '30min'],
+                datasets: [{
+                    label: 'Requests/sec',
+                    data: [456, 678, 892, 1245, 1123, 987, 823],
+                    backgroundColor: '#10b981'
+                }]
+            },
+            options: commonOptions
+        });
+
+        // AppD Response Time by Application
+        new Chart(document.getElementById('appdResponseChart'), {
+            type: 'line',
+            data: {
+                labels: ['0min', '5min', '10min', '15min', '20min', '25min', '30min'],
+                datasets: [
+                    {
+                        label: 'icg-tts-cirp-ng-173720_PTE',
+                        data: [456, 523, 612, 589, 634, 678, 623],
+                        borderColor: '#3b82f6',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'CDV3_NFT_Digital_Technology',
+                        data: [523, 589, 634, 612, 678, 723, 689],
+                        borderColor: '#10b981',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'CIRP_Digital_Tech',
+                        data: [489, 534, 578, 545, 589, 612, 578],
+                        borderColor: '#f59e0b',
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: commonOptions
+        });
+
+        // AppD Error Rate
+        new Chart(document.getElementById('appdErrorChart'), {
+            type: 'line',
+            data: {
+                labels: ['0min', '5min', '10min', '15min', '20min', '25min', '30min'],
+                datasets: [{
+                    label: 'Errors/min',
+                    data: [12, 15, 23, 18, 21, 19, 14],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: commonOptions
+        });
+
+        // AWR CPU Usage
+        new Chart(document.getElementById('awrCpuChart'), {
+            type: 'line',
+            data: {
+                labels: ['0min', '5min', '10min', '15min', '20min', '25min', '30min'],
+                datasets: [{
+                    label: 'CPU Usage (%)',
+                    data: [45, 56, 67, 72, 69, 65, 58],
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: commonOptions
+        });
+
+        // AWR I/O Statistics
+        new Chart(document.getElementById('awrIoChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Physical Reads', 'Logical Reads', 'Physical Writes', 'Redo Size'],
+                datasets: [{
+                    label: 'Operations (K)',
+                    data: [1200, 45600, 234, 5678],
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                }]
+            },
+            options: commonOptions
+        });
+
+        // Kibana Error Timeline
+        new Chart(document.getElementById('kibanaErrorChart'), {
+            type: 'line',
+            data: {
+                labels: ['0min', '5min', '10min', '15min', '20min', '25min', '30min'],
+                datasets: [{
+                    label: 'Error Count',
+                    data: [234, 312, 456, 389, 423, 367, 289],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: commonOptions
+        });
+
+        // Kibana Severity Distribution
+        new Chart(document.getElementById('kibanaSeverityChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Info', 'Warning', 'Error', 'Critical'],
+                datasets: [{
+                    data: [1168000, 23456, 7234, 1700],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#991b1b']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+
+        // Splunk Event Timeline
+        new Chart(document.getElementById('splunkTimelineChart'), {
+            type: 'line',
+            data: {
+                labels: ['0min', '5min', '10min', '15min', '20min', '25min', '30min'],
+                datasets: [
+                    {
+                        label: 'Critical',
+                        data: [5, 8, 12, 9, 7, 3, 1],
+                        borderColor: '#ef4444',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Warning',
+                        data: [23, 34, 45, 38, 29, 21, 16],
+                        borderColor: '#f59e0b',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Info',
+                        data: [456, 678, 892, 823, 745, 634, 556],
+                        borderColor: '#10b981',
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: commonOptions
+        });
+
+        // MongoDB Operations
+        new Chart(document.getElementById('mongoOpsChart'), {
+            type: 'line',
+            data: {
+                labels: ['0min', '5min', '10min', '15min', '20min', '25min', '30min'],
+                datasets: [{
+                    label: 'Operations/sec',
+                    data: [892, 1034, 1245, 1178, 1312, 1267, 1156],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: commonOptions
+        });
+
+        function exportReport() {
+            alert('📥 Export functionality will generate a comprehensive PDF report with all charts and data.\n\nIn production, this will call:\nGET /api/v1/analysis/report/' + (testInfo.pc_run_id || '65989') + '/export');
+        }
+    </script>
+</body>
+</html>

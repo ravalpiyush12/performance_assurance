@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation</title>
+    <link rel="stylesheet" href="../../css/global.css">
+    <style>
+        .api-section {
+            margin-bottom: 30px;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+        }
+        .endpoint {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3b82f6;
+        }
+        .method {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        .get { background: #3b82f6; color: white; }
+        .post { background: #10b981; color: white; }
+        .put { background: #f59e0b; color: white; }
+        .delete { background: #ef4444; color: white; }
+        code {
+            background: #1f2937;
+            color: #10b981;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-nav">
+        <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+        <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+        <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+    </div>
+
+    <div class="container" style="margin-top:80px;">
+        <div class="platform-header">
+            <h1>📖 API Documentation</h1>
+            <p>Complete API reference for CQE NFT Platform</p>
+        </div>
+
+        <!-- AUTHENTICATION -->
+        <div class="api-section">
+            <h2 style="font-weight:800;margin-bottom:20px;">🔐 Authentication</h2>
+            
+            <div class="endpoint">
+                <div><span class="method post">POST</span><code>/api/v1/auth/login</code></div>
+                <p style="margin:15px 0 10px;color:#6b7280;"><strong>Description:</strong> Authenticate user and get session token</p>
+                <p style="color:#6b7280;"><strong>Request Body:</strong></p>
+                <pre style="background:#1f2937;color:#10b981;padding:15px;border-radius:8px;overflow-x:auto;">
+{
+  "username": "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5a2f293f281a3935372a3b342374393537">[email&#160;protected]</a>",
+  "password": "password123",
+  "totp": "123456"
+}</pre>
+                <p style="color:#6b7280;margin-top:10px;"><strong>Response:</strong></p>
+                <pre style="background:#1f2937;color:#10b981;padding:15px;border-radius:8px;overflow-x:auto;">
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "email": "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="cebbbdabbc8eada1a3beafa0b7e0ada1a3">[email&#160;protected]</a>",
+    "role": "admin"
+  }
+}</pre>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><code>/api/v1/auth/logout</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Invalidate current session</p>
+            </div>
+        </div>
+
+        <!-- TEST ANALYSIS -->
+        <div class="api-section">
+            <h2 style="font-weight:800;margin-bottom:20px;">📊 Test Result Analysis</h2>
+            
+            <div class="endpoint">
+                <div><span class="method get">GET</span><code>/api/v1/analysis/releases?lob={lob}</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Get all releases for a specific LOB</p>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method get">GET</span><code>/api/v1/analysis/tests?lob={lob}&release={release}</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Get all tests for a LOB and release</p>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method get">GET</span><code>/api/v1/analysis/report/{pc_run_id}</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Get comprehensive test report with all data sources</p>
+            </div>
+        </div>
+
+        <!-- MONITORING -->
+        <div class="api-section">
+            <h2 style="font-weight:800;margin-bottom:20px;">⚡ Monitoring</h2>
+            
+            <div class="endpoint">
+                <div><span class="method get">GET</span><code>/api/v1/monitoring/tracks?lob={lob}</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Get all tracks for a LOB</p>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method get">GET</span><code>/api/v1/monitoring/track/config?track={track}</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Get track template configuration</p>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><code>/api/v1/monitoring/start</code></div>
+                <p style="margin:15px 0 10px;color:#6b7280;"><strong>Description:</strong> Start monitoring session</p>
+                <p style="color:#6b7280;"><strong>Request Body:</strong></p>
+                <pre style="background:#1f2937;color:#10b981;padding:15px;border-radius:8px;overflow-x:auto;">
+{
+  "pc_run_id": "65989",
+  "test_name": "Peak Load Test",
+  "release_name": "Release 2.5",
+  "lob": "Digital Technology",
+  "track": "CDV3",
+  "duration": 1800
+}</pre>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><code>/api/v1/monitoring/stop</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Stop monitoring session and get data summary</p>
+            </div>
+        </div>
+
+        <!-- ADMIN -->
+        <div class="api-section">
+            <h2 style="font-weight:800;margin-bottom:20px;">👤 Admin Operations</h2>
+            
+            <div class="endpoint">
+                <div><span class="method delete">DELETE</span><code>/api/v1/admin/test-data/{pc_run_id}</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Delete all data for a PC Run ID from all sources</p>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method get">GET</span><code>/api/v1/admin/tracks</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Get all track templates</p>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method put">PUT</span><code>/api/v1/admin/tracks/{track_id}</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Update track template configuration</p>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><code>/api/v1/admin/users/create</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Create new user</p>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method get">GET</span><code>/api/v1/admin/audit-logs</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Get system audit logs with filters</p>
+            </div>
+        </div>
+
+        <!-- UPLOAD -->
+        <div class="api-section">
+            <h2 style="font-weight:800;margin-bottom:20px;">📤 Report Upload</h2>
+            
+            <div class="endpoint">
+                <div><span class="method post">POST</span><code>/api/v1/reports/upload/awr</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Upload AWR HTML report (FormData with file + metadata)</p>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><code>/api/v1/reports/upload/pc</code></div>
+                <p style="margin:15px 0;color:#6b7280;"><strong>Description:</strong> Upload Performance Center ZIP (FormData with 

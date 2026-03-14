@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CQE NFT Monitoring & Test Result Analysis Platform</title>
+    <link rel="stylesheet" href="../css/global.css">
+    <style>
+        .main-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 40px;
+            margin-top: 50px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .option-card {
+            background: white;
+            border-radius: 24px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+            transition: all 0.4s;
+            cursor: pointer;
+            border: 3px solid transparent;
+            min-height: 350px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .option-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--card-hover);
+            border-color: var(--primary);
+        }
+
+        .option-card.analysis {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        }
+
+        .option-card.monitoring {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        }
+
+        .option-icon {
+            font-size: 80px;
+            margin-bottom: 25px;
+        }
+
+        .option-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 15px;
+            color: #111827;
+        }
+
+        .option-description {
+            font-size: 16px;
+            color: #6b7280;
+            font-weight: 500;
+            line-height: 1.8;
+        }
+
+        .option-badge {
+            margin-top: 20px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .badge-public {
+            background: #10b981;
+            color: white;
+        }
+
+        .badge-secure {
+            background: #ef4444;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="platform-header">
+            <h1>🔐 CQE NFT Monitoring & Test Result Analysis Platform</h1>
+            <p>Comprehensive Performance Testing & Analysis Solution</p>
+        </div>
+
+        <div class="main-options">
+            <!-- TEST RESULT ANALYSIS -->
+            <div class="option-card analysis" onclick="goToAnalysis()">
+                <div class="option-icon">📊</div>
+                <div class="option-title">Test Result Analysis</div>
+                <div class="option-description">
+                    View comprehensive test reports with data from Performance Center, AppDynamics, 
+                    AWR, Kibana, Splunk, MongoDB and Database Queries with interactive graphs and metrics
+                </div>
+                <div class="option-badge badge-public">✓ No Login Required</div>
+            </div>
+
+            <!-- TEST MONITORING ACTIVITY -->
+            <div class="option-card monitoring" onclick="goToMonitoring()">
+                <div class="option-icon">⚡</div>
+                <div class="option-title">Test Monitoring Activity</div>
+                <div class="option-description">
+                    Start real-time monitoring sessions, configure test parameters, collect performance 
+                    data from multiple sources, and manage ongoing tests
+                </div>
+                <div class="option-badge badge-secure">🔒 Login Required</div>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:50px;color:white;">
+            <p style="font-size:14px;font-weight:600;opacity:0.8;">
+                Version 3.0 | CQE Performance Engineering Team
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function goToAnalysis() {
+            window.location.href = 'analysis/test-selection.html';
+        }
+
+        function goToMonitoring() {
+            window.location.href = 'monitoring/pre-login.html';
+        }
+    </script>
+</body>
+</html>

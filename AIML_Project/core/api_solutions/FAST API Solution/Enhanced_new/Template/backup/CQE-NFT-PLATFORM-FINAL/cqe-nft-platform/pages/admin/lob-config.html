@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOB Configuration</title>
+    <link rel="stylesheet" href="../../css/global.css">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+        <a href="api-docs.html" class="nav-link">📖 API Docs</a>
+        <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+        <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+    </div>
+
+    <div class="container" style="margin-top:80px;">
+        <div class="platform-header">
+            <h1>🏢 LOB Configuration</h1>
+            <p>Configure LOB settings, tracks, and database connections</p>
+        </div>
+
+        <div class="card">
+            <h3 style="font-weight:800;margin-bottom:20px;">Configured LOBs</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>LOB Name</th>
+                        <th>Tracks</th>
+                        <th>Databases</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Digital Technology</strong></td>
+                        <td>CDV3, Track1, Track2</td>
+                        <td>CQE_NFT, CD_PTE_READ, PRODDB01</td>
+                        <td><span class="badge badge-success">Active</span></td>
+                        <td><button class="btn btn-secondary" style="padding:8px 16px;font-size:13px;">Edit</button></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Payments</strong></td>
+                        <td>PayTrack1, PayTrack2</td>
+                        <td>CQE_NFT, CD_PTE_READ</td>
+                        <td><span class="badge badge-success">Active</span></td>
+                        <td><button class="btn btn-secondary" style="padding:8px 16px;font-size:13px;">Edit</button></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Corporate</strong></td>
+                        <td>CorpTrack1</td>
+                        <td>CQE_NFT, PRODDB01</td>
+                        <td><span class="badge badge-success">Active</span></td>
+                        <td><button class="btn btn-secondary" style="padding:8px 16px;font-size:13px;">Edit</button></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Retail Banking</strong></td>
+                        <td>RetailTrack1</td>
+                        <td>CQE_NFT, CD_PTE_READ</td>
+                        <td><span class="badge badge-success">Active</span></td>
+                        <td><button class="btn btn-secondary" style="padding:8px 16px;font-size:13px;">Edit</button></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <button class="btn btn-primary" onclick="alert('Add New LOB')" style="margin-top:20px;">
+                ➕ Add New LOB
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = '../landing.html';
+        }
+    </script>
+</body>
+</html>
