@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - CQE NFT</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body { padding: 20px; }
+        .admin-header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--card-shadow);
+        }
+        .admin-header h1 { margin: 0; font-size: 24px; }
+        
+        /* Audit Logs Section */
+        .audit-logs-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+        }
+        .audit-log-item {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+        .audit-log-time { font-size: 12px; color: #6b7280; }
+        .audit-log-action { font-weight: 600; margin: 5px 0; }
+        .audit-log-user { font-size: 13px; color: #374151; }
+        
+        .management-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .management-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s;
+        }
+        .management-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--card-hover-shadow);
+        }
+        .management-card h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .management-card p {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .btn-small { padding: 10px 20px; font-size: 14px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="admin-header">
+            <h1>🛠 Admin Dashboard - Configuration Management</h1>
+            <button class="btn btn-danger" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- AUDIT LOGS SECTION -->
+        <div class="audit-logs-section">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h2>📋 Audit Logs</h2>
+                <button class="btn btn-secondary btn-small" onclick="refreshAuditLogs()">🔄 Refresh</button>
+            </div>
+            
+            <div id="auditLogsList">
+                <!-- Dummy audit logs -->
+                <div class="audit-log-item">
+                    <div class="audit-log-time">2026-03-14 09:25:34</div>
+                    <div class="audit-log-action">✅ User created successfully</div>
+                    <div class="audit-log-user">Admin: admin@company.com | Created user: testuser@company.com</div>
+                </div>
+                
+                <div class="audit-log-item">
+                    <div class="audit-log-time">2026-03-14 09:20:15</div>
+                    <div class="audit-log-action">🔧 LOB Configuration updated</div>
+                    <div class="audit-log-user">Admin: admin@company.com | Updated: Digital Technology - Added CDV3 track</div>
+                </div>
+                
+                <div class="audit-log-item">
+                    <div class="audit-log-time">2026-03-14 09:15:42</div>
+                    <div class="audit-log-action">📊 AppDynamics application added</div>
+                    <div class="audit-log-user">Admin: admin@company.com | Added: icg-tts-cirp-ng-173720_PTE</div>
+                </div>
+                
+                <div class="audit-log-item">
+                    <div class="audit-log-time">2026-03-14 09:10:28</div>
+                    <div class="audit-log-action">🗄️ Database connection tested</div>
+                    <div class="audit-log-user">Admin: admin@company.com | Database: PRODDB01 - Status: Connected</div>
+                </div>
+
+                <div class="audit-log-item">
+                    <div class="audit-log-time">2026-03-14 09:05:11</div>
+                    <div class="audit-log-action">🔐 Admin login successful</div>
+                    <div class="audit-log-user">User: admin@company.com | IP: 10.20.30.40</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MANAGEMENT CARDS -->
+        <div class="management-grid">
+            <!-- User Management -->
+            <div class="management-card">
+                <h2>👥 User Management</h2>
+                <p>Create and manage user accounts with role-based permissions</p>
+                <button class="btn btn-primary btn-small">Create User</button>
+                <button class="btn btn-secondary btn-small">View All Users</button>
+            </div>
+
+            <!-- LOB Management -->
+            <div class="management-card">
+                <h2>🏢 LOB Configuration</h2>
+                <p>Manage LOB tracks and database connections</p>
+                <button class="btn btn-primary btn-small">Add Track/Database</button>
+                <button class="btn btn-secondary btn-small">View Configuration</button>
+            </div>
+
+            <!-- AppDynamics Management -->
+            <div class="management-card">
+                <h2>📊 AppDynamics Management</h2>
+                <p>Configure AppDynamics applications and monitoring settings</p>
+                <button class="btn btn-primary btn-small">Add Application</button>
+                <button class="btn btn-secondary btn-small">View Applications</button>
+            </div>
+
+            <!-- Kibana Management -->
+            <div class="management-card">
+                <h2>📈 Kibana Management</h2>
+                <p>Configure Elasticsearch/Kibana connection and indices</p>
+                <button class="btn btn-primary btn-small">Configure Connection</button>
+                <button class="btn btn-secondary btn-small">Test Connection</button>
+            </div>
+
+            <!-- Splunk Management -->
+            <div class="management-card">
+                <h2>🔍 Splunk Management</h2>
+                <p>Configure Splunk connection and search settings</p>
+                <button class="btn btn-primary btn-small">Configure Connection</button>
+                <button class="btn btn-secondary btn-small">Test Connection</button>
+            </div>
+
+            <!-- MongoDB Management -->
+            <div class="management-card">
+                <h2>🍃 MongoDB Management</h2>
+                <p>Configure MongoDB cluster and collection settings</p>
+                <button class="btn btn-primary btn-small">Configure Connection</button>
+                <button class="btn btn-secondary btn-small">Test Connection</button>
+            </div>
+
+            <!-- DML Operations -->
+            <div class="management-card">
+                <h2>🗄️ Database Operations (DML)</h2>
+                <p>Execute SQL queries via Cyberarc authenticated connections</p>
+                <button class="btn btn-primary btn-small">Open SQL Console</button>
+                <button class="btn btn-secondary btn-small">View History</button>
+            </div>
+
+            <!-- Performance Center -->
+            <div class="management-card">
+                <h2>⚡ Performance Center Config</h2>
+                <p>Configure Performance Center connection and projects</p>
+                <button class="btn btn-primary btn-small">Configure Connection</button>
+                <button class="btn btn-secondary btn-small">Test Connection</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function logout() {
+            if (confirm('Logout from admin dashboard?')) {
+                window.location.href = 'main-monitoring.html';
+            }
+        }
+
+        function refreshAuditLogs() {
+            alert('✓ Audit logs refreshed (in real implementation, this will fetch latest logs from backend)');
+        }
+    </script>
+</body>
+</html>

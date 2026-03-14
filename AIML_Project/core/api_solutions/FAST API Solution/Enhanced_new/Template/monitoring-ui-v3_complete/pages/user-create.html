@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create User</title>
+    <link rel="stylesheet" href="../css/main.css">
+</head>
+<body style="padding:20px;background:var(--bg-gradient);">
+    <div class="container" style="max-width:800px;">
+        <div style="background:white;padding:40px;border-radius:16px;box-shadow:var(--card-shadow);">
+            <h1 style="font-size:28px;font-weight:800;margin-bottom:10px;">➕ Create New User</h1>
+            <p style="color:#6b7280;margin-bottom:30px;">Add a new user to the system</p>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Email <span class="required">*</span></label>
+                    <input type="email" id="email" placeholder="user@company.com">
+                </div>
+                <div class="form-group">
+                    <label>Full Name <span class="required">*</span></label>
+                    <input type="text" id="fullName" placeholder="John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Role <span class="required">*</span></label>
+                    <select id="role">
+                        <option value="">-- Select Role --</option>
+                        <option value="admin">Admin</option>
+                        <option value="user">User</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Department</label>
+                    <select id="dept">
+                        <option value="">-- Select Department --</option>
+                        <option value="Digital Technology">Digital Technology</option>
+                        <option value="Payments">Payments</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Retail Banking">Retail Banking</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-top:30px;display:flex;gap:15px;">
+                <button class="btn btn-success" onclick="createUser()">✓ Create User</button>
+                <button class="btn btn-secondary" onclick="window.location.href='admin-dashboard.html'">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function createUser() {
+            const email = document.getElementById('email').value;
+            const name = document.getElementById('fullName').value;
+            const role = document.getElementById('role').value;
+
+            if (!email || !name || !role) {
+                alert('⚠ Please fill all required fields');
+                return;
+            }
+
+            alert(`✓ User created successfully!\n\nEmail: ${email}\nName: ${name}\nRole: ${role}\n\nIn production, this will:\n- INSERT into USERS table\n- Send welcome email\n- Create audit log entry`);
+            window.location.href = 'user-list.html';
+        }
+    </script>
+</body>
+</html>

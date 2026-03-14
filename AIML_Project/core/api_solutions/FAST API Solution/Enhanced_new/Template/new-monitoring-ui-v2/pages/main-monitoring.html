@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CQE NFT Monitoring Platform</title>
+    <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+    <a href="admin-login.html" class="admin-link">🔐 Admin Login</a>
+
+    <div class="container">
+        <div class="main-header">
+            <h1>🔐 CQE NFT Monitoring Platform</h1>
+            <p>Automated Performance Monitoring & Analysis System</p>
+        </div>
+
+        <!-- API Docs Section -->
+        <div class="step-container">
+            <h2>📚 API Documentation</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+                <a href="/api/docs" target="_blank" class="btn btn-secondary">📖 Complete API Docs</a>
+                <a href="/api/docs/appd" target="_blank" class="btn btn-secondary">AppDynamics API</a>
+                <a href="/api/docs/awr" target="_blank" class="btn btn-secondary">AWR API</a>
+                <a href="/api/docs/kibana" target="_blank" class="btn btn-secondary">Kibana API</a>
+                <a href="/api/docs/splunk" target="_blank" class="btn btn-secondary">Splunk API</a>
+                <a href="/api/docs/mongodb" target="_blank" class="btn btn-secondary">MongoDB API</a>
+            </div>
+        </div>
+
+        <!-- STEP 1: Select LOB -->
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">
+                    <h2>Select Line of Business</h2>
+                    <p>Choose your LOB to begin monitoring</p>
+                </div>
+            </div>
+            <div class="lob-select-wrapper">
+                <select id="lobSelector" onchange="onLOBSelected()">
+                    <option value="">-- Select Your LOB --</option>
+                    <option value="Digital Technology">Digital Technology</option>
+                    <option value="Payments">Payments</option>
+                    <option value="Corporate">Corporate</option>
+                    <option value="Retail Banking">Retail Banking</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- STEP 2: Validate Prerequisites -->
+        <div class="step-container hidden" id="step2">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">
+                    <h2>Validate Prerequisites</h2>
+                    <p>Verify all monitoring tools are operational</p>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="validatePrerequisites()">🔍 Run Validation Check</button>
+            <div id="validationResults" class="hidden" style="margin-top: 30px;">
+                <h3 style="margin-bottom: 20px;">System Health Status</h3>
+                <div class="status-grid" id="statusGrid"></div>
+            </div>
+        </div>
+
+        <!-- STEP 3: Start Monitoring - WITH DETAILED FORM -->
+        <div class="step-container hidden" id="step3">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">
+                    <h2>Configure & Start Monitoring</h2>
+                    <p>Fill in monitoring configuration details</p>
+                </div>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                <!-- PC Run ID -->
+                <div class="form-group">
+                    <label>PC Run ID (Primary Key) <span class="required">*</span></label>
+                    <input type="text" id="pcRunId" placeholder="5-digit PC Run ID" maxlength="5">
+                    <small>This will be used as primary key across all tables</small>
+                </div>
+
+                <!-- Track -->
+                <div class="form-group">
+                    <label>Track <span class="required">*</span></label>
+                    <select id="track">
+                        <option value="">-- Select Track --</option>
+                    </select>
+                </div>
+
+                <!-- Test Duration -->
+                <div class="form-group">
+                    <label>Test Duration</label>
+                    <select id="duration">
+                        <option value="1800">30 minutes</option>
+                        <option value="2400">40 minutes</option>
+                        <option value="3600">60 minutes</option>
+                        <option value="">Run until stopped</option>
+                    </select>
+                </div>
+
+                <!-- AppD Config File -->
+                <div class="form-group">
+                    <label>AppDynamics Config File</label>
+                    <input type="file" id="appdConfig" accept=".json,.xml" style="display:block;padding:10px;">
+                    <small>Upload AppD configuration</small>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px;">
+                <h3>Monitoring Applications & Dashboards</h3>
+                <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <!-- AppD Applications -->
+                    <div class="form-group">
+                        <label>AppDynamics Applications to Monitor</label>
+                        <div id="appdAppsList" style="background:#f9fafb;padding:15px;border-radius:8px;max-height:150px;overflow-y:auto;">
+                            <label><input type="checkbox" value="icg-tts-cirp-ng-173720_PTE" checked> icg-tts-cirp-ng-173720_PTE</label><br>
+                            <label><input type="checkbox" value="CDV3_NFT_Digital_Technology" checked> CDV3_NFT_Digital_Technology</label><br>
+                            <label><input type="checkbox" value="CIRP_Digital_Tech" checked> CIRP_Digital_Tech</label><br>
+                            <label><input type="checkbox" value="ServiceTech_API"> ServiceTech_API</label>
+                        </div>
+                    </div>
+
+                    <!-- Kibana Dashboard -->
+                    <div class="form-group">
+                        <label>Kibana Dashboard Name</label>
+                        <input type="text" id="kibanaDashboard" placeholder="e.g., Performance_Monitoring_Dashboard">
+                    </div>
+
+                    <!-- Splunk Dashboard -->
+                    <div class="form-group">
+                        <label>Splunk Dashboard Name</label>
+                        <input type="text" id="splunkDashboard" placeholder="e.g., Application_Logs_Dashboard">
+                    </div>
+
+                    <!-- MongoDB Collections -->
+                    <div class="form-group">
+                        <label>MongoDB Collections (comma-separated)</label>
+                        <input type="text" id="mongoCollections" placeholder="e.g., performance_metrics,transaction_logs">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-success" onclick="startMonitoring()" id="startBtn" style="margin-top: 30px;">
+                ▶️ Start Monitoring
+            </button>
+
+            <div id="monitoringProgress" class="hidden progress-section" style="margin-top:30px;">
+                <h3 style="margin-bottom: 20px;">Monitoring in Progress...</h3>
+                <div id="progressItems"></div>
+            </div>
+        </div>
+
+        <!-- STEP 4: Stop Monitoring -->
+        <div class="step-container hidden" id="step4">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-title">
+                    <h2>Stop Monitoring</h2>
+                    <p>End all active monitoring sessions</p>
+                </div>
+            </div>
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                <span>Monitoring is currently active. Stop to finalize data storage.</span>
+            </div>
+            <button class="btn btn-danger" onclick="stopMonitoring()" id="stopBtn">⏹ Stop All Monitoring</button>
+            
+            <div id="stopResults" class="hidden" style="margin-top:30px;">
+                <div class="alert alert-success">
+                    <strong>✓ Monitoring Stopped Successfully!</strong>
+                </div>
+                <h3 style="margin-bottom:15px;">📊 Data Storage Summary</h3>
+                <div id="tablesSummary" style="background:#f9fafb;padding:20px;border-radius:12px;">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 5: Upload Reports -->
+        <div class="step-container hidden" id="step5">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-title">
+                    <h2>Upload Performance Reports</h2>
+                    <p>Upload AWR and Performance Center reports for final processing</p>
+                </div>
+            </div>
+            
+            <div class="upload-grid">
+                <div class="upload-box" onclick="document.getElementById('awrFile').click()">
+                    <div class="upload-box-icon">📄</div>
+                    <div class="upload-box-title">AWR HTML Report</div>
+                    <div class="upload-box-desc">Oracle AWR performance report</div>
+                    <input type="file" id="awrFile" accept=".html,.htm" onchange="handleAWRUpload(this)">
+                    <div class="file-selected" id="awrFileName"></div>
+                </div>
+                
+                <div class="upload-box" onclick="document.getElementById('pcFile').click()">
+                    <div class="upload-box-icon">📦</div>
+                    <div class="upload-box-title">Performance Center Report</div>
+                    <div class="upload-box-desc">LoadRunner results (.zip)</div>
+                    <input type="file" id="pcFile" accept=".zip" onchange="handlePCUpload(this)">
+                    <div class="file-selected" id="pcFileName"></div>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" onclick="processReports()" id="processBtn" style="margin-top: 30px;" disabled>
+                📊 Process & Store Reports
+            </button>
+
+            <div id="processingResults" class="hidden" style="margin-top:30px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const TOOLS_STATUS = {
+            'Digital Technology': [
+                { name: 'AppDynamics', icon: '📊', status: 'healthy', nodes: '7/7', uptime: '99.9%' },
+                { name: 'Oracle Databases', icon: '🗄️', status: 'healthy', connected: '5/7', uptime: '99.8%' },
+                { name: 'Kibana', icon: '📈', status: 'healthy', url: 'Active', uptime: '100%' },
+                { name: 'Splunk', icon: '🔍', status: 'healthy', url: 'Active', uptime: '99.9%' },
+                { name: 'MongoDB', icon: '🍃', status: 'healthy', nodes: '3/3', uptime: '100%' },
+                { name: 'Performance Center', icon: '⚡', status: 'healthy', url: 'Active', uptime: '99.7%' }
+            ],
+            'Payments': [
+                { name: 'AppDynamics', icon: '📊', status: 'healthy', nodes: '2/2', uptime: '99.9%' },
+                { name: 'Kibana', icon: '📈', status: 'healthy', url: 'Active', uptime: '100%' }
+            ]
+        };
+
+        const TRACKS = {
+            'Digital Technology': ['CDV3', 'Track1', 'Track2'],
+            'Payments': ['PayTrack1', 'PayTrack2'],
+            'Corporate': ['CorpTrack1'],
+            'Retail Banking': ['RetailTrack1']
+        };
+
+        let selectedLOB = null;
+
+        function onLOBSelected() {
+            selectedLOB = document.getElementById('lobSelector').value;
+            if (selectedLOB) {
+                document.getElementById('step2').classList.remove('hidden');
+                document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function validatePrerequisites() {
+            const statusGrid = document.getElementById('statusGrid');
+            const tools = TOOLS_STATUS[selectedLOB] || [];
+            
+            let html = '';
+            tools.forEach(tool => {
+                html += `
+                    <div class="status-card ${tool.status}">
+                        <div class="status-card-header">
+                            <span class="status-card-icon">${tool.icon}</span>
+                            <span class="status-badge ${tool.status}">${tool.status === 'healthy' ? 'Operational' : 'Down'}</span>
+                        </div>
+                        <div class="status-card-title">${tool.name}</div>
+                        <div class="status-card-desc">Real-time health monitoring</div>
+                        ${Object.keys(tool).filter(k => !['name','icon','status'].includes(k)).map(key => `
+                            <div class="status-metric">
+                                <span class="status-metric-label">${key}:</span>
+                                <span class="status-metric-value">${tool[key]}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            });
+            
+            statusGrid.innerHTML = html;
+            document.getElementById('validationResults').classList.remove('hidden');
+            
+            // Populate track dropdown
+            const trackSelect = document.getElementById('track');
+            trackSelect.innerHTML = '<option value="">-- Select Track --</option>';
+            (TRACKS[selectedLOB] || []).forEach(track => {
+                trackSelect.innerHTML += `<option value="${track}">${track}</option>`;
+            });
+            
+            setTimeout(() => {
+                document.getElementById('step3').classList.remove('hidden');
+                document.getElementById('step3').scrollIntoView({ behavior: 'smooth' });
+            }, 1000);
+        }
+
+        function startMonitoring() {
+            const pcRunId = document.getElementById('pcRunId').value;
+            const track = document.getElementById('track').value;
+            
+            if (!pcRunId || pcRunId.length !== 5) {
+                alert('⚠ Please enter valid 5-digit PC Run ID');
+                return;
+            }
+            if (!track) {
+                alert('⚠ Please select Track');
+                return;
+            }
+
+            const tools = TOOLS_STATUS[selectedLOB] || [];
+            const progressItems = document.getElementById('progressItems');
+            
+            let html = '';
+            tools.forEach((tool, index) => {
+                html += `
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">${tool.icon} ${tool.name}</span>
+                            <span class="progress-status" id="status${index}">Initializing...</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progress${index}" style="width: 0%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            progressItems.innerHTML = html;
+            document.getElementById('monitoringProgress').classList.remove('hidden');
+            document.getElementById('startBtn').disabled = true;
+            
+            tools.forEach((tool, index) => {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 20;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(interval);
+                        document.getElementById(`status${index}`).textContent = '✓ Active';
+                        document.getElementById(`progress${index}`).classList.add('complete');
+                    }
+                    document.getElementById(`progress${index}`).style.width = progress + '%';
+                    document.getElementById(`status${index}`).textContent = Math.floor(progress) + '%';
+                }, 500);
+            });
+            
+            setTimeout(() => {
+                document.getElementById('step4').classList.remove('hidden');
+                document.getElementById('step4').scrollIntoView({ behavior: 'smooth' });
+            }, 3000);
+        }
+
+        function stopMonitoring() {
+            document.getElementById('stopBtn').disabled = true;
+            
+            const pcRunId = document.getElementById('pcRunId').value;
+            const tables = [
+                { name: 'MASTER_TEST_RUN', records: 1 },
+                { name: 'APPD_MONITORING_DATA', records: 145 },
+                { name: 'APPD_TRANSACTION_STATS', records: 523 },
+                { name: 'ORACLE_AWR_SNAPSHOTS', records: 12 },
+                { name: 'KIBANA_LOG_ENTRIES', records: 8934 },
+                { name: 'SPLUNK_EVENT_DATA', records: 6721 },
+                { name: 'MONGODB_METRICS', records: 234 },
+                { name: 'PC_RUN_SUMMARY', records: 1 }
+            ];
+
+            let html = `
+                <div style="margin-bottom:15px;"><strong>Primary Key:</strong> PC Run ID = ${pcRunId}</div>
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#e5e7eb;">
+                            <th style="padding:10px;text-align:left;border:1px solid #d1d5db;">Table Name</th>
+                            <th style="padding:10px;text-align:right;border:1px solid #d1d5db;">Records Inserted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            tables.forEach(table => {
+                html += `
+                    <tr>
+                        <td style="padding:10px;border:1px solid #d1d5db;">${table.name}</td>
+                        <td style="padding:10px;text-align:right;border:1px solid #d1d5db;">${table.records.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#f3f4f6;font-weight:600;">
+                            <td style="padding:10px;border:1px solid #d1d5db;">TOTAL</td>
+                            <td style="padding:10px;text-align:right;border:1px solid #d1d5db;">${tables.reduce((sum, t) => sum + t.records, 0).toLocaleString()}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+
+            document.getElementById('tablesSummary').innerHTML = html;
+            document.getElementById('stopResults').classList.remove('hidden');
+            
+            setTimeout(() => {
+                document.getElementById('step5').classList.remove('hidden');
+                document.getElementById('step5').scrollIntoView({ behavior: 'smooth' });
+            }, 1000);
+        }
+
+        function handleAWRUpload(input) {
+            if (input.files.length > 0) {
+                document.getElementById('awrFileName').textContent = '✓ ' + input.files[0].name;
+                checkProcessButton();
+            }
+        }
+
+        function handlePCUpload(input) {
+            if (input.files.length > 0) {
+                document.getElementById('pcFileName').textContent = '✓ ' + input.files[0].name;
+                checkProcessButton();
+            }
+        }
+
+        function checkProcessButton() {
+            const awrFile = document.getElementById('awrFile').files.length > 0;
+            const pcFile = document.getElementById('pcFile').files.length > 0;
+            document.getElementById('processBtn').disabled = !(awrFile && pcFile);
+        }
+
+        function processReports() {
+            document.getElementById('processBtn').disabled = true;
+            
+            const processingHTML = `
+                <div class="alert alert-success">
+                    <strong>✓ Reports Processed Successfully!</strong>
+                </div>
+                <div style="background:#f9fafb;padding:20px;border-radius:12px;">
+                    <h4>📊 Processing Summary</h4>
+                    <table style="width:100%;border-collapse:collapse;margin-top:15px;">
+                        <tr>
+                            <td style="padding:8px;border:1px solid #d1d5db;"><strong>AWR Report</strong></td>
+                            <td style="padding:8px;border:1px solid #d1d5db;">Parsed and inserted into ORACLE_AWR_METRICS (847 metrics)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px;border:1px solid #d1d5db;"><strong>PC Report</strong></td>
+                            <td style="padding:8px;border:1px solid #d1d5db;">Extracted and stored in PC_TRANSACTION_DETAILS (234 transactions)</td>
+                        </tr>
+                        <tr style="background:#ecfdf5;">
+                            <td style="padding:8px;border:1px solid #d1d5db;"><strong>Status</strong></td>
+                            <td style="padding:8px;border:1px solid #d1d5db;color:#065f46;font-weight:600;">✓ All data successfully stored in Oracle DB</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('processingResults').innerHTML = processingHTML;
+            document.getElementById('processingResults').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

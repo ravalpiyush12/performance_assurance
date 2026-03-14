@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CQE NFT Monitoring Platform</title>
+    <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+    <!-- Admin Link -->
+    <a href="admin-login.html" class="admin-link">
+        🔐 Admin Login
+    </a>
+
+    <div class="container">
+        <!-- Main Header -->
+        <div class="main-header">
+            <h1>🔐 CQE NFT Monitoring Platform</h1>
+            <p>Automated Performance Monitoring & Analysis System</p>
+        </div>
+
+        <!-- STEP 1: Select LOB -->
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">
+                    <h2>Select Line of Business</h2>
+                    <p>Choose your LOB to begin the monitoring process</p>
+                </div>
+            </div>
+            
+            <div class="lob-select-wrapper">
+                <select id="lobSelector" onchange="onLOBSelected()">
+                    <option value="">-- Select Your LOB --</option>
+                    <option value="Digital Technology">Digital Technology</option>
+                    <option value="Payments">Payments</option>
+                    <option value="Corporate">Corporate</option>
+                    <option value="Retail Banking">Retail Banking</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- STEP 2: Validate Prerequisites -->
+        <div class="step-container hidden" id="step2">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">
+                    <h2>Validate Prerequisites</h2>
+                    <p>Verify all monitoring tools are operational</p>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" onclick="validatePrerequisites()">
+                🔍 Run Validation Check
+            </button>
+            
+            <div id="validationResults" class="hidden" style="margin-top: 30px;">
+                <h3 style="margin-bottom: 20px;">System Health Status</h3>
+                <div class="status-grid" id="statusGrid">
+                    <!-- Status cards will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3: Start Monitoring -->
+        <div class="step-container hidden" id="step3">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">
+                    <h2>Start Monitoring</h2>
+                    <p>Begin automated monitoring across all tools</p>
+                </div>
+            </div>
+            
+            <button class="btn btn-success" onclick="startMonitoring()" id="startBtn">
+                ▶️ Start Monitoring
+            </button>
+            
+            <div id="monitoringProgress" class="hidden progress-section">
+                <h3 style="margin-bottom: 20px;">Monitoring Progress</h3>
+                <div id="progressItems">
+                    <!-- Progress bars will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 4: Stop Monitoring -->
+        <div class="step-container hidden" id="step4">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div class="step-title">
+                    <h2>Stop Monitoring</h2>
+                    <p>End all active monitoring sessions</p>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <span>ℹ️</span>
+                <span>Monitoring is currently active. Stop monitoring before uploading reports.</span>
+            </div>
+            
+            <button class="btn btn-danger" onclick="stopMonitoring()" id="stopBtn">
+                ⏹ Stop All Monitoring
+            </button>
+        </div>
+
+        <!-- STEP 5: Upload Reports -->
+        <div class="step-container hidden" id="step5">
+            <div class="step-header">
+                <div class="step-number">5</div>
+                <div class="step-title">
+                    <h2>Upload Performance Reports</h2>
+                    <p>Upload AWR and Performance Center reports for analysis</p>
+                </div>
+            </div>
+            
+            <div class="upload-grid">
+                <!-- AWR Upload -->
+                <div class="upload-box" onclick="document.getElementById('awrFile').click()">
+                    <div class="upload-box-icon">📄</div>
+                    <div class="upload-box-title">AWR HTML Report</div>
+                    <div class="upload-box-desc">Oracle AWR performance report</div>
+                    <input type="file" id="awrFile" accept=".html,.htm" onchange="handleAWRUpload(this)">
+                    <div class="file-selected" id="awrFileName"></div>
+                </div>
+                
+                <!-- PC Upload -->
+                <div class="upload-box" onclick="document.getElementById('pcFile').click()">
+                    <div class="upload-box-icon">📦</div>
+                    <div class="upload-box-title">Performance Center Report</div>
+                    <div class="upload-box-desc">LoadRunner test results (.zip)</div>
+                    <input type="file" id="pcFile" accept=".zip" onchange="handlePCUpload(this)">
+                    <div class="file-selected" id="pcFileName"></div>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" onclick="processReports()" id="processBtn" style="margin-top: 30px;" disabled>
+                📊 Process Reports
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Dummy data
+        const TOOLS_STATUS = {
+            'Digital Technology': [
+                { name: 'AppDynamics', icon: '📊', status: 'healthy', nodes: '7/7', uptime: '99.9%' },
+                { name: 'Oracle Databases', icon: '🗄️', status: 'healthy', connected: '5/7', uptime: '99.8%' },
+                { name: 'Kibana', icon: '📈', status: 'healthy', url: 'Active', uptime: '100%' },
+                { name: 'Splunk', icon: '🔍', status: 'healthy', url: 'Active', uptime: '99.9%' },
+                { name: 'MongoDB', icon: '🍃', status: 'healthy', nodes: '3/3', uptime: '100%' },
+                { name: 'Performance Center', icon: '⚡', status: 'healthy', url: 'Active', uptime: '99.7%' }
+            ],
+            'Payments': [
+                { name: 'AppDynamics', icon: '📊', status: 'healthy', nodes: '2/2', uptime: '99.9%' },
+                { name: 'Kibana', icon: '📈', status: 'healthy', url: 'Active', uptime: '100%' }
+            ],
+            'Corporate': [
+                { name: 'AppDynamics', icon: '📊', status: 'healthy', nodes: '1/1', uptime: '99.9%' },
+                { name: 'Oracle Databases', icon: '🗄️', status: 'error', connected: '1/2', uptime: '50%' }
+            ],
+            'Retail Banking': [
+                { name: 'AppDynamics', icon: '📊', status: 'healthy', nodes: '2/2', uptime: '99.9%' },
+                { name: 'Kibana', icon: '📈', status: 'healthy', url: 'Active', uptime: '100%' },
+                { name: 'Splunk', icon: '🔍', status: 'healthy', url: 'Active', uptime: '99.9%' }
+            ]
+        };
+
+        let selectedLOB = null;
+        let monitoringActive = false;
+
+        function onLOBSelected() {
+            selectedLOB = document.getElementById('lobSelector').value;
+            if (selectedLOB) {
+                document.getElementById('step2').classList.remove('hidden');
+                document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function validatePrerequisites() {
+            const statusGrid = document.getElementById('statusGrid');
+            const tools = TOOLS_STATUS[selectedLOB] || [];
+            
+            let html = '';
+            tools.forEach(tool => {
+                const statusClass = tool.status;
+                const badge = tool.status === 'healthy' ? 'Operational' : 'Down';
+                const badgeClass = tool.status === 'healthy' ? 'healthy' : 'error';
+                
+                html += `
+                    <div class="status-card ${statusClass}">
+                        <div class="status-card-header">
+                            <span class="status-card-icon">${tool.icon}</span>
+                            <span class="status-badge ${badgeClass}">${badge}</span>
+                        </div>
+                        <div class="status-card-title">${tool.name}</div>
+                        <div class="status-card-desc">Real-time health monitoring</div>
+                        ${Object.keys(tool).filter(k => !['name','icon','status'].includes(k)).map(key => `
+                            <div class="status-metric">
+                                <span class="status-metric-label">${key}:</span>
+                                <span class="status-metric-value">${tool[key]}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            });
+            
+            statusGrid.innerHTML = html;
+            document.getElementById('validationResults').classList.remove('hidden');
+            
+            setTimeout(() => {
+                document.getElementById('step3').classList.remove('hidden');
+                document.getElementById('step3').scrollIntoView({ behavior: 'smooth' });
+            }, 1000);
+        }
+
+        function startMonitoring() {
+            monitoringActive = true;
+            const tools = TOOLS_STATUS[selectedLOB] || [];
+            const progressItems = document.getElementById('progressItems');
+            
+            let html = '';
+            tools.forEach((tool, index) => {
+                html += `
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">${tool.icon} ${tool.name}</span>
+                            <span class="progress-status" id="status${index}">Initializing...</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progress${index}" style="width: 0%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            progressItems.innerHTML = html;
+            document.getElementById('monitoringProgress').classList.remove('hidden');
+            document.getElementById('startBtn').disabled = true;
+            
+            // Simulate progress
+            tools.forEach((tool, index) => {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 20;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(interval);
+                        document.getElementById(`status${index}`).textContent = '✓ Active';
+                        document.getElementById(`progress${index}`).classList.add('complete');
+                    }
+                    document.getElementById(`progress${index}`).style.width = progress + '%';
+                    document.getElementById(`status${index}`).textContent = Math.floor(progress) + '%';
+                }, 500);
+            });
+            
+            setTimeout(() => {
+                document.getElementById('step4').classList.remove('hidden');
+                document.getElementById('step4').scrollIntoView({ behavior: 'smooth' });
+            }, 3000);
+        }
+
+        function stopMonitoring() {
+            monitoringActive = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('step5').classList.remove('hidden');
+            document.getElementById('step5').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function handleAWRUpload(input) {
+            if (input.files.length > 0) {
+                document.getElementById('awrFileName').textContent = '✓ ' + input.files[0].name;
+                checkProcessButton();
+            }
+        }
+
+        function handlePCUpload(input) {
+            if (input.files.length > 0) {
+                document.getElementById('pcFileName').textContent = '✓ ' + input.files[0].name;
+                checkProcessButton();
+            }
+        }
+
+        function checkProcessButton() {
+            const awrFile = document.getElementById('awrFile').files.length > 0;
+            const pcFile = document.getElementById('pcFile').files.length > 0;
+            document.getElementById('processBtn').disabled = !(awrFile && pcFile);
+        }
+
+        function processReports() {
+            alert('✓ Reports uploaded successfully!\n\nAWR and Performance Center reports are being processed...');
+        }
+    </script>
+</body>
+</html>
