@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AppDynamics Applications</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body { padding: 20px; background: var(--bg-gradient); }
+        .app-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .app-table th {
+            background: #1f2937;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 800;
+            border: 1px solid #374151;
+        }
+        .app-table td {
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            background: white;
+        }
+        .app-table tr:hover td {
+            background: #f9fafb;
+        }
+        .badge-active { background: #10b981; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+        .badge-inactive { background: #6b7280; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="background:white;padding:40px;border-radius:16px;box-shadow:var(--card-shadow);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">
+                <div>
+                    <h1 style="font-size:28px;font-weight:800;margin-bottom:5px;">📊 AppDynamics Applications</h1>
+                    <p style="color:#6b7280;">Manage configured applications and their monitoring settings</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="window.location.href='appd-add.html'">➕ Add Application</button>
+                    <button class="btn btn-secondary" onclick="window.location.href='admin-dashboard.html'">← Back</button>
+                </div>
+            </div>
+
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Application Name</th>
+                        <th>Track</th>
+                        <th>Config Name</th>
+                        <th>Tiers</th>
+                        <th>Total Nodes</th>
+                        <th>Status</th>
+                        <th>Last Updated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>icg-tts-cirp-ng-173720_PTE</strong></td>
+                        <td>CDV3</td>
+                        <td>NFT_Digital_Technology_CDV3_12Mar2026_2342</td>
+                        <td>3</td>
+                        <td>8</td>
+                        <td><span class="badge-active">Active</span></td>
+                        <td>2026-03-14 09:30</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:6px 12px;font-size:12px;" onclick="alert('Edit application')">Edit</button>
+                            <button class="btn btn-danger btn-small" style="padding:6px 12px;font-size:12px;" onclick="alert('Delete application')">Delete</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>CDV3_NFT_Digital_Technology</strong></td>
+                        <td>CDV3</td>
+                        <td>NFT_Digital_Technology_CDV3_12Mar2026_2342</td>
+                        <td>2</td>
+                        <td>7</td>
+                        <td><span class="badge-active">Active</span></td>
+                        <td>2026-03-14 08:15</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:6px 12px;font-size:12px;">Edit</button>
+                            <button class="btn btn-danger btn-small" style="padding:6px 12px;font-size:12px;">Delete</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>CIRP_Digital_Tech</strong></td>
+                        <td>CDV3</td>
+                        <td>NFT_Digital_Technology_CDV3_12Mar2026_2342</td>
+                        <td>2</td>
+                        <td>4</td>
+                        <td><span class="badge-active">Active</span></td>
+                        <td>2026-03-13 16:45</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:6px 12px;font-size:12px;">Edit</button>
+                            <button class="btn btn-danger btn-small" style="padding:6px 12px;font-size:12px;">Delete</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>ServiceTech_API</strong></td>
+                        <td>Track1</td>
+                        <td>Digital_Tech_Track1_10Mar2026_1534</td>
+                        <td>1</td>
+                        <td>3</td>
+                        <td><span class="badge-inactive">Inactive</span></td>
+                        <td>2026-03-10 14:20</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:6px 12px;font-size:12px;">Edit</button>
+                            <button class="btn btn-danger btn-small" style="padding:6px 12px;font-size:12px;">Delete</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

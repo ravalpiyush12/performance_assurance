@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CQE NFT Monitoring Platform</title>
+    <link rel="stylesheet" href="../css/main.css">
+</head>
+<body>
+    <a href="admin-login.html" class="admin-link">🔐 Admin Login</a>
+
+    <div class="container">
+        <!-- HEADER -->
+        <div class="main-header">
+            <h1>🔐 CQE NFT Monitoring Platform</h1>
+            <p>Automated Performance Monitoring & Analysis System</p>
+        </div>
+
+        <!-- WORKFLOW PROGRESS -->
+        <div class="workflow-progress">
+            <div class="progress-steps">
+                <div class="progress-step active" id="prog1">
+                    <div class="progress-step-circle">1</div>
+                    <div class="progress-step-label">Select LOB</div>
+                </div>
+                <div class="progress-step" id="prog2">
+                    <div class="progress-step-circle">2</div>
+                    <div class="progress-step-label">Validate</div>
+                </div>
+                <div class="progress-step" id="prog3">
+                    <div class="progress-step-circle">3</div>
+                    <div class="progress-step-label">Configure</div>
+                </div>
+                <div class="progress-step" id="prog4">
+                    <div class="progress-step-circle">4</div>
+                    <div class="progress-step-label">Monitor</div>
+                </div>
+                <div class="progress-step" id="prog5">
+                    <div class="progress-step-circle">5</div>
+                    <div class="progress-step-label">Upload</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API DOCS -->
+        <div class="step-container expanded">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">📚</div>
+                <div class="step-title">
+                    <h2>API Documentation</h2>
+                    <p>Quick access to all API endpoints</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="api-docs-grid">
+                    <a href="/api/docs" class="api-doc-card">
+                        <div class="api-doc-icon">📖</div>
+                        <div class="api-doc-title">Complete API Docs</div>
+                    </a>
+                    <a href="/api/docs/appd" class="api-doc-card">
+                        <div class="api-doc-icon">📊</div>
+                        <div class="api-doc-title">AppDynamics API</div>
+                    </a>
+                    <a href="/api/docs/awr" class="api-doc-card">
+                        <div class="api-doc-icon">🗄️</div>
+                        <div class="api-doc-title">AWR API</div>
+                    </a>
+                    <a href="/api/docs/kibana" class="api-doc-card">
+                        <div class="api-doc-icon">📈</div>
+                        <div class="api-doc-title">Kibana API</div>
+                    </a>
+                    <a href="/api/docs/splunk" class="api-doc-card">
+                        <div class="api-doc-icon">🔍</div>
+                        <div class="api-doc-title">Splunk API</div>
+                    </a>
+                    <a href="/api/docs/mongodb" class="api-doc-card">
+                        <div class="api-doc-icon">🍃</div>
+                        <div class="api-doc-title">MongoDB API</div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 1: Select LOB -->
+        <div class="step-container expanded" id="step1">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">1</div>
+                <div class="step-title">
+                    <h2>Select Line of Business</h2>
+                    <p>Choose your LOB to begin</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="lob-select-wrapper">
+                    <select id="lobSelector" onchange="onLOBSelected()">
+                        <option value="">-- Select Your LOB --</option>
+                        <option value="Digital Technology">Digital Technology</option>
+                        <option value="Payments">Payments</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Retail Banking">Retail Banking</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: Validate -->
+        <div class="step-container" id="step2">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">2</div>
+                <div class="step-title">
+                    <h2>Validate Prerequisites</h2>
+                    <p>Check all monitoring tools</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <button class="btn btn-primary" onclick="validatePrerequisites()">🔍 Run Validation</button>
+                <div id="validationResults" class="hidden" style="margin-top:25px;">
+                    <h3 style="margin-bottom:20px;">System Health Status</h3>
+                    <div class="status-grid" id="statusGrid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3: Configure - TABBED INTERFACE -->
+        <div class="step-container" id="step3">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">3</div>
+                <div class="step-title">
+                    <h2>Configure Monitoring</h2>
+                    <p>Set up monitoring parameters</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="config-tabs">
+                    <button class="config-tab active" onclick="switchTab('basic')">📝 Basic Info</button>
+                    <button class="config-tab" onclick="switchTab('tools')">🛠 Tool Configuration</button>
+                    <button class="config-tab" onclick="switchTab('review')">✅ Review & Start</button>
+                </div>
+
+                <!-- TAB 1: Basic Info -->
+                <div class="tab-content active" id="tab-basic">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>PC Run ID (Primary Key) <span class="required">*</span></label>
+                            <input type="text" id="pcRunId" placeholder="5-digit PC Run ID" maxlength="5" onchange="updateReview()">
+                            <small>This will be used as primary key across all tables</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Track <span class="required">*</span></label>
+                            <select id="track" onchange="onTrackSelected()">
+                                <option value="">-- Select Track --</option>
+                            </select>
+                            <small>Select track to auto-load AppD configuration</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Test Duration</label>
+                            <select id="duration" onchange="updateReview()">
+                                <option value="1800">30 minutes</option>
+                                <option value="2400">40 minutes</option>
+                                <option value="3600">60 minutes</option>
+                                <option value="">Run until manually stopped</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Test Name (Optional)</label>
+                            <input type="text" id="testName" placeholder="e.g., Peak Load Test" onchange="updateReview()">
+                        </div>
+                    </div>
+
+                    <!-- AppD Config Info Box -->
+                    <div id="appdConfigBox" class="hidden config-info-box" style="margin-top:25px;">
+                        <div class="config-info-title">
+                            <span>📊</span>
+                            <span>AppDynamics Configuration: <strong id="configName"></strong></span>
+                        </div>
+                        <p style="margin-bottom:15px;color:#1e40af;font-size:14px;">Applications to be monitored (Read-only from latest config):</p>
+                        <div class="config-apps-readonly" id="appdApps"></div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="switchTab('tools')" style="margin-top:25px;">
+                        Next: Tool Configuration →
+                    </button>
+                </div>
+
+                <!-- TAB 2: Tool Configuration -->
+                <div class="tab-content" id="tab-tools">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Kibana Dashboard Name</label>
+                            <input type="text" id="kibanaDashboard" placeholder="e.g., Performance_Monitoring" onchange="updateReview()">
+                            <small>Dashboard name for Kibana monitoring</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Splunk Dashboard Name</label>
+                            <input type="text" id="splunkDashboard" placeholder="e.g., Application_Logs" onchange="updateReview()">
+                            <small>Dashboard name for Splunk monitoring</small>
+                        </div>
+
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>MongoDB Collections (comma-separated)</label>
+                            <input type="text" id="mongoCollections" placeholder="e.g., performance_metrics, transaction_logs" onchange="updateReview()">
+                            <small>Collection names to monitor in MongoDB</small>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:15px;margin-top:25px;">
+                        <button class="btn btn-secondary" onclick="switchTab('basic')">← Back</button>
+                        <button class="btn btn-primary" onclick="switchTab('review')">Next: Review →</button>
+                    </div>
+                </div>
+
+                <!-- TAB 3: Review & Start -->
+                <div class="tab-content" id="tab-review">
+                    <h3 style="margin-bottom:20px;">📋 Configuration Summary</h3>
+                    <div id="reviewSummary" style="background:#f9fafb;padding:25px;border-radius:12px;border-left:4px solid var(--primary);"></div>
+
+                    <div style="display:flex;gap:15px;margin-top:25px;">
+                        <button class="btn btn-secondary" onclick="switchTab('tools')">← Back</button>
+                        <button class="btn btn-success" onclick="startMonitoring()" id="startBtn">▶️ Start Monitoring</button>
+                    </div>
+
+                    <div id="monitoringProgress" class="hidden" style="margin-top:30px;">
+                        <h3 style="margin-bottom:20px;">Monitoring in Progress...</h3>
+                        <div id="progressItems"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 4: Stop -->
+        <div class="step-container" id="step4">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">4</div>
+                <div class="step-title">
+                    <h2>Stop Monitoring</h2>
+                    <p>End monitoring and view data summary</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="alert alert-info">
+                    <span>ℹ️</span>
+                    <span>Monitoring is currently active. Stop to finalize data storage.</span>
+                </div>
+                <button class="btn btn-danger" onclick="stopMonitoring()" id="stopBtn">⏹ Stop All Monitoring</button>
+                
+                <div id="stopResults" class="hidden" style="margin-top:30px;">
+                    <div class="alert alert-success">
+                        <strong>✓ Monitoring Stopped Successfully!</strong>
+                    </div>
+                    <h3 style="margin-bottom:15px;">📊 Data Storage Summary</h3>
+                    <div id="tablesSummary" style="background:#f9fafb;padding:20px;border-radius:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 5: Upload -->
+        <div class="step-container" id="step5">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">5</div>
+                <div class="step-title">
+                    <h2>Upload Reports</h2>
+                    <p>Process AWR and PC reports</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="upload-grid">
+                    <div class="upload-box" onclick="document.getElementById('awrFile').click()">
+                        <div class="upload-box-icon">📄</div>
+                        <div class="upload-box-title">AWR HTML Report</div>
+                        <div class="upload-box-desc">Oracle AWR performance report</div>
+                        <input type="file" id="awrFile" accept=".html" onchange="handleAWRUpload(this)" style="display:none;">
+                        <div class="file-selected" id="awrFileName"></div>
+                    </div>
+                    
+                    <div class="upload-box" onclick="document.getElementById('pcFile').click()">
+                        <div class="upload-box-icon">📦</div>
+                        <div class="upload-box-title">Performance Center Report</div>
+                        <div class="upload-box-desc">LoadRunner results (.zip)</div>
+                        <input type="file" id="pcFile" accept=".zip" onchange="handlePCUpload(this)" style="display:none;">
+                        <div class="file-selected" id="pcFileName"></div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="processReports()" id="processBtn" style="margin-top:25px;" disabled>
+                    📊 Process & Store Reports
+                </button>
+
+                <div id="processingResults" class="hidden" style="margin-top:30px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/main.js"></script>
+</body>
+</html>

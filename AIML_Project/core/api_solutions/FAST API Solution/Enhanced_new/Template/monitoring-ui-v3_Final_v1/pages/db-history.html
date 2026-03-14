@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Query History</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body { padding: 20px; background: var(--bg-gradient); }
+        
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .history-table th {
+            background: #1f2937;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 800;
+            border: 1px solid #374151;
+        }
+        
+        .history-table td {
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            background: white;
+        }
+        
+        .history-table tr:hover td {
+            background: #f9fafb;
+        }
+        
+        .query-type {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        
+        .query-type.select { background: #3b82f6; color: white; }
+        .query-type.insert { background: #10b981; color: white; }
+        .query-type.update { background: #f59e0b; color: white; }
+        .query-type.delete { background: #ef4444; color: white; }
+        
+        .status-success { color: #10b981; font-weight: 700; }
+        .status-error { color: #ef4444; font-weight: 700; }
+        
+        .filter-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="background:white;padding:40px;border-radius:16px;box-shadow:var(--card-shadow);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">
+                <div>
+                    <h1 style="font-size:28px;font-weight:800;margin-bottom:5px;">📜 Database Query History</h1>
+                    <p style="color:#6b7280;">View all executed SQL queries and file uploads</p>
+                </div>
+                <button class="btn btn-secondary" onclick="window.location.href='admin-dashboard.html'">← Back</button>
+            </div>
+
+            <div class="filter-bar">
+                <div class="form-group">
+                    <label>Date From</label>
+                    <input type="date" value="2026-03-01">
+                </div>
+                <div class="form-group">
+                    <label>Date To</label>
+                    <input type="date" value="2026-03-14">
+                </div>
+                <div class="form-group">
+                    <label>Database</label>
+                    <select>
+                        <option value="">All Databases</option>
+                        <option>CQE_NFT</option>
+                        <option>CD_PTE_READ</option>
+                        <option>PRODDB01</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Query Type</label>
+                    <select>
+                        <option value="">All Types</option>
+                        <option>SELECT</option>
+                        <option>INSERT</option>
+                        <option>UPDATE</option>
+                        <option>DELETE</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom:15px;display:flex;gap:10px;">
+                <button class="btn btn-primary btn-small">Apply Filters</button>
+                <button class="btn btn-secondary btn-small">Reset</button>
+                <button class="btn btn-secondary btn-small">📥 Export CSV</button>
+            </div>
+
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Database</th>
+                        <th>Type</th>
+                        <th>Query/File</th>
+                        <th>Rows Affected</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2026-03-14 09:45:23</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a4c5c0c9cdcae4c7cbc9d4c5cadd8ac7cbc9">[email&#160;protected]</a></td>
+                        <td>CQE_NFT</td>
+                        <td><span class="query-type select">SELECT</span></td>
+                        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            SELECT * FROM MASTER_TEST_RUN WHERE pc_run_id = 65989
+                        </td>
+                        <td>3</td>
+                        <td><span class="status-success">✓ Success</span></td>
+                        <td>0.234s</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:4px 10px;font-size:11px;" onclick="alert('View full query')">View</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 09:30:15</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f49590999d9ab4979b9984959a8dda979b99">[email&#160;protected]</a></td>
+                        <td>CQE_NFT</td>
+                        <td><span class="query-type update">UPDATE</span></td>
+                        <td>UPDATE LOB_CONFIG SET status = 'ACTIVE' WHERE lob_name = 'Digital Technology'</td>
+                        <td>1</td>
+                        <td><span class="status-success">✓ Success</span></td>
+                        <td>0.156s</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:4px 10px;font-size:11px;">View</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 09:15:42</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="046e6b6c6a44676b6974656a7d2a676b69">[email&#160;protected]</a></td>
+                        <td>PRODDB01</td>
+                        <td><span class="query-type insert">INSERT</span></td>
+                        <td>INSERT INTO APPD_APPS VALUES ('ServiceTech_API', 'Track1', ...)</td>
+                        <td>1</td>
+                        <td><span class="status-success">✓ Success</span></td>
+                        <td>0.089s</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:4px 10px;font-size:11px;">View</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 09:00:28</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4627222b2f280625292b3627283f6825292b">[email&#160;protected]</a></td>
+                        <td>CQE_NFT</td>
+                        <td><span class="query-type select">FILE</span></td>
+                        <td><strong>📁 batch_update.sql</strong> (45 statements)</td>
+                        <td>127</td>
+                        <td><span class="status-success">✓ Success</span></td>
+                        <td>1.234s</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:4px 10px;font-size:11px;">Download</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 08:45:11</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="afdcceddcec7efccc0c2dfcec1d681ccc0c2">[email&#160;protected]</a></td>
+                        <td>CD_PTE_READ</td>
+                        <td><span class="query-type delete">DELETE</span></td>
+                        <td>DELETE FROM TEMP_DATA WHERE created_date < SYSDATE - 30</td>
+                        <td>234</td>
+                        <td><span class="status-success">✓ Success</span></td>
+                        <td>0.567s</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:4px 10px;font-size:11px;">View</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 08:30:55</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="cfaeaba2a6a18faca0a2bfaea1b6e1aca0a2">[email&#160;protected]</a></td>
+                        <td>CQE_NFT</td>
+                        <td><span class="query-type select">SELECT</span></td>
+                        <td>SELECT COUNT(*) FROM USERS WHERE role = 'admin'</td>
+                        <td>1</td>
+                        <td><span class="status-error">✗ Error</span></td>
+                        <td>0.045s</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:4px 10px;font-size:11px;">View Error</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-13 17:30:45</td>
+                   

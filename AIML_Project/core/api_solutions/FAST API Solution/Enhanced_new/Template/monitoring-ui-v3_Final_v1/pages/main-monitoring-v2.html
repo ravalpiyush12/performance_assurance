@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CQE NFT Monitoring Platform</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .validation-card {
+            background: white;
+            padding: 25px;
+            border-radius: 14px;
+            border-left: 5px solid #e5e7eb;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .validation-card.ok { border-left-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+        .validation-card.error { border-left-color: #ef4444; background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); }
+        
+        .validation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .validation-title {
+            font-size: 20px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .validation-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .validation-badge.ok { background: #10b981; color: white; }
+        .validation-badge.error { background: #ef4444; color: white; }
+        
+        .app-tier-status {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .tier-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .tier-item.ok { background: #f0fdf4; border-left: 3px solid #10b981; }
+        .tier-item.error { background: #fef2f2; border-left: 3px solid #ef4444; }
+        
+        .tier-name { font-weight: 700; }
+        .tier-nodes { font-size: 14px; color: #6b7280; }
+        .tier-gap { color: #ef4444; font-weight: 700; }
+        
+        .db-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .db-item {
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+        }
+        .db-item.connected { background: #f0fdf4; color: #065f46; }
+        .db-item.disconnected { background: #fef2f2; color: #991b1b; }
+        
+        .url-status {
+            padding: 12px;
+            margin-top: 10px;
+            border-radius: 8px;
+            font-weight: 700;
+        }
+        .url-status.up { background: #f0fdf4; color: #065f46; }
+        .url-status.down { background: #fef2f2; color: #991b1b; }
+    </style>
+</head>
+<body>
+    <a href="admin-login.html" class="admin-link">🔐 Admin Login</a>
+
+    <div class="container">
+        <div class="main-header">
+            <h1>🔐 CQE NFT Monitoring Platform</h1>
+            <p>Automated Performance Monitoring & Analysis System</p>
+        </div>
+
+        <div class="workflow-progress">
+            <div class="progress-steps">
+                <div class="progress-step active" id="prog1">
+                    <div class="progress-step-circle">1</div>
+                    <div class="progress-step-label">Select LOB</div>
+                </div>
+                <div class="progress-step" id="prog2">
+                    <div class="progress-step-circle">2</div>
+                    <div class="progress-step-label">Validate</div>
+                </div>
+                <div class="progress-step" id="prog3">
+                    <div class="progress-step-circle">3</div>
+                    <div class="progress-step-label">Configure</div>
+                </div>
+                <div class="progress-step" id="prog4">
+                    <div class="progress-step-circle">4</div>
+                    <div class="progress-step-label">Monitor</div>
+                </div>
+                <div class="progress-step" id="prog5">
+                    <div class="progress-step-circle">5</div>
+                    <div class="progress-step-label">Upload</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API DOCS -->
+        <div class="step-container expanded">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">📚</div>
+                <div class="step-title">
+                    <h2>API Documentation</h2>
+                    <p>Quick access to all API endpoints</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="api-docs-grid">
+                    <a href="/api/docs" class="api-doc-card">
+                        <div class="api-doc-icon">📖</div>
+                        <div class="api-doc-title">Complete API Docs</div>
+                    </a>
+                    <a href="/api/docs/appd" class="api-doc-card">
+                        <div class="api-doc-icon">📊</div>
+                        <div class="api-doc-title">AppDynamics API</div>
+                    </a>
+                    <a href="/api/docs/awr" class="api-doc-card">
+                        <div class="api-doc-icon">🗄️</div>
+                        <div class="api-doc-title">AWR API</div>
+                    </a>
+                    <a href="/api/docs/kibana" class="api-doc-card">
+                        <div class="api-doc-icon">📈</div>
+                        <div class="api-doc-title">Kibana API</div>
+                    </a>
+                    <a href="/api/docs/splunk" class="api-doc-card">
+                        <div class="api-doc-icon">🔍</div>
+                        <div class="api-doc-title">Splunk API</div>
+                    </a>
+                    <a href="/api/docs/mongodb" class="api-doc-card">
+                        <div class="api-doc-icon">🍃</div>
+                        <div class="api-doc-title">MongoDB API</div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div class="step-container expanded" id="step1">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">1</div>
+                <div class="step-title">
+                    <h2>Select Line of Business</h2>
+                    <p>Choose your LOB to begin</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="lob-select-wrapper">
+                    <select id="lobSelector" onchange="onLOBSelected()">
+                        <option value="">-- Select Your LOB --</option>
+                        <option value="Digital Technology">Digital Technology</option>
+                        <option value="Payments">Payments</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Retail Banking">Retail Banking</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2 - ENHANCED VALIDATION -->
+        <div class="step-container" id="step2">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">2</div>
+                <div class="step-title">
+                    <h2>Validate Prerequisites</h2>
+                    <p>Check all monitoring tools</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <button class="btn btn-primary" onclick="validatePrerequisites()">🔍 Run Validation</button>
+                <div id="validationResults" class="hidden" style="margin-top:25px;">
+                    <h3 style="margin-bottom:20px;font-weight:800;">System Health Status</h3>
+                    <div id="validationContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3, 4, 5 remain same as before -->
+        <div class="step-container" id="step3">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">3</div>
+                <div class="step-title">
+                    <h2>Configure Monitoring</h2>
+                    <p>Set up monitoring parameters</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <p style="color:#6b7280;">Configuration tabs will appear here after validation...</p>
+            </div>
+        </div>
+
+        <div class="step-container" id="step4">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">4</div>
+                <div class="step-title">
+                    <h2>Monitor & Stop</h2>
+                    <p>Control monitoring sessions</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <p style="color:#6b7280;">Monitoring controls will appear here...</p>
+            </div>
+        </div>
+
+        <div class="step-container" id="step5">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">5</div>
+                <div class="step-title">
+                    <h2>Upload Reports</h2>
+                    <p>Process AWR and PC reports</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <p style="color:#6b7280;">Upload section will appear here...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dummy validation data
+        const VALIDATION_DATA = {
+            'Digital Technology': {
+                appd: {
+                    apps: [
+                        {
+                            name: 'icg-tts-cirp-ng-173720_PTE',
+                            tiers: [
+                                { name: 'Web Tier', activeNodes: 3, expected: 3, status: 'ok' },
+                                { name: 'App Tier', activeNodes: 2, expected: 3, status: 'error' },
+                                { name: 'DB Tier', activeNodes: 3, expected: 3, status: 'ok' }
+                            ]
+                        },
+                        {
+                            name: 'CDV3_NFT_Digital_Technology',
+                            tiers: [
+                                { name: 'API Tier', activeNodes: 4, expected: 3, status: 'ok' },
+                                { name: 'Service Tier', activeNodes: 3, expected: 3, status: 'ok' }
+                            ]
+                        },
+                        {
+                            name: 'CIRP_Digital_Tech',
+                            tiers: [
+                                { name: 'Frontend', activeNodes: 1, expected: 3, status: 'error' },
+                                { name: 'Backend', activeNodes: 3, expected: 3, status: 'ok' }
+                            ]
+                        }
+                    ]
+                },
+                kibana: { url: 'https://kibana.company.com', status: 'up' },
+                splunk: { url: 'https://splunk.company.com:8089', status: 'up' },
+                mongodb: { url: 'mongodb://mongo.company.com:27017', status: 'up' },
+                databases: [
+                    { name: 'CQE_NFT', status: 'connected' },
+                    { name: 'CD_PTE_READ', status: 'connected' },
+                    { name: 'CAS_PTE_READ', status: 'connected' },
+                    { name: 'PRODDB01', status: 'connected' },
+                    { name: 'PORTAL_PTE_READ', status: 'disconnected' }
+                ]
+            }
+        };
+
+        let selectedLOB = null;
+
+        function toggleStep(header) {
+            const container = header.parentElement;
+            container.classList.toggle('expanded');
+        }
+
+        function expandStep(stepId) {
+            const step = document.getElementById(stepId);
+            if (step) {
+                step.classList.add('expanded');
+                step.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function updateProgress(stepNum) {
+            for (let i = 1; i <= 5; i++) {
+                const prog = document.getElementById(`prog${i}`);
+                prog.classList.remove('active', 'completed');
+                if (i < stepNum) prog.classList.add('completed');
+                else if (i === stepNum) prog.classList.add('active');
+            }
+        }
+
+        function onLOBSelected() {
+            selectedLOB = document.getElementById('lobSelector').value;
+            if (selectedLOB) {
+                expandStep('step2');
+                updateProgress(2);
+            }
+        }
+
+        function validatePrerequisites() {
+            const data = VALIDATION_DATA[selectedLOB] || VALIDATION_DATA['Digital Technology'];
+            const container = document.getElementById('validationContainer');
+            
+            let html = '';
+
+            // AppDynamics Validation
+            let appdOverallStatus = 'ok';
+            data.appd.apps.forEach(app => {
+                const hasError = app.tiers.some(tier => tier.status === 'error');
+                if (hasError) appdOverallStatus = 'error';
+            });
+
+            html += `
+                <div class="validation-card ${appdOverallStatus}">
+                    <div class="validation-header">
+                        <div class="validation-title">
+                            <span style="font-size:32px;">📊</span>
+                            <span>AppDynamics</span>
+                        </div>
+                        <span class="validation-badge ${appdOverallStatus}">${appdOverallStatus === 'ok' ? '✓ ALL OK' : '⚠ ISSUES FOUND'}</span>
+                    </div>
+                    <p style="color:#6b7280;margin-bottom:15px;">Checking active tiers and nodes vs expected (default: 3 nodes)</p>
+            `;
+
+            data.appd.apps.forEach(app => {
+                const appHasError = app.tiers.some(tier => tier.status === 'error');
+                html += `
+                    <div class="app-tier-status">
+                        <div style="font-weight:800;margin-bottom:10px;color:${appHasError ? '#ef4444' : '#111827'};">
+                            ${appHasError ? '⚠' : '✓'} ${app.name}
+                        </div>
+                `;
+
+                app.tiers.forEach(tier => {
+                    const gap = tier.expected - tier.activeNodes;
+                    html += `
+                        <div class="tier-item ${tier.status}">
+                            <div>
+                                <div class="tier-name">${tier.name}</div>
+                                <div class="tier-nodes">Active: ${tier.activeNodes} / Expected: ${tier.expected}</div>
+                            </div>
+                            ${tier.status === 'error' ? `<span class="tier-gap">Gap: ${gap} node${gap > 1 ? 's' : ''}</span>` : '<span style="color:#10b981;font-weight:700;">✓ OK</span>'}
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+            });
+
+            html += `</div>`;
+
+            // Kibana
+            html += `
+                <div class="validation-card ${data.kibana.status === 'up' ? 'ok' : 'error'}">
+                    <div class="validation-header">
+                        <div class="validation-title">
+                            <span style="font-size:32px;">📈</span>
+                            <span>Kibana</span>
+                        </div>
+                        <span class="validation-badge ${data.kibana.status === 'up' ? 'ok' : 'error'}">
+                            ${data.kibana.status === 'up' ? '✓ UP' : '✗ DOWN'}
+                        </span>
+                    </div>
+                    <p style="color:#6b7280;margin-bottom:10px;">URL accessibility check</p>
+                    <div class="url-status ${data.kibana.status}">
+                        ${data.kibana.status === 'up' ? '✓' : '✗'} ${data.kibana.url} - ${data.kibana.status === 'up' ? 'Connected' : 'Connection Failed'}
+                    </div>
+                </div>
+            `;
+
+            // Splunk
+            html += `
+                <div class="validation-card ${data.splunk.status === 'up' ? 'ok' : 'error'}">
+                    <div class="validation-header">
+                        <div class="validation-title">
+                            <span style="font-size:32px;">🔍</span>
+                            <span>Splunk</span>
+                        </div>
+                        <span class="validation-badge ${data.splunk.status === 'up' ? 'ok' : 'error'}">
+                            ${data.splunk.status === 'up' ? '✓ UP' : '✗ DOWN'}
+                        </span>
+                    </div>
+                    <p style="color:#6b7280;margin-bottom:10px;">URL accessibility check</p>
+                    <div class="url-status ${data.splunk.status}">
+                        ${data.splunk.status === 'up' ? '✓' : '✗'} ${data.splunk.url} - ${data.splunk.status === 'up' ? 'Connected' : 'Connection Failed'}
+                    </div>
+                </div>
+            `;
+
+            // MongoDB
+            html += `
+                <div class="validation-card ${data.mongodb.status === 'up' ? 'ok' : 'error'}">
+                    <div class="validation-header">
+                        <div class="validation-title">
+                            <span style="font-size:32px;">🍃</span>
+                            <span>MongoDB</span>
+                        </div>
+                        <span class="validation-badge ${data.mongodb.status === 'up' ? 'ok' : 'error'}">
+                            ${data.mongodb.status === 'up' ? '✓ UP' : '✗ DOWN'}
+                        </span>
+                    </div>
+                    <p style="color:#6b7280;margin-bottom:10px;">Cluster connectivity check</p>
+                    <div class="url-status ${data.mongodb.status}">
+                        ${data.mongodb.status === 'up' ? '✓' : '✗'} ${data.mongodb.url} - ${data.mongodb.status === 'up' ? 'Connected' : 'Connection Failed'}
+                    </div>
+                </div>
+            `;
+
+            // Databases
+            const connectedCount = data.databases.filter(db => db.status === 'connected').length;
+            const dbStatus = connectedCount === data.databases.length ? 'ok' : 'error';
+            
+            html += `
+                <div class="validation-card ${dbStatus}">
+                    <div class="validation-header">
+                        <div class="validation-title">
+                            <span style="font-size:32px;">🗄️</span>
+                            <span>Oracle Databases</span>
+                        </div>
+                        <span class="validation-badge ${dbStatus}">
+                            ${connectedCount}/${data.databases.length} Connected
+                        </span>
+                    </div>
+                    <p style="color:#6b7280;margin-bottom:15px;">Database connection status</p>
+                    <div class="db-list">
+            `;
+
+            data.databases.forEach(db => {
+                html += `
+                    <div class="db-item ${db.status}">
+                        <span>${db.status === 'connected' ? '✓' : '✗'}</span>
+                        <span>${db.name}</span>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            document.getElementById('validationResults').classList.remove('hidden');
+            
+            setTimeout(() => {
+                expandStep('step3');
+                updateProgress(3);
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

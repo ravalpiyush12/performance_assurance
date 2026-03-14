@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User List</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .user-table th {
+            background: #f3f4f6;
+            padding: 15px;
+            text-align: left;
+            font-weight: 800;
+            border-bottom: 3px solid #e5e7eb;
+        }
+        .user-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .user-table tr:hover {
+            background: #f9fafb;
+        }
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .badge-admin { background: #ef4444; color: white; }
+        .badge-user { background: #3b82f6; color: white; }
+        .badge-viewer { background: #6b7280; color: white; }
+        .badge-active { background: #10b981; color: white; }
+    </style>
+</head>
+<body style="padding:20px;background:var(--bg-gradient);">
+    <div class="container">
+        <div style="background:white;padding:40px;border-radius:16px;box-shadow:var(--card-shadow);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">
+                <div>
+                    <h1 style="font-size:28px;font-weight:800;margin-bottom:5px;">👥 User Management</h1>
+                    <p style="color:#6b7280;">Manage system users and permissions</p>
+                </div>
+                <div>
+                    <button class="btn btn-primary" onclick="window.location.href='user-create.html'">➕ Create User</button>
+                    <button class="btn btn-secondary" onclick="window.location.href='admin-dashboard.html'">← Back</button>
+                </div>
+            </div>
+
+            <table class="user-table">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Full Name</th>
+                        <th>Role</th>
+                        <th>Department</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="caabaea7a3a48aa9a5a7baaba4b3e4a9a5a7">[email&#160;protected]</a></td>
+                        <td>John Administrator</td>
+                        <td><span class="badge badge-admin">Admin</span></td>
+                        <td>IT Operations</td>
+                        <td><span class="badge badge-active">Active</span></td>
+                        <td>2026-03-14 09:45</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:6px 12px;font-size:12px;">Edit</button>
+                            <button class="btn btn-danger btn-small" style="padding:6px 12px;font-size:12px;">Disable</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c9a3a6a1a789aaa6a4b9a8a7b0e7aaa6a4">[email&#160;protected]</a></td>
+                        <td>John Smith</td>
+                        <td><span class="badge badge-user">User</span></td>
+                        <td>Digital Technology</td>
+                        <td><span class="badge badge-active">Active</span></td>
+                        <td>2026-03-14 08:30</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:6px 12px;font-size:12px;">Edit</button>
+                            <button class="btn btn-danger btn-small" style="padding:6px 12px;font-size:12px;">Disable</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="bac9dbc8dbd2fad9d5d7cadbd4c394d9d5d7">[email&#160;protected]</a></td>
+                        <td>Sarah Johnson</td>
+                        <td><span class="badge badge-user">User</span></td>
+                        <td>Payments</td>
+                        <td><span class="badge badge-active">Active</span></td>
+                        <td>2026-03-13 16:20</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" style="padding:6px 12px;font-size:12px;">Edit</button>
+                            <button class="btn btn-danger btn-small" style="padding:6px 12px;font-size:12px;">Disable</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="fa8c939f8d9f88ba9995978a9b9483d4999597">[email&#160;protected]</a></td>
+                        <td>Mike Viewer</td>
+                        <td><span class="badge badge-viewer">Viewer</span></td>
+                        <td>Corporate</td>
+                        <td><span class="badge badge-active">Active</span></t

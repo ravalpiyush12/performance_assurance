@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LOB Configuration View</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body { padding: 20px; background: var(--bg-gradient); }
+        .lob-card {
+            background: white;
+            padding: 30px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+            border-top: 5px solid var(--primary);
+        }
+        .track-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .track-item {
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        .track-name {
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        .track-db {
+            font-size: 13px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="background:white;padding:40px;border-radius:16px;box-shadow:var(--card-shadow);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">
+                <div>
+                    <h1 style="font-size:28px;font-weight:800;margin-bottom:5px;">🏢 LOB Configuration</h1>
+                    <p style="color:#6b7280;">View all configured LOBs, tracks, and database connections</p>
+                </div>
+                <button class="btn btn-secondary" onclick="window.location.href='admin-dashboard.html'">← Back</button>
+            </div>
+
+            <div class="lob-card">
+                <h2 style="font-weight:800;margin-bottom:20px;">Digital Technology</h2>
+                <div style="margin-bottom:15px;color:#6b7280;">
+                    <strong>Configured Tracks & Databases:</strong>
+                </div>
+                <div class="track-list">
+                    <div class="track-item">
+                        <div class="track-name">CDV3</div>
+                        <div class="track-db">🗄️ CQE_NFT, CD_PTE_READ</div>
+                    </div>
+                    <div class="track-item">
+                        <div class="track-name">Track1</div>
+                        <div class="track-db">🗄️ PRODDB01</div>
+                    </div>
+                    <div class="track-item">
+                        <div class="track-name">Track2</div>
+                        <div class="track-db">🗄️ CAS_PTE_READ</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lob-card">
+                <h2 style="font-weight:800;margin-bottom:20px;">Payments</h2>
+                <div style="margin-bottom:15px;color:#6b7280;">
+                    <strong>Configured Tracks & Databases:</strong>
+                </div>
+                <div class="track-list">
+                    <div class="track-item">
+                        <div class="track-name">PayTrack1</div>
+                        <div class="track-db">🗄️ PAYMENT_DB01</div>
+                    </div>
+                    <div class="track-item">
+                        <div class="track-name">PayTrack2</div>
+                        <div class="track-db">🗄️ PAYMENT_DB02</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lob-card">
+                <h2 style="font-weight:800;margin-bottom:20px;">Corporate</h2>
+                <div style="margin-bottom:15px;color:#6b7280;">
+                    <strong>Configured Tracks & Databases:</strong>
+                </div>
+                <div class="track-list">
+                    <div class="track-item">
+                        <div class="track-name">CorpTrack1</div>
+                        <div class="track-db">🗄️ CORP_DB</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

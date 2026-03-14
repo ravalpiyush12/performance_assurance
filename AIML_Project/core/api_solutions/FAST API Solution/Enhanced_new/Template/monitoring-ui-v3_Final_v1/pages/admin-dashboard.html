@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - CQE NFT</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        body { padding: 20px; background: var(--bg-gradient); }
+        
+        .admin-header {
+            background: white;
+            padding: 25px 35px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .admin-header h1 { 
+            margin: 0; 
+            font-size: 28px; 
+            font-weight: 800;
+            background: var(--bg-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .admin-nav {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .nav-link {
+            padding: 12px 24px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #374151;
+            font-weight: 700;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .nav-link:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+        
+        .management-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+        }
+        
+        .management-card {
+            background: white;
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s;
+            border-top: 5px solid var(--primary);
+        }
+        
+        .management-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--card-hover);
+        }
+        
+        .management-card h2 {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #111827;
+        }
+        
+        .management-card p {
+            color: #6b7280;
+            font-size: 15px;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        
+        .btn-small { 
+            padding: 12px 24px; 
+            font-size: 14px; 
+            font-weight: 700;
+            margin-right: 12px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="admin-header">
+            <h1>🛠 Admin Dashboard</h1>
+            <div class="admin-nav">
+                <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+                <a href="main-monitoring.html" class="nav-link">← Back to Main</a>
+                <button class="btn btn-danger" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <div class="management-grid">
+            <!-- User Management -->
+            <div class="management-card">
+                <h2>👥 User Management</h2>
+                <p>Create and manage user accounts with role-based permissions</p>
+                <button class="btn btn-primary btn-small" onclick="window.location.href='user-create.html'">➕ Create User</button>
+                <button class="btn btn-secondary btn-small" onclick="window.location.href='user-list.html'">📋 View All Users</button>
+            </div>
+
+            <!-- LOB Management -->
+            <div class="management-card">
+                <h2>🏢 LOB Configuration</h2>
+                <p>Manage LOB tracks and database connections</p>
+                <button class="btn btn-primary btn-small" onclick="window.location.href='lob-config.html'">⚙️ Configure LOB</button>
+                <button class="btn btn-secondary btn-small" onclick="window.location.href='lob-view.html'">📊 View Configuration</button>
+            </div>
+
+            <!-- AppDynamics Management -->
+            <div class="management-card">
+                <h2>📊 AppDynamics Management</h2>
+                <p>Configure AppDynamics applications and monitoring settings</p>
+                <button class="btn btn-primary btn-small" onclick="window.location.href='appd-add.html'">➕ Add Application</button>
+                <button class="btn btn-secondary btn-small" onclick="window.location.href='appd-list.html'">📋 View Applications</button>
+            </div>
+
+            <!-- Kibana Management -->
+            <div class="management-card">
+                <h2>📈 Kibana Management</h2>
+                <p>Configure Elasticsearch/Kibana connection and indices</p>
+                <button class="btn btn-primary btn-small" onclick="window.location.href='kibana-config.html'">⚙️ Configure</button>
+                <button class="btn btn-secondary btn-small" onclick="window.location.href='kibana-test.html'">🔍 Test Connection</button>
+            </div>
+
+            <!-- Splunk Management -->
+            <div class="management-card">
+                <h2>🔍 Splunk Management</h2>
+                <p>Configure Splunk connection and search settings</p>
+                <button class="btn btn-primary btn-small" onclick="window.location.href='splunk-config.html'">⚙️ Configure</button>
+                <button class="btn btn-secondary btn-small" onclick="window.location.href='splunk-test.html'">🔍 Test Connection</button>
+            </div>
+
+            <!-- MongoDB Management -->
+            <div class="management-card">
+                <h2>🍃 MongoDB Management</h2>
+                <p>Configure MongoDB cluster and collection settings</p>
+                <button class="btn btn-primary btn-small" onclick="window.location.href='mongodb-config.html'">⚙️ Configure</button>
+                <button class="btn btn-secondary btn-small" onclick="window.location.href='mongodb-test.html'">🔍 Test Connection</button>
+            </div>
+
+            <!-- Database Console -->
+            <div class="management-card">
+                <h2>🗄️ Database Console (DML)</h2>
+                <p>Execute SQL queries via Cyberarc authenticated connections</p>
+                <button class="btn btn-primary btn-small" onclick="window.location.href='db-console.html'">💻 Open SQL Console</button>
+                <button class="btn btn-secondary btn-small" onclick="window.location.href='db-history.html'">📜 View History</button>
+            </div>
+
+            <!-- Performance Center -->
+            <div class="management-card">
+                <h2>⚡ Performance Center Config</h2>
+                <p>Configure Performance Center connection and projects</p>
+                <button class="btn btn-primary btn-small" onclick="window.location.href='pc-config.html'">⚙️ Configure</button>
+                <button class="btn btn-secondary btn-small" onclick="window.location.href='pc-test.html'">🔍 Test Connection</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function logout() {
+            if (confirm('Logout from admin dashboard?')) {
+                window.location.href = 'main-monitoring.html';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CQE NFT Monitoring - Accordion Validation</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <style>
+        /* Accordion-specific styles */
+        .validation-accordion {
+            margin-top: 25px;
+        }
+        
+        .accordion-item {
+            background: white;
+            border-radius: 14px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        
+        .accordion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 5px solid #e5e7eb;
+        }
+        
+        .accordion-header:hover {
+            background: #f9fafb;
+        }
+        
+        .accordion-header.ok { border-left-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%); }
+        .accordion-header.error { border-left-color: #ef4444; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); }
+        
+        .accordion-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .accordion-icon {
+            font-size: 32px;
+        }
+        
+        .accordion-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #111827;
+        }
+        
+        .accordion-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        
+        .status-badge.ok { background: #10b981; color: white; }
+        .status-badge.error { background: #ef4444; color: white; }
+        .status-badge.warning { background: #f59e0b; color: white; }
+        
+        .expand-icon {
+            font-size: 24px;
+            transition: transform 0.3s;
+            color: #6b7280;
+        }
+        
+        .accordion-item.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+        
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+            padding: 0 25px;
+        }
+        
+        .accordion-item.expanded .accordion-content {
+            max-height: 2000px;
+            padding: 25px;
+            border-top: 2px solid #f3f4f6;
+        }
+        
+        /* AppD Details */
+        .app-detail {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border-left: 4px solid #e5e7eb;
+        }
+        
+        .app-detail.has-error { border-left-color: #ef4444; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); }
+        .app-detail.all-ok { border-left-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%); }
+        
+        .app-name {
+            font-weight: 800;
+            font-size: 16px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .tier-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+        }
+        
+        .tier-item {
+            padding: 12px 15px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid #e5e7eb;
+        }
+        
+        .tier-item.ok { border-left-color: #10b981; }
+        .tier-item.error { border-left-color: #ef4444; background: #fef2f2; }
+        
+        .tier-name { font-weight: 700; font-size: 14px; }
+        .tier-status { font-size: 13px; color: #6b7280; }
+        .tier-gap { color: #ef4444; font-weight: 700; font-size: 13px; }
+        
+        /* URL Status */
+        .url-status {
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .url-status.up { background: #ecfdf5; color: #065f46; }
+        .url-status.down { background: #fef2f2; color: #991b1b; }
+        
+        /* DB Grid */
+        .db-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        
+        .db-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .db-item.connected { background: #ecfdf5; color: #065f46; }
+        .db-item.disconnected { background: #fef2f2; color: #991b1b; }
+    </style>
+</head>
+<body>
+    <a href="admin-login.html" class="admin-link">🔐 Admin Login</a>
+
+    <div class="container">
+        <div class="main-header">
+            <h1>🔐 CQE NFT Monitoring Platform</h1>
+            <p>Automated Performance Monitoring & Analysis System</p>
+        </div>
+
+        <div class="workflow-progress">
+            <div class="progress-steps">
+                <div class="progress-step active" id="prog1">
+                    <div class="progress-step-circle">1</div>
+                    <div class="progress-step-label">Select LOB</div>
+                </div>
+                <div class="progress-step" id="prog2">
+                    <div class="progress-step-circle">2</div>
+                    <div class="progress-step-label">Validate</div>
+                </div>
+                <div class="progress-step" id="prog3">
+                    <div class="progress-step-circle">3</div>
+                    <div class="progress-step-label">Configure</div>
+                </div>
+                <div class="progress-step" id="prog4">
+                    <div class="progress-step-circle">4</div>
+                    <div class="progress-step-label">Monitor</div>
+                </div>
+                <div class="progress-step" id="prog5">
+                    <div class="progress-step-circle">5</div>
+                    <div class="progress-step-label">Upload</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API DOCS (collapsible) -->
+        <div class="step-container expanded">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">📚</div>
+                <div class="step-title">
+                    <h2>API Documentation</h2>
+                    <p>Quick access to all API endpoints</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="api-docs-grid">
+                    <a href="/api/docs" class="api-doc-card">
+                        <div class="api-doc-icon">📖</div>
+                        <div class="api-doc-title">Complete API Docs</div>
+                    </a>
+                    <a href="/api/docs/appd" class="api-doc-card">
+                        <div class="api-doc-icon">📊</div>
+                        <div class="api-doc-title">AppDynamics API</div>
+                    </a>
+                    <a href="/api/docs/awr" class="api-doc-card">
+                        <div class="api-doc-icon">🗄️</div>
+                        <div class="api-doc-title">AWR API</div>
+                    </a>
+                    <a href="/api/docs/kibana" class="api-doc-card">
+                        <div class="api-doc-icon">📈</div>
+                        <div class="api-doc-title">Kibana API</div>
+                    </a>
+                    <a href="/api/docs/splunk" class="api-doc-card">
+                        <div class="api-doc-icon">🔍</div>
+                        <div class="api-doc-title">Splunk API</div>
+                    </a>
+                    <a href="/api/docs/mongodb" class="api-doc-card">
+                        <div class="api-doc-icon">🍃</div>
+                        <div class="api-doc-title">MongoDB API</div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div class="step-container expanded" id="step1">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">1</div>
+                <div class="step-title">
+                    <h2>Select Line of Business</h2>
+                    <p>Choose your LOB to begin</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <div class="lob-select-wrapper">
+                    <select id="lobSelector" onchange="onLOBSelected()">
+                        <option value="">-- Select Your LOB --</option>
+                        <option value="Digital Technology">Digital Technology</option>
+                        <option value="Payments">Payments</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Retail Banking">Retail Banking</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2 - ACCORDION VALIDATION -->
+        <div class="step-container" id="step2">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">2</div>
+                <div class="step-title">
+                    <h2>Validate Prerequisites</h2>
+                    <p>Check all monitoring tools - Click to expand details</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <button class="btn btn-primary" onclick="validatePrerequisites()">🔍 Run Validation</button>
+                
+                <div id="validationResults" class="hidden">
+                    <div class="validation-accordion" id="accordionContainer"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3, 4, 5 -->
+        <div class="step-container" id="step3">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">3</div>
+                <div class="step-title">
+                    <h2>Configure Monitoring</h2>
+                    <p>Set up monitoring parameters</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <p style="color:#6b7280;">Configuration will appear here after validation...</p>
+            </div>
+        </div>
+
+        <div class="step-container" id="step4">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">4</div>
+                <div class="step-title">
+                    <h2>Monitor & Stop</h2>
+                    <p>Control monitoring sessions</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <p style="color:#6b7280;">Monitoring controls will appear here...</p>
+            </div>
+        </div>
+
+        <div class="step-container" id="step5">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-number">5</div>
+                <div class="step-title">
+                    <h2>Upload Reports</h2>
+                    <p>Process AWR and PC reports</p>
+                </div>
+            </div>
+            <div class="step-content">
+                <p style="color:#6b7280;">Upload section will appear here...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const VALIDATION_DATA = {
+            'Digital Technology': {
+                appd: {
+                    apps: [
+                        {
+                            name: 'icg-tts-cirp-ng-173720_PTE',
+                            tiers: [
+                                { name: 'Web Tier', activeNodes: 3, expected: 3, status: 'ok' },
+                                { name: 'App Tier', activeNodes: 2, expected: 3, status: 'error' },
+                                { name: 'DB Tier', activeNodes: 3, expected: 3, status: 'ok' }
+                            ]
+                        },
+                        {
+                            name: 'CDV3_NFT_Digital_Technology',
+                            tiers: [
+                                { name: 'API Tier', activeNodes: 4, expected: 3, status: 'ok' },
+                                { name: 'Service Tier', activeNodes: 3, expected: 3, status: 'ok' }
+                            ]
+                        },
+                        {
+                            name: 'CIRP_Digital_Tech',
+                            tiers: [
+                                { name: 'Frontend', activeNodes: 1, expected: 3, status: 'error' },
+                                { name: 'Backend', activeNodes: 3, expected: 3, status: 'ok' }
+                            ]
+                        }
+                    ]
+                },
+                kibana: { url: 'https://kibana.company.com', status: 'up' },
+                splunk: { url: 'https://splunk.company.com:8089', status: 'up' },
+                mongodb: { url: 'mongodb://mongo.company.com:27017', status: 'up' },
+                databases: [
+                    { name: 'CQE_NFT', status: 'connected' },
+                    { name: 'CD_PTE_READ', status: 'connected' },
+                    { name: 'CAS_PTE_READ', status: 'connected' },
+                    { name: 'PRODDB01', status: 'connected' },
+                    { name: 'PORTAL_PTE_READ', status: 'disconnected' }
+                ]
+            }
+        };
+
+        let selectedLOB = null;
+
+        function toggleStep(header) {
+            header.parentElement.classList.toggle('expanded');
+        }
+
+        function expandStep(stepId) {
+            const step = document.getElementById(stepId);
+            if (step) {
+                step.classList.add('expanded');
+                step.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function updateProgress(stepNum) {
+            for (let i = 1; i <= 5; i++) {
+                const prog = document.getElementById(`prog${i}`);
+                prog.classList.remove('active', 'completed');
+                if (i < stepNum) prog.classList.add('completed');
+                else if (i === stepNum) prog.classList.add('active');
+            }
+        }
+
+        function onLOBSelected() {
+            selectedLOB = document.getElementById('lobSelector').value;
+            if (selectedLOB) {
+                expandStep('step2');
+                updateProgress(2);
+            }
+        }
+
+        function toggleAccordion(element) {
+            element.classList.toggle('expanded');
+        }
+
+        function validatePrerequisites() {
+            const data = VALIDATION_DATA[selectedLOB] || VALIDATION_DATA['Digital Technology'];
+            const container = document.getElementById('accordionContainer');
+            
+            let html = '';
+
+            // AppDynamics Accordion
+            const appdIssueCount = data.appd.apps.filter(app => 
+                app.tiers.some(tier => tier.status === 'error')
+            ).length;
+            const appdStatus = appdIssueCount > 0 ? 'error' : 'ok';
+
+            html += `
+                <div class="accordion-item">
+                    <div class="accordion-header ${appdStatus}" onclick="toggleAccordion(this.parentElement)">
+                        <div class="accordion-left">
+                            <span class="accordion-icon">📊</span>
+                            <span class="accordion-title">AppDynamics</span>
+                        </div>
+                        <div class="accordion-status">
+                            <span class="status-badge ${appdStatus}">
+                                ${appdIssueCount > 0 ? `⚠ ${appdIssueCount} ISSUE${appdIssueCount > 1 ? 'S' : ''}` : '✓ ALL OK'}
+                            </span>
+                            <span class="expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="accordion-content">
+                        <p style="color:#6b7280;margin-bottom:20px;font-size:14px;">
+                            Application and tier-level health check • Expected nodes: 3 (default)
+                        </p>
+            `;
+
+            data.appd.apps.forEach(app => {
+                const hasError = app.tiers.some(tier => tier.status === 'error');
+                html += `
+                    <div class="app-detail ${hasError ? 'has-error' : 'all-ok'}">
+                        <div class="app-name">
+                            <span>${hasError ? '⚠' : '✓'}</span>
+                            <span>${app.name}</span>
+                        </div>
+                        <div class="tier-grid">
+                `;
+
+                app.tiers.forEach(tier => {
+                    const gap = tier.expected - tier.activeNodes;
+                    html += `
+                        <div class="tier-item ${tier.status}">
+                            <div>
+                                <div class="tier-name">${tier.name}</div>
+                                <div class="tier-status">Active: ${tier.activeNodes} / Expected: ${tier.expected}</div>
+                            </div>
+                            ${tier.status === 'error' 
+                                ? `<div class="tier-gap">Gap: ${gap}</div>` 
+                                : '<div style="color:#10b981;font-weight:700;font-size:13px;">✓ OK</div>'}
+                        </div>
+                    `;
+                });
+
+                html += `</div></div>`;
+            });
+
+            html += `</div></div>`;
+
+            // Kibana Accordion
+            html += `
+                <div class="accordion-item">
+                    <div class="accordion-header ${data.kibana.status === 'up' ? 'ok' : 'error'}" onclick="toggleAccordion(this.parentElement)">
+                        <div class="accordion-left">
+                            <span class="accordion-icon">📈</span>
+                            <span class="accordion-title">Kibana</span>
+                        </div>
+                        <div class="accordion-status">
+                            <span class="status-badge ${data.kibana.status === 'up' ? 'ok' : 'error'}">
+                                ${data.kibana.status === 'up' ? '✓ UP' : '✗ DOWN'}
+                            </span>
+                            <span class="expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="accordion-content">
+                        <p style="color:#6b7280;margin-bottom:15px;font-size:14px;">URL accessibility check</p>
+                        <div class="url-status ${data.kibana.status}">
+                            <span style="font-size:20px;">${data.kibana.status === 'up' ? '✓' : '✗'}</span>
+                            <div>
+                                <div style="font-weight:700;">${data.kibana.url}</div>
+                                <div style="font-size:13px;">${data.kibana.status === 'up' ? 'Connected successfully' : 'Connection failed'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Splunk Accordion
+            html += `
+                <div class="accordion-item">
+                    <div class="accordion-header ${data.splunk.status === 'up' ? 'ok' : 'error'}" onclick="toggleAccordion(this.parentElement)">
+                        <div class="accordion-left">
+                            <span class="accordion-icon">🔍</span>
+                            <span class="accordion-title">Splunk</span>
+                        </div>
+                        <div class="accordion-status">
+                            <span class="status-badge ${data.splunk.status === 'up' ? 'ok' : 'error'}">
+                                ${data.splunk.status === 'up' ? '✓ UP' : '✗ DOWN'}
+                            </span>
+                            <span class="expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="accordion-content">
+                        <p style="color:#6b7280;margin-bottom:15px;font-size:14px;">URL accessibility check</p>
+                        <div class="url-status ${data.splunk.status}">
+                            <span style="font-size:20px;">${data.splunk.status === 'up' ? '✓' : '✗'}</span>
+                            <div>
+                                <div style="font-weight:700;">${data.splunk.url}</div>
+                                <div style="font-size:13px;">${data.splunk.status === 'up' ? 'Connected successfully' : 'Connection failed'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // MongoDB Accordion
+            html += `
+                <div class="accordion-item">
+                    <div class="accordion-header ${data.mongodb.status === 'up' ? 'ok' : 'error'}" onclick="toggleAccordion(this.parentElement)">
+                        <div class="accordion-left">
+                            <span class="accordion-icon">🍃</span>
+                            <span class="accordion-title">MongoDB</span>
+                        </div>
+                        <div class="accordion-status">
+                            <span class="status-badge ${data.mongodb.status === 'up' ? 'ok' : 'error'}">
+                                ${data.mongodb.status === 'up' ? '✓ UP' : '✗ DOWN'}
+                            </span>
+                            <span class="expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="accordion-content">
+                        <p style="color:#6b7280;margin-bottom:15px;font-size:14px;">Cluster connectivity check</p>
+                        <div class="url-status ${data.mongodb.status}">
+                            <span style="font-size:20px;">${data.mongodb.status === 'up' ? '✓' : '✗'}</span>
+                            <div>
+                                <div style="font-weight:700;">${data.mongodb.url}</div>
+                                <div style="font-size:13px;">${data.mongodb.status === 'up' ? 'Connected successfully' : 'Connection failed'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Databases Accordion
+            const connectedCount = data.databases.filter(db => db.status === 'connected').length;
+            const dbStatus = connectedCount === data.databases.length ? 'ok' : 'warning';
+
+            html += `
+                <div class="accordion-item">
+                    <div class="accordion-header ${dbStatus}" onclick="toggleAccordion(this.parentElement)">
+                        <div class="accordion-left">
+                            <span class="accordion-icon">🗄️</span>
+                            <span class="accordion-title">Oracle Databases</span>
+                        </div>
+                        <div class="accordion-status">
+                            <span class="status-badge ${dbStatus}">
+                                ${connectedCount}/${data.databases.length} Connected
+                            </span>
+                            <span class="expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="accordion-content">
+                        <p style="color:#6b7280;margin-bottom:15px;font-size:14px;">Database connection status</p>
+                        <div class="db-grid">
+            `;
+
+            data.databases.forEach(db => {
+                html += `
+                    <div class="db-item ${db.status}">
+                        <span style="font-size:18px;">${db.status === 'connected' ? '✓' : '✗'}</span>
+                        <span>${db.name}</span>
+                    </div>
+                `;
+            });
+
+            html += `
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            document.getElementById('validationResults').classList.remove('hidden');
+
+            setTimeout(() => {
+                expandStep('step3');
+                updateProgress(3);
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
