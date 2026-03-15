@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Logs</title>
+    <link rel="stylesheet" href="../../css/global.css">
+</head>
+<body>
+    <div class="top-nav">
+        <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+        <a href="api-docs.html" class="nav-link">📖 API Docs</a>
+        <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+    </div>
+
+    <div class="container" style="margin-top:80px;">
+        <div class="platform-header">
+            <h1>📋 System Audit Logs</h1>
+            <p>Track all system activities and changes</p>
+        </div>
+
+        <div class="card">
+            <div style="display:flex;gap:15px;margin-bottom:25px;flex-wrap:wrap;">
+                <div class="form-group" style="flex:1;min-width:200px;margin:0;">
+                    <label style="margin-bottom:8px;">From Date</label>
+                    <input type="date" value="2026-03-01">
+                </div>
+                <div class="form-group" style="flex:1;min-width:200px;margin:0;">
+                    <label style="margin-bottom:8px;">To Date</label>
+                    <input type="date" value="2026-03-14">
+                </div>
+                <div class="form-group" style="flex:1;min-width:200px;margin:0;">
+                    <label style="margin-bottom:8px;">User</label>
+                    <select>
+                        <option value="">All Users</option>
+                        <option value="admin"><template class="__cf_email__" data-cfemail="9afbfef7f3f4daf9f5f7eafbf4e3b4f9f5f7">[email&#160;protected]</template></option>
+                        <option value="john"><template class="__cf_email__" data-cfemail="23494c4b4d63404c4e53424d5a0d404c4e">[email&#160;protected]</template></option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1;min-width:200px;margin:0;">
+                    <label style="margin-bottom:8px;">Category</label>
+                    <select>
+                        <option value="">All Categories</option>
+                        <option value="user">User Management</option>
+                        <option value="track">Track Management</option>
+                        <option value="test">Test Management</option>
+                        <option value="monitoring">Monitoring</option>
+                    </select>
+                </div>
+                <div style="display:flex;align-items:flex-end;gap:10px;">
+                    <button class="btn btn-primary">Apply Filters</button>
+                    <button class="btn btn-secondary">Reset</button>
+                    <button class="btn btn-secondary">📥 Export CSV</button>
+                </div>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Category</th>
+                        <th>Details</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2026-03-14 09:45:23</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f59491989c9bb5969a9885949b8cdb969a98">[email&#160;protected]</a></td>
+                        <td><strong>User Created</strong></td>
+                        <td><span class="badge badge-info">User Mgmt</span></td>
+                        <td>Created user: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f79d989f99b794989a8796998ed994989a">[email&#160;protected]</a> (Performance Engineer)</td>
+                        <td>192.168.1.100</td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 09:30:15</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c5a4a1a8acab85a6aaa8b5a4abbceba6aaa8">[email&#160;protected]</a></td>
+                        <td><strong>Track Updated</strong></td>
+                        <td><span class="badge badge-success">Track Mgmt</span></td>
+                        <td>Updated track: CDV3 (Added AppD application)</td>
+                        <td>192.168.1.100</td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 09:15:42</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f09a9f989eb0939f9d80919e89de939f9d">[email&#160;protected]</a></td>
+                        <td><strong>Monitoring Started</strong></td>
+                        <td><span class="badge badge-warning">Monitoring</span></td>
+                        <td>Started monitoring: PC Run ID 65989</td>
+                        <td>192.168.1.105</td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 09:00:18</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="1372777e7a7d53707c7e63727d6a3d707c7e">[email&#160;protected]</a></td>
+                        <td><strong>Test Data Deleted</strong></td>
+                        <td><span class="badge badge-error">Test Mgmt</span></td>
+                        <td>Deleted all data for PC Run ID: 65945</td>
+                        <td>192.168.1.100</td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 08:45:33</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="b2d8dddadcf2d1dddfc2d3dccb9cd1dddf">[email&#160;protected]</a></td>
+                        <td><strong>Monitoring Stopped</strong></td>
+                        <td><span class="badge badge-warning">Monitoring</span></td>
+                        <td>Stopped monitoring: PC Run ID 65989 (16,035 records)</td>
+                        <td>192.168.1.105</td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-14 08:30:12</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0b786a796a634b6864667b6a657225686466">[email&#160;protected]</a></td>
+                        <td><strong>Reports Uploaded</strong></td>
+                        <td><span class="badge badge-info">Upload</span></td>
+                        <td>Uploaded AWR & PC reports for Run ID: 65985</td>
+                        <td>192.168.1.110</td>
+                    </tr>
+                    <tr>
+                        <td>2026-03-13 16:20:45</td>
+                        <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3c5d585155527c5f53514c5d5245

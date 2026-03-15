@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Database Management</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.db-card{border:2px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:white}
+.db-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sql-editor{width:100%;font-family:'Courier New',Courier,monospace;background:#1f2937;color:#10b981;border:none;border-radius:8px;padding:14px;font-size:13px;line-height:1.7;resize:vertical;min-height:120px;outline:none}
+.result-table-wrap{overflow-x:auto;max-height:300px;overflow-y:auto}
+.env-note{background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;font-size:13px;color:#92400e;margin-bottom:14px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal-box{background:white;border-radius:18px;padding:30px;max-width:540px;width:92%}
+</style>
+</head>
+<body>
+<script>
+// If reached from PE monitoring context, swap back-link
+(function(){
+  const navFrom = sessionStorage.getItem('navFrom');
+  const session = JSON.parse(sessionStorage.getItem('userSession') || '{}');
+  if (!session.username) { window.location.href = '../../pages/monitoring/pre-login.html'; return; }
+  if (navFrom === 'pe') {
+    sessionStorage.removeItem('navFrom');
+    const adminLinks = document.querySelectorAll('.nav-link[href="dashboard.html"]');
+    adminLinks.forEach(el => {
+      el.href = '../monitoring/start-monitoring.html';
+      el.textContent = '← Back to Monitoring';
+    });
+  }
+})();
+</script>
+
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>🗄️ Database Management</h1>
+    <p>Configure database connections and execute SQL queries</p>
+  </div>
+
+  <!-- DB CONFIGURATIONS -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-weight:800;margin:0">Configured Databases</h3>
+      <button class="btn btn-primary" onclick="openDbModal()">➕ Add Database</button>
+    </div>
+    <div class="env-note">
+      🔒 <strong>Security:</strong> Database passwords are not stored here. They must be provided via environment variables (e.g. <code>DB_PASS_CQE_NFT</code>). Only host, port, service name and username are stored.
+    </div>
+    <div id="dbList"></div>
+  </div>
+
+  <!-- SQL CONSOLE -->
+  <div class="card">
+    <h3 style="font-weight:800;margin-bottom:18px">🖥️ SQL Console</h3>
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group" style="margin-bottom:0">
+        <label>Select Database</label>
+        <select id="queryDb">
+          <option value="CQE_NFT">CQE_NFT (NAINS1U:8889/HANAINS1U)</option>
+          <option value="CD_PTE_READ">CD_PTE_READ</option>
+          <option value="CAS_PTE_READ">CAS_PTE_READ</option>
+          <option value="PRODDB01">PRODDB01</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Quick Queries</label>
+        <select onchange="loadQuickQuery(this.value)">
+          <option value="">-- Load a quick query --</option>
+          <option value="latest_runs">Latest 10 Test Runs</option>
+          <option value="run_by_id">Fetch Run by PC Run ID</option>
+          <option value="table_space">Tablespace Usage</option>
+          <option value="active_sessions">Active Sessions</option>
+          <option value="top_sql">Top SQL by Elapsed Time</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>SQL Query</label>
+      <textarea class="sql-editor" id="sqlQuery">SELECT * FROM MASTER_TEST_RUN ORDER BY TEST_DATE DESC FETCH FIRST 10 ROWS ONLY</textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="executeQuery()">▶ Execute Query</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('sqlQuery').value=''">Clear</button>
+      <button class="btn btn-secondary" onclick="exportResults()">⬇ Export CSV</button>
+    </div>
+    <div id="queryResults" style="margin-top:18px;display:none"></div>
+  </div>
+</div>
+
+<!-- ADD DB MODAL -->
+<div class="modal-bg" id="dbModal">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h3 style="font-weight:800;margin:0" id="dbModalTitle">Add Database</h3>
+      <button style="background:none;border:none;font-size:22px;cursor:pointer" onclick="closeDbModal()">×</button>
+    </div>
+    <div class="env-note">🔒 Password must be configured as an environment variable. Enter the variable name below.</div>
+    <div class="form-group"><label>Display Name <span class="required">*</span></label><input type="text" id="dbAlias" placeholder="e.g. CQE_NFT"></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Host <span class="required">*</span></label><input type="text" id="dbHost" placeholder="NAINS1U.oraas.dyn.nsroot.net"></div>
+      <div class="form-group"><label>Port <span class="required">*</span></label><input type="number" id="dbPort" value="8889"></div>
+      <div class="form-group"><label>Service Name <span class="required">*</span></label><input type="text" id="dbService" placeholder="HANAINS1U"></div>
+      <div class="form-group"><label>Username <span class="required">*</span></label><input type="text" id="dbUser" placeholder="nft_svc_user"></div>
+      <div class="form-group"><label>Password Env Variable <span class="required">*</span></label><input type="text" id="dbEnvVar" placeholder="DB_PASS_CQE_NFT"><small>Environment variable name holding the password</small></div>
+      <div class="form-group"><label>DB Type</label><select id="dbType"><option>Oracle</option><option>PostgreSQL</option><option>MySQL</option></select></div>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:16px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeDbModal()">Cancel</button>
+      <button class="btn btn-success" style="flex:2" onclick="testAndSaveDb()">🔍 Test & Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let dbs = [
+  {alias:'CQE_NFT', host:'NAINS1U.oraas.dyn.nsroot.net', port:8889, service:'HANAINS1U', user:'nft_svc_user', envVar:'DB_PASS_CQE_NFT', type:'Oracle', status:'connected'},
+  {alias:'CD_PTE_READ', host:'cd-pte.db.corp.internal', port:1521, service:'CDPTE', user:'pte_read', envVar:'DB_PASS_CD_PTE', type:'Oracle', status:'connected'},
+  {alias:'CAS_PTE_READ', host:'cas-pte.db.corp.internal', port:1521, service:'CASPTE', user:'pte_read', envVar:'DB_PASS_CAS_PTE', type:'Oracle', status:'connected'},
+  {alias:'PRODDB01', host:'proddb01.corp.internal', port:1521, service:'PROD01', user:'prod_read', envVar:'DB_PASS_PRODDB01', type:'Oracle', status:'disconnected'},
+];
+
+const QUICK_QUERIES = {
+  latest_runs: "SELECT PC_RUN_ID, TEST_NAME, LOB, TRACK, RELEASE_NAME, TEST_DATE, STATUS\nFROM MASTER_TEST_RUN\nORDER BY TEST_DATE DESC\nFETCH FIRST 10 ROWS ONLY",
+  run_by_id: "SELECT * FROM MASTER_TEST_RUN WHERE PC_RUN_ID = '65989'",
+  table_space: "SELECT TABLESPACE_NAME, ROUND(USED_SPACE/1024/1024,2) AS USED_MB,\n  ROUND(TABLESPACE_SIZE/1024/1024,2) AS TOTAL_MB,\n  ROUND((USED_SPACE/TABLESPACE_SIZE)*100,1) AS PCT_USED\nFROM DBA_TABLESPACE_USAGE_METRICS\nORDER BY PCT_USED DESC",
+  active_sessions: "SELECT USERNAME, STATUS, COUNT(*) AS SESSION_COUNT\nFROM V$SESSION\nWHERE USERNAME IS NOT NULL\nGROUP BY USERNAME, STATUS\nORDER BY SESSION_COUNT DESC",
+  top_sql: "SELECT SQL_ID, EXECUTIONS, ROUND(ELAPSED_TIME/1000000,2) AS ELAPSED_SEC,\n  ROUND(CPU_TIME/1000000,2) AS CPU_SEC, BUFFER_GETS\nFROM V$SQLAREA\nWHERE EXECUTIONS > 0\nORDER BY ELAPSED_TIME DESC\nFETCH FIRST 10 ROWS ONLY"
+};
+
+function renderDbs() {
+  document.getElementById('dbList').innerHTML = dbs.map((d,i) => `
+    <div class="db-card">
+      <div class="db-card-header">
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font-size:28px">🗄️</span>
+          <div>
+            <div style="font-weight:800;font-size:15px">${d.alias}</div>
+            <div style="font-size:12px;color:#6b7280">${d.host}:${d.port}/${d.service} — User: ${d.user}</div>
+            <div style="font-size:12px;color:#6b7280">Env Var: <code>${d.envVar}</code> · Type: ${d.type}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="badge ${d.status==='connected'?'badge-success':'badge-error'}">${d.status==='connected'?'✓ Connected':'✗ Disconnected'}</span>
+          <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px" onclick="testDb(${i})">Test</button>
+          <button class="btn btn-danger" style="padding:6px 12px;font-size:12px" onclick="deleteDb(${i})">Delete</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function loadQuickQuery(val) { if(val) document.getElementById('sqlQuery').value = QUICK_QUERIES[val] || ''; }
+
+function executeQuery() {
+  const el = document.getElementById('queryResults'); el.style.display='block';
+  el.innerHTML='<div style="color:#6b7280;font-size:13px;padding:10px">⏳ Executing query...</div>';
+  setTimeout(()=>{
+    el.innerHTML = `
+      <div style="margin-bottom:10px;font-size:13px;color:#6b7280">7 rows returned · Execution time: 0.043s</div>
+      <div class="result-table-wrap">
+        <table class="data-table">
+          <thead><tr><th>PC_RUN_ID</th><th>TEST_NAME</th><th>LOB</th><th>TRACK</th><th>RELEASE_NAME</th><th>TEST_DATE</th><th>STATUS</th></tr></thead>
+          <tbody>
+            <tr><td>65989</td><td>Peak Load Test</td><td>Digital Technology</td><td>CDV3</td><td>Release 2.5</td><td>2026-03-15</td><td><span class="badge badge-success">PASSED</span></td></tr>
+            <tr><td>65985</td><td>Stress Test</td><td>Digital Technology</td><td>CDV3</td><td>Release 2.5</td><td>2026-03-14</td><td><span class="badge badge-success">PASSED</span></td></tr>
+            <tr><td>65980</td><td>Endurance Test</td><td>Digital Technology</td><td>Track1</td><td>Release 2.5</td><td>2026-03-13</td><td><span class="badge badge-success">PASSED</span></td></tr>
+            <tr><td>65975</td><td>Spike Test</td><td>Digital Technology</td><td>CDV3</td><td>Release 2.5</td><td>2026-03-12</td><td><span class="badge badge-warning">PARTIAL</span></td></tr>
+            <tr><td>65234</td><td>Payment Processing Test</td><td>Payments</td><td>PayTrack1</td><td>Pay GW v3.1</td><td>2026-03-10</td><td><span class="badge badge-success">PASSED</span></td></tr>
+            <tr><td>65740</td><td>Load Test</td><td>Digital Technology</td><td>CDV3</td><td>Release 2.4</td><td>2026-03-07</td><td><span class="badge badge-success">PASSED</span></td></tr>
+            <tr><td>65745</td><td>Regression Test</td><td>Digital Technology</td><td>CDV3</td><td>Release 2.4</td><td>2026-03-06</td><td><span class="badge badge-success">PASSED</span></td></tr>
+          </tbody>
+        </table>
+      </div>`;
+  }, 800);
+}
+
+function exportResults() { alert('✓ Query results exported as CSV.'); }
+
+function testDb(i) {
+  dbs[i].status = 'connected'; renderDbs();
+  alert('✓ Connection to ' + dbs[i].alias + ' successful.');
+}
+function deleteDb(i) { if(confirm('Remove database "'+dbs[i].alias+'"?')) { dbs.splice(i,1); renderDbs(); } }
+
+function openDbModal() { document.getElementById('dbModal').classList.add('open'); }
+function closeDbModal() { document.getElementById('dbModal').classList.remove('open'); }
+function testAndSaveDb() {
+  const alias = document.getElementById('dbAlias').value;
+  const host = document.getElementById('dbHost').value;
+  const port = document.getElementById('dbPort').value;
+  const service = document.getElementById('dbService').value;
+  const user = document.getElementById('dbUser').value;
+  const envVar = document.getElementById('dbEnvVar').value;
+  if(!alias||!host||!service||!user||!envVar) { alert('⚠ All fields are required.'); return; }
+  dbs.push({alias,host,port:parseInt(port),service,user,envVar,type:document.getElementById('dbType').value,status:'connected'});
+  closeDbModal(); renderDbs();
+  alert('✓ Database "'+alias+'" saved and connection verified.');
+}
+function logout() { sessionStorage.clear(); window.location.href='../landing.html'; }
+renderDbs();
+</script>
+</body>
+</html>

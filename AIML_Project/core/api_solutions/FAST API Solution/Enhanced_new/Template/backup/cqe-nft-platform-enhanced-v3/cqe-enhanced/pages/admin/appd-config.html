@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AppDynamics Configuration</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.tier-row{display:flex;gap:10px;align-items:center;margin-bottom:8px;padding:10px 12px;background:#f9fafb;border-radius:8px;flex-wrap:wrap}
+.tier-row input{flex:1;min-width:120px}
+.app-block{border:2px solid #e5e7eb;border-radius:14px;padding:20px;margin-bottom:16px;background:white}
+.app-block-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.app-block-title{font-size:16px;font-weight:800}
+.section-divider{margin:28px 0 18px;padding-bottom:10px;border-bottom:2px solid #e5e7eb;font-size:18px;font-weight:800}
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>📊 AppDynamics Configuration</h1>
+    <p>LOB: <strong id="lobLabel">—</strong></p>
+  </div>
+
+  <!-- CONNECTION SETTINGS -->
+  <div class="card">
+    <div class="section-divider">🔌 Controller Connection</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Controller Hostname / URL <span class="required">*</span></label>
+        <input type="text" id="appdHost" placeholder="https://appdynamics.corp.internal:8090" value="https://appdynamics.corp.internal:8090">
+      </div>
+      <div class="form-group">
+        <label>Account Name <span class="required">*</span></label>
+        <input type="text" id="appdAccount" placeholder="corp-prod-account" value="corp-prod-account">
+      </div>
+      <div class="form-group">
+        <label>API Key / Token <span class="required">*</span></label>
+        <input type="password" id="appdToken" placeholder="Enter API key" value="xxxxxxxx-xxxx-xxxx-xxxx">
+        <small>API key or bearer token for REST API authentication</small>
+      </div>
+      <div class="form-group">
+        <label>Default Expected Node Count</label>
+        <input type="number" id="defaultNodeCount" value="3" min="1">
+        <small>Default expected active nodes per tier (can be overridden per tier)</small>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <button class="btn btn-success" onclick="testAppdConn()">🔍 Test Connection</button>
+      <button class="btn btn-primary" onclick="saveConnSettings()">💾 Save Connection</button>
+    </div>
+    <div id="appdConnResult" style="margin-top:12px;display:none"></div>
+  </div>
+
+  <!-- APPLICATIONS -->
+  <div class="card">
+    <div class="section-divider">📱 Applications & Tiers</div>
+    <div class="alert alert-info"><span>ℹ️</span><span>For each application, define tiers and expected active node counts. These are used during validation before monitoring starts.</span></div>
+
+    <div id="appsList"></div>
+
+    <button class="btn btn-primary" onclick="addApp()" style="margin-top:10px">➕ Add New Application</button>
+  </div>
+</div>
+
+<!-- APP TEMPLATE (hidden) -->
+<template id="appTemplate">
+  <div class="app-block" id="appBlock-__IDX__">
+    <div class="app-block-header">
+      <span class="app-block-title">Application __NUM__</span>
+      <div style="display:flex;gap:8px">
+        <span class="badge badge-info" id="appStatus-__IDX__">New</span>
+        <button class="btn btn-danger" style="padding:7px 14px;font-size:13px" onclick="removeApp(__IDX__)">✕ Remove</button>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Application Name <span class="required">*</span></label>
+        <input type="text" id="appName-__IDX__" placeholder="e.g. Cards-Prod-App">
+      </div>
+      <div class="form-group">
+        <label>Application ID</label>
+        <input type="text" id="appId-__IDX__" placeholder="e.g. 173720">
+      </div>
+      <div class="form-group">
+        <label>Track <span class="required">*</span></label>
+        <select id="appTrack-__IDX__">
+          <option value="">-- Select Track --</option>
+          <option>CDV3</option><option>Track1</option><option>Track2</option>
+          <option>PayTrack1</option><option>PayTrack2</option><option>CorpTrack1</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="appEnabled-__IDX__">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="font-weight:700;margin-bottom:10px;font-size:14px">Tiers Configuration</div>
+    <div id="tiersList-__IDX__"></div>
+    <button class="btn btn-secondary" style="padding:8px 16px;font-size:13px;margin-bottom:12px" onclick="addTier(__IDX__)">+ Add Tier</button>
+
+    <button class="btn btn-success" style="padding:9px 20px;font-size:13px" onclick="saveApp(__IDX__)">💾 Save Application</button>
+  </div>
+</template>
+
+<script>
+const lob = JSON.parse(sessionStorage.getItem('selectedLob') || '{}');
+document.getElementById('lobLabel').textContent = lob.name || 'Unknown LOB';
+
+let appCount = 0;
+const APPS_DATA = [
+  { name:'icg-tts-cirp-ng-173720_PTE', id:'173720', track:'CDV3', enabled:'active',
+    tiers:[{name:'Web Tier',count:3},{name:'App Tier',count:3},{name:'DB Tier',count:3}] },
+  { name:'CDV3_NFT_Digital_Technology', id:'165432', track:'CDV3', enabled:'active',
+    tiers:[{name:'API Tier',count:4},{name:'Service Tier',count:3}] },
+  { name:'Payment_Gateway_API', id:'142389', track:'PayTrack1', enabled:'active',
+    tiers:[{name:'Frontend',count:2},{name:'Backend',count:3},{name:'DB',count:2}] },
+];
+
+function renderInitial() {
+  APPS_DATA.forEach((a,i) => addApp(a));
+}
+
+function addApp(prefill) {
+  const idx = appCount++;
+  const tmpl = document.getElementById('appTemplate').innerHTML
+    .replace(/__IDX__/g, idx).replace(/__NUM__/g, idx+1);
+  const wrap = document.createElement('div');
+  wrap.innerHTML = tmpl;
+  document.getElementById('appsList').appendChild(wrap.firstElementChild);
+
+  if (prefill) {
+    document.getElementById('appName-'+idx).value = prefill.name;
+    document.getElementById('appId-'+idx).value = prefill.id;
+    document.getElementById('appTrack-'+idx).value = prefill.track;
+    document.getElementById('appEnabled-'+idx).value = prefill.enabled;
+    document.getElementById('appStatus-'+idx).className = 'badge badge-success';
+    document.getElementById('appStatus-'+idx).textContent = 'Saved';
+    if (prefill.tiers) prefill.tiers.forEach(t => addTier(idx, t));
+  }
+}
+
+function removeApp(idx) {
+  const el = document.getElementById('appBlock-'+idx);
+  if (el && confirm('Remove this application?')) el.remove();
+}
+
+function addTier(idx, prefill) {
+  const container = document.getElementById('tiersList-'+idx);
+  const div = document.createElement('div');
+  div.className = 'tier-row';
+  div.innerHTML = `
+    <input type="text" placeholder="Tier name (e.g. Web Tier)" style="flex:2" value="${prefill?.name||''}">
+    <input type="number" placeholder="Expected nodes" style="width:130px;min-width:130px" value="${prefill?.count||3}" min="1">
+    <button class="btn btn-danger" style="padding:8px 14px;font-size:13px;flex-shrink:0" onclick="this.closest('.tier-row').remove()">✕</button>`;
+  container.appendChild(div);
+}
+
+function saveApp(idx) {
+  const name = document.getElementById('appName-'+idx).value;
+  if (!name) { alert('⚠ Application name is required'); return; }
+  const badge = document.getElementById('appStatus-'+idx);
+  badge.className = 'badge badge-success'; badge.textContent = 'Saved ✓';
+  alert('✓ Application "' + name + '" saved successfully!');
+}
+
+function testAppdConn() {
+  const res = document.getElementById('appdConnResult');
+  res.style.display = 'block';
+  res.innerHTML = '<div class="alert alert-info"><span>⏳</span><span>Testing connection...</span></div>';
+  setTimeout(() => {
+    res.innerHTML = '<div class="alert alert-success"><span>✓</span><span>Connected successfully to AppDynamics Controller. Account verified. 4 applications found.</span></div>';
+  }, 1500);
+}
+
+function saveConnSettings() { alert('✓ Connection settings saved.'); }
+function logout() { sessionStorage.clear(); window.location.href = '../landing.html'; }
+renderInitial();
+</script>
+</body>
+</html>

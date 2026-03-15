@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Management</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.section-card{background:#f9fafb;border:2px solid #e5e7eb;border-radius:12px;padding:18px;margin-bottom:14px}
+.section-card-title{font-size:14px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.item-row{display:flex;gap:8px;align-items:center;padding:8px 12px;background:white;border-radius:8px;margin-bottom:6px;border:1px solid #e5e7eb}
+.item-row .info{flex:1;font-size:13px}
+.item-row .label{font-weight:700}
+.item-row .meta{font-size:11px;color:#6b7280}
+.add-row{display:flex;gap:8px;margin-top:8px}
+.track-preview{background:white;border:2px solid var(--primary);border-radius:12px;padding:18px;margin-top:16px}
+.preview-section{margin-bottom:12px}
+.preview-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:6px}
+.preview-chip{display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;margin:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.saved-tracks-table{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>⚙️ Track Template Management</h1>
+    <p>Map AppDynamics, Kibana, Splunk, MongoDB, and Performance Center resources to a Track template</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <!-- LEFT: BUILDER -->
+    <div>
+      <div class="card">
+        <h3 style="font-weight:800;margin-bottom:18px">Build Track Template</h3>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>LOB <span class="required">*</span></label>
+            <select id="bLob" onchange="updateLobTracks()">
+              <option value="">-- Select LOB --</option>
+              <option>Digital Technology</option>
+              <option>Payments</option>
+              <option>Corporate</option>
+              <option>Retail Banking</option>
+              <option>Wealth Management</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Track Name <span class="required">*</span></label>
+            <select id="bTrack" disabled>
+              <option value="">-- Select Track --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- APPD APPS -->
+        <div class="section-card">
+          <div class="section-card-title">📊 AppDynamics Applications</div>
+          <div id="appdItems"></div>
+          <div class="add-row">
+            <select id="appdSelect" style="flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px">
+              <option value="">-- Select configured AppD app --</option>
+              <option>icg-tts-cirp-ng-173720_PTE</option>
+              <option>CDV3_NFT_Digital_Technology</option>
+              <option>CIRP_Digital_Tech</option>
+              <option>Payment_Gateway_API</option>
+              <option>Transaction_Processor</option>
+            </select>
+            <button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="addAppD()">+ Add</button>
+          </div>
+        </div>
+
+        <!-- KIBANA -->
+        <div class="section-card">
+          <div class="section-card-title">📈 Kibana Dashboards</div>
+          <div id="kibanaItems"></div>
+          <div class="add-row">
+            <select id="kibanaSelect" style="flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px">
+              <option value="">-- Select configured Kibana dashboard --</option>
+              <option>API Performance — CDV3</option>
+              <option>Application Errors — CDV3</option>
+              <option>Payment Logs — PayTrack1</option>
+            </select>
+            <button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="addKibana()">+ Add</button>
+          </div>
+        </div>
+
+        <!-- SPLUNK -->
+        <div class="section-card">
+          <div class="section-card-title">🔍 Splunk Searches / Dashboards</div>
+          <div id="splunkItems"></div>
+          <div class="add-row">
+            <select id="splunkSelect" style="flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px">
+              <option value="">-- Select configured Splunk search --</option>
+              <option>Error Rate Analysis — CDV3</option>
+              <option>Slow Transactions — CDV3</option>
+              <option>Payment Events — PayTrack1</option>
+            </select>
+            <button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="addSplunk()">+ Add</button>
+          </div>
+        </div>
+
+        <!-- MONGODB -->
+        <div class="section-card">
+          <div class="section-card-title">🍃 MongoDB Collections</div>
+          <div id="mongoItems"></div>
+          <div class="add-row">
+            <select id="mongoSelect" style="flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px">
+              <option value="">-- Select configured MongoDB collection --</option>
+              <option>Transactions — CDV3</option>
+              <option>Card Accounts — CDV3</option>
+              <option>Auth Tokens — CDV3</option>
+            </select>
+            <button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="addMongo()">+ Add</button>
+          </div>
+        </div>
+
+        <!-- PC -->
+        <div class="section-card">
+          <div class="section-card-title">⚡ Performance Center Project</div>
+          <div id="pcItems"></div>
+          <div class="add-row">
+            <select id="pcSelect" style="flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px">
+              <option value="">-- Select configured PC project --</option>
+              <option>Cards NFT — CDV3</option>
+              <option>Payments NFT — PayTrack1</option>
+            </select>
+            <button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="addPC()">+ Add</button>
+          </div>
+        </div>
+
+        <!-- ORACLE DBs -->
+        <div class="section-card">
+          <div class="section-card-title">🗄️ Oracle Databases</div>
+          <div id="dbItems"></div>
+          <div class="add-row">
+            <select id="dbSelect" style="flex:1;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px">
+              <option value="">-- Select configured database --</option>
+              <option>CQE_NFT</option>
+              <option>CD_PTE_READ</option>
+              <option>CAS_PTE_READ</option>
+              <option>PRODDB01</option>
+            </select>
+            <button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="addDB()">+ Add</button>
+          </div>
+        </div>
+
+        <button class="btn btn-success" style="width:100%;margin-top:6px" onclick="saveTemplate()">💾 Save Track Template</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: PREVIEW + SAVED -->
+    <div>
+      <div class="card">
+        <h3 style="font-weight:800;margin-bottom:16px">Live Preview</h3>
+        <div id="previewEmpty" style="color:#9ca3af;font-size:14px;text-align:center;padding:30px">
+          Select a LOB and Track to start building the template
+        </div>
+        <div id="templatePreview" style="display:none">
+          <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:10px;padding:14px;margin-bottom:14px">
+            <div style="font-size:16px;font-weight:800" id="previewTitle">—</div>
+            <div style="font-size:12px;color:#4b5563" id="previewSubtitle">Track Template</div>
+          </div>
+          <div id="previewContent"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <h3 style="font-weight:800;margin-bottom:16px">Saved Templates</h3>
+        <div class="saved-tracks-table">
+          <table class="data-table" id="savedTable">
+            <thead><tr><th>LOB</th><th>Track</th><th>AppD Apps</th><th>Tools</th><th>Actions</th></tr></thead>
+            <tbody id="savedTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LOB_TRACKS = {
+  'Digital Technology':['CDV3','Track1','Track2'],
+  'Payments':['PayTrack1','PayTrack2'],
+  'Corporate':['CorpTrack1'],
+  'Retail Banking':['RetailTrack1','RetailTrack2'],
+  'Wealth Management':['WealthTrack1'],
+};
+
+let template = {appd:[],kibana:[],splunk:[],mongo:[],pc:[],db:[]};
+let savedTemplates = [
+  {lob:'Digital Technology',track:'CDV3',appd:['icg-tts-cirp-ng-173720_PTE','CDV3_NFT_Digital_Technology'],kibana:['API Performance — CDV3'],splunk:['Error Rate Analysis — CDV3'],mongo:['Transactions — CDV3'],pc:['Cards NFT — CDV3'],db:['CQE_NFT','CD_PTE_READ']},
+];
+
+function updateLobTracks() {
+  const lob = document.getElementById('bLob').value;
+  const ts = document.getElementById('bTrack');
+  ts.innerHTML = '<option value="">-- Select Track --</option>';
+  if (lob && LOB_TRACKS[lob]) {
+    LOB_TRACKS[lob].forEach(t => { ts.innerHTML += `<option>${t}</option>`; });
+    ts.disabled = false;
+  } else { ts.disabled = true; }
+  ts.onchange = refreshPreview;
+  template = {appd:[],kibana:[],splunk:[],mongo:[],pc:[],db:[]};
+  refreshAllItems(); refreshPreview();
+}
+
+function addItem(section, selectId) {
+  const val = document.getElementById(selectId).value;
+  if (!val) return;
+  if (!template[section].includes(val)) { template[section].push(val); refreshItems(section); refreshPreview(); }
+}
+const addAppD  = () => addItem('appd','appdSelect');
+const addKibana = () => addItem('kibana','kibanaSelect');
+const addSplunk = () => addItem('splunk','splunkSelect');
+const addMongo  = () => addItem('mongo','mongoSelect');
+const addPC     = () => addItem('pc','pcSelect');
+const addDB     = () => addItem('db','dbSelect');
+
+function removeItem(section, val) {
+  template[section] = template[section].filter(x=>x!==val);
+  refreshItems(section); refreshPreview();
+}
+
+const SECTION_MAP = {
+  appd:{el:'appdItems',icon:'📊',label:'AppD App'},
+  kibana:{el:'kibanaItems',icon:'📈',label:'Kibana Dashboard'},
+  splunk:{el:'splunkItems',icon:'🔍',label:'Splunk Search'},
+  mongo:{el:'mongoItems',icon:'🍃',label:'MongoDB Collection'},
+  pc:{el:'pcItems',icon:'⚡',label:'PC Project'},
+  db:{el:'dbItems',icon:'🗄️',label:'Oracle DB'},
+};
+
+function refreshItems(section) {
+  const {el,icon,label} = SECTION_MAP[section];
+  document.getElementById(el).innerHTML = template[section].map(v=>`
+    <div class="item-row">
+      <div class="info"><span class="label">${icon} ${v}</span></div>
+      <button class="btn btn-danger" style="padding:5px 12px;font-size:12px" onclick="removeItem('${section}','${v}')">✕</button>
+    </div>`).join('');
+}
+
+function refreshAllItems() { Object.keys(SECTION_MAP).forEach(refreshItems); }
+
+function refreshPreview() {
+  const lob = document.getElementById('bLob').value;
+  const track = document.getElementById('bTrack').value;
+  const empty = document.getElementById('previewEmpty');
+  const preview = document.getElementById('templatePreview');
+  if (!lob || !track) { empty.style.display='block'; preview.style.display='none'; return; }
+  empty.style.display='none'; preview.style.display='block';
+  document.getElementById('previewTitle').textContent = track;
+  document.getElementById('previewSubtitle').textContent = lob + ' · Track Template';
+  const sections = [
+    {label:'AppDynamics Applications',items:template.appd,color:'#1d4ed8'},
+    {label:'Kibana Dashboards',items:template.kibana,color:'#0891b2'},
+    {label:'Splunk Searches',items:template.splunk,color:'#7c3aed'},
+    {label:'MongoDB Collections',items:template.mongo,color:'#15803d'},
+    {label:'PC Projects',items:template.pc,color:'#b45309'},
+    {label:'Oracle Databases',items:template.db,color:'#b91c1c'},
+  ];
+  document.getElementById('previewContent').innerHTML = sections.map(s=>`
+    <div class="preview-section">
+      <div class="preview-label">${s.label}</div>
+      ${s.items.length ? s.items.map(i=>`<span class="preview-chip">${i}</span>`).join('') : '<span style="font-size:12px;color:#9ca3af">None added</span>'}
+    </div>`).join('');
+}
+
+function saveTemplate() {
+  const lob = document.getElementById('bLob').value;
+  const track = document.getElementById('bTrack').value;
+  if (!lob||!track) { alert('⚠ Select LOB and Track first.'); return; }
+  const total = Object.values(template).flat().length;
+  if (total===0) { alert('⚠ Add at least one resource to the template.'); return; }
+  const existing = savedTemplates.findIndex(t=>t.lob===lob&&t.track===track);
+  const entry = {lob,track,...template};
+  if (existing>=0) savedTemplates[existing]=entry; else savedTemplates.push(entry);
+  renderSaved();
+  alert(`✓ Template for "${lob} / ${track}" saved successfully!`);
+}
+
+function renderSaved() {
+  document.getElementById('savedTbody').innerHTML = savedTemplates.map((t,i)=>`
+    <tr>
+      <td>${t.lob}</td>
+      <td><strong>${t.track}</strong></td>
+      <td>${(t.appd||[]).length} apps</td>
+      <td>${['kibana','splunk','mongo','pc','db'].map(k=>(t[k]||[]).length).reduce((a,b)=>a+b,0)} items</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary" style="padding:5px 10px;font-size:11px" onclick="loadTemplate(${i})">Load</button>
+          <button class="btn btn-danger" style="padding:5px 10px;font-size:11px" onclick="deleteTemplate(${i})">Delete</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function loadTemplate(i) {
+  const t = savedTemplates[i];
+  document.getElementById('bLob').value = t.lob;
+  updateLobTracks();
+  setTimeout(()=>{
+    document.getElementById('bTrack').value = t.track;
+    template = {appd:t.appd||[],kibana:t.kibana||[],splunk:t.splunk||[],mongo:t.mongo||[],pc:t.pc||[],db:t.db||[]};
+    refreshAllItems(); refreshPreview();
+  },50);
+}
+
+function deleteTemplate(i) {
+  if(confirm('Delete template for '+savedTemplates[i].track+'?')) { savedTemplates.splice(i,1); renderSaved(); }
+}
+
+function logout() { sessionStorage.clear(); window.location.href='../landing.html'; }
+renderSaved();
+</script>
+</body>
+</html>

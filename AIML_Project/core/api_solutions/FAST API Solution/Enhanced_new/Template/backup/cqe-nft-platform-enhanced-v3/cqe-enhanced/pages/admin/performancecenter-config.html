@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance Center Configuration</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.proj-block{border:2px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:white}
+.proj-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.run-info-card{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px}
+.run-info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:12px}
+.run-kpi{background:white;border-radius:8px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.run-kpi-val{font-size:22px;font-weight:800;margin-bottom:4px}
+.run-kpi-label{font-size:11px;color:#6b7280}
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>⚡ Performance Center Configuration</h1>
+    <p>LOB: <strong id="lobLabel">—</strong></p>
+  </div>
+
+  <!-- CONNECTION -->
+  <div class="card">
+    <h3 style="font-weight:800;margin-bottom:20px">🔌 Connection Settings</h3>
+    <div class="alert alert-info"><span>ℹ️</span><span>PC 24.1 requires cookie-based authentication (<code>-b</code> flag). Duration format: <strong>Hours/Minutes</strong>. Report endpoint: <code>/Runs/{runId}/Results/{resultId}/data</code></span></div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>PC Base URL <span class="required">*</span></label>
+        <input type="text" id="pcUrl" placeholder="https://pc.corp.internal" value="https://pc.corp.internal">
+      </div>
+      <div class="form-group">
+        <label>Port <span class="required">*</span></label>
+        <input type="number" id="pcPort" value="443" placeholder="443">
+      </div>
+      <div class="form-group">
+        <label>Username <span class="required">*</span></label>
+        <input type="text" id="pcUser" value="pc_svc_account" placeholder="service account">
+      </div>
+      <div class="form-group">
+        <label>Password / Token <span class="required">*</span></label>
+        <input type="password" id="pcPass" value="xxxxxxxxxxxx" placeholder="Password or Bearer token">
+      </div>
+      <div class="form-group">
+        <label>Domain <span class="required">*</span></label>
+        <input type="text" id="pcDomain" value="DEFAULT" placeholder="DEFAULT">
+      </div>
+      <div class="form-group">
+        <label>Duration Format</label>
+        <select id="pcDurFormat">
+          <option value="HM" selected>Hours / Minutes</option>
+          <option value="seconds">Seconds</option>
+        </select>
+        <small>PC 24.1 requires Hours/Minutes format, not seconds</small>
+      </div>
+      <div class="form-group">
+        <label>Auth Cookie Flag</label>
+        <input type="text" id="pcCookieFlag" value="-b" readonly style="background:#f9fafb;font-family:monospace">
+        <small>Required for report downloads in PC 24.1</small>
+      </div>
+      <div class="form-group">
+        <label>Report Download Timeout (s)</label>
+        <input type="number" id="pcTimeout" value="300">
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <button class="btn btn-success" onclick="testPcConn()">🔍 Test Connection</button>
+      <button class="btn btn-primary" onclick="savePcConn()">💾 Save Settings</button>
+    </div>
+    <div id="pcConnResult" style="margin-top:14px;display:none"></div>
+  </div>
+
+  <!-- PROJECTS -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h3 style="font-weight:800;margin:0">📁 Project Configurations</h3>
+      <button class="btn btn-primary" style="padding:9px 18px;font-size:13px" onclick="addProject()">➕ Add Project</button>
+    </div>
+    <div class="alert alert-info"><span>ℹ️</span><span>Each project maps to a track. <strong>Test Connection</strong> will show the latest test run info for that project to confirm connectivity.</span></div>
+    <div id="projList"></div>
+  </div>
+</div>
+
+<template id="projTmpl">
+  <div class="proj-block" id="proj-__IDX__">
+    <div class="proj-header">
+      <span style="font-weight:700;font-size:15px">Project __NUM__</span>
+      <div style="display:flex;gap:8px">
+        <span class="badge" id="pStatus-__IDX__" style="background:#e5e7eb;color:#374151">Not Tested</span>
+        <button class="btn btn-danger" style="padding:6px 12px;font-size:12px" onclick="removeProj(__IDX__)">✕ Remove</button>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Project Name <span class="required">*</span></label>
+        <input type="text" id="pName-__IDX__" placeholder="e.g. CQE_CARDS_NFT">
+      </div>
+      <div class="form-group">
+        <label>Track <span class="required">*</span></label>
+        <select id="pTrack-__IDX__">
+          <option value="">-- Select Track --</option>
+          <option>CDV3</option><option>Track1</option><option>Track2</option>
+          <option>PayTrack1</option><option>PayTrack2</option><option>CorpTrack1</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Test Plan Name</label>
+        <input type="text" id="pPlan-__IDX__" placeholder="e.g. NFT_Peak_Load_CDV3">
+      </div>
+      <div class="form-group">
+        <label>Display Name</label>
+        <input type="text" id="pDisplay-__IDX__" placeholder="e.g. Cards NFT — CDV3">
+      </div>
+    </div>
+    <button class="btn btn-success" style="padding:8px 16px;font-size:13px" onclick="testProject(__IDX__)">🔍 Test — Show Latest Run</button>
+    <div id="pResult-__IDX__" style="display:none;margin-top:10px"></div>
+  </div>
+</template>
+
+<script>
+const lob = JSON.parse(sessionStorage.getItem('selectedLob') || '{}');
+document.getElementById('lobLabel').textContent = lob.name || '—';
+
+let pc = 0;
+const INIT_PROJECTS = [
+  {name:'CQE_CARDS_NFT', track:'CDV3', plan:'NFT_Peak_Load_CDV3', display:'Cards NFT — CDV3'},
+  {name:'CQE_PAYMENTS_NFT', track:'PayTrack1', plan:'NFT_Peak_Load_Pay', display:'Payments NFT — PayTrack1'},
+];
+
+function addProject(p) {
+  const idx = pc++;
+  const tmpl = document.getElementById('projTmpl').innerHTML
+    .replace(/__IDX__/g, idx).replace(/__NUM__/g, idx+1);
+  const wrap = document.createElement('div'); wrap.innerHTML = tmpl;
+  document.getElementById('projList').appendChild(wrap.firstElementChild);
+  if (p) {
+    document.getElementById('pName-'+idx).value = p.name;
+    document.getElementById('pTrack-'+idx).value = p.track;
+    document.getElementById('pPlan-'+idx).value = p.plan;
+    document.getElementById('pDisplay-'+idx).value = p.display;
+  }
+}
+
+function removeProj(idx) {
+  const el = document.getElementById('proj-'+idx); if (el) el.remove();
+}
+
+function testProject(idx) {
+  const el = document.getElementById('pResult-'+idx);
+  el.style.display = 'block';
+  el.innerHTML = '<div style="color:#6b7280;font-size:13px">⏳ Connecting to PC and fetching latest run...</div>';
+  setTimeout(() => {
+    const badge = document.getElementById('pStatus-'+idx);
+    badge.className = 'badge badge-success'; badge.textContent = '✓ Connected';
+    el.innerHTML = `<div class="run-info-card">
+      <strong>✓ Connected successfully — Latest Run Information</strong>
+      <div class="run-info-grid">
+        <div class="run-kpi"><div class="run-kpi-val" style="color:#1d4ed8">4821</div><div class="run-kpi-label">Latest Run ID</div></div>
+        <div class="run-kpi"><div class="run-kpi-val" style="color:#065f46">PASSED</div><div class="run-kpi-label">Run Status</div></div>
+        <div class="run-kpi"><div class="run-kpi-val" style="color:#374151">2h 14m</div><div class="run-kpi-label">Duration</div></div>
+        <div class="run-kpi"><div class="run-kpi-val" style="color:#374151">2,847</div><div class="run-kpi-label">Peak Vusers</div></div>
+        <div class="run-kpi"><div class="run-kpi-val" style="color:#065f46">98.7%</div><div class="run-kpi-label">Pass Rate</div></div>
+        <div class="run-kpi"><div class="run-kpi-val" style="color:#374151">2026-03-15</div><div class="run-kpi-label">Run Date</div></div>
+      </div>
+    </div>`;
+  }, 2000);
+}
+
+function testPcConn() {
+  const el = document.getElementById('pcConnResult'); el.style.display = 'block';
+  el.innerHTML = '<div class="alert alert-info"><span>⏳</span><span>Authenticating to Performance Center...</span></div>';
+  setTimeout(() => {
+    el.innerHTML = '<div class="alert alert-success"><span>✓</span><span>Connected to PC 24.1.0. Authentication successful. Cookie session established. 2 projects accessible.</span></div>';
+  }, 1800);
+}
+
+function savePcConn() { alert('✓ Performance Center connection settings saved.'); }
+function logout() { sessionStorage.clear(); window.location.href = '../landing.html'; }
+INIT_PROJECTS.forEach(p => addProject(p));
+</script>
+</body>
+</html>

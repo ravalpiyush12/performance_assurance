@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOB Management</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.lob-card{background:white;border-radius:14px;padding:22px;box-shadow:var(--card-shadow);margin-bottom:16px;border-left:5px solid var(--primary)}
+.track-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;margin:3px}
+.track-chip .rm{cursor:pointer;color:#ef4444;font-weight:700;padding-left:4px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal-box{background:white;border-radius:18px;padding:32px;max-width:520px;width:92%;max-height:90vh;overflow-y:auto}
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>🏢 LOB Management</h1>
+    <p>Define Lines of Business and configure their tracks</p>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h3 style="font-weight:800;margin:0">Configured LOBs</h3>
+      <button class="btn btn-primary" onclick="openLobModal()">➕ Add New LOB</button>
+    </div>
+    <div id="lobList"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="lobModal">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
+      <h3 style="font-weight:800;margin:0" id="modalTitle">Add New LOB</h3>
+      <button style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280" onclick="closeLobModal()">×</button>
+    </div>
+    <div class="form-group"><label>LOB Name <span class="required">*</span></label><input type="text" id="mLobName" placeholder="e.g. Digital Technology"></div>
+    <div class="form-group"><label>Icon / Emoji</label><input type="text" id="mLobIcon" placeholder="e.g. 💻" value="🏢" maxlength="4"></div>
+    <div class="form-group"><label>Description</label><input type="text" id="mLobDesc" placeholder="Short description"></div>
+    <div class="form-group">
+      <label>Tracks</label>
+      <div style="display:flex;gap:10px;margin-bottom:8px">
+        <input type="text" id="mTrackInput" placeholder="Track name (e.g. CDV3)" style="flex:1">
+        <button class="btn btn-secondary" style="padding:10px 18px" onclick="addTrackChip()">+ Add</button>
+      </div>
+      <div id="mTrackChips"></div>
+      <small>Add each track one by one</small>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:20px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeLobModal()">Cancel</button>
+      <button class="btn btn-success" style="flex:2" onclick="saveLob()">💾 Save LOB</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let lobs = [
+  {id:'DigitalTech', name:'Digital Technology', icon:'💻', desc:'Core digital platforms', tracks:['CDV3','Track1','Track2'], active:true},
+  {id:'Payments', name:'Payments', icon:'💳', desc:'Payment processing systems', tracks:['PayTrack1','PayTrack2'], active:true},
+  {id:'Corporate', name:'Corporate', icon:'🏢', desc:'Corporate banking platforms', tracks:['CorpTrack1'], active:true},
+  {id:'Retail', name:'Retail Banking', icon:'🏦', desc:'Retail banking channels', tracks:['RetailTrack1','RetailTrack2'], active:true},
+  {id:'Wealth', name:'Wealth Management', icon:'📈', desc:'Investment & wealth systems', tracks:['WealthTrack1'], active:true},
+];
+let editLobIdx = null;
+let modalTracks = [];
+
+function renderLobs() {
+  document.getElementById('lobList').innerHTML = lobs.map((l,i) => `
+    <div class="lob-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:32px">${l.icon}</span>
+          <div>
+            <div style="font-size:17px;font-weight:800">${l.name}</div>
+            <div style="font-size:13px;color:#6b7280">${l.desc}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <span class="badge badge-success">${l.active?'Active':'Inactive'}</span>
+          <button class="btn btn-secondary" style="padding:7px 14px;font-size:12px" onclick="openEditLob(${i})">Edit</button>
+          <button class="btn btn-danger" style="padding:7px 14px;font-size:12px" onclick="deleteLob(${i})">Delete</button>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <span style="font-size:12px;color:#6b7280;font-weight:600">Tracks: </span>
+        ${l.tracks.map(t=>`<span class="track-chip">${t}</span>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function openLobModal() {
+  editLobIdx = null; modalTracks = [];
+  document.getElementById('modalTitle').textContent = 'Add New LOB';
+  ['mLobName','mLobDesc'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('mLobIcon').value = '🏢';
+  document.getElementById('mTrackChips').innerHTML = '';
+  document.getElementById('lobModal').classList.add('open');
+}
+
+function openEditLob(i) {
+  editLobIdx = i; const l = lobs[i];
+  document.getElementById('modalTitle').textContent = 'Edit LOB — ' + l.name;
+  document.getElementById('mLobName').value = l.name;
+  document.getElementById('mLobIcon').value = l.icon;
+  document.getElementById('mLobDesc').value = l.desc;
+  modalTracks = [...l.tracks];
+  renderModalTracks();
+  document.getElementById('lobModal').classList.add('open');
+}
+
+function renderModalTracks() {
+  document.getElementById('mTrackChips').innerHTML = modalTracks.map((t,i) =>
+    `<span class="track-chip">${t}<span class="rm" onclick="removeTrack(${i})">×</span></span>`).join('');
+}
+
+function addTrackChip() {
+  const inp = document.getElementById('mTrackInput');
+  const v = inp.value.trim();
+  if (v && !modalTracks.includes(v)) { modalTracks.push(v); renderModalTracks(); }
+  inp.value = '';
+}
+
+function removeTrack(i) { modalTracks.splice(i,1); renderModalTracks(); }
+
+function saveLob() {
+  const name = document.getElementById('mLobName').value.trim();
+  if (!name) { alert('⚠ LOB name is required.'); return; }
+  if (modalTracks.length === 0) { alert('⚠ Add at least one track.'); return; }
+  const entry = {id: name.replace(/\s+/g,''), name, icon: document.getElementById('mLobIcon').value||'🏢', desc: document.getElementById('mLobDesc').value, tracks: modalTracks, active: true};
+  if (editLobIdx !== null) lobs[editLobIdx] = entry;
+  else lobs.push(entry);
+  closeLobModal(); renderLobs();
+}
+
+function deleteLob(i) { if(confirm('Delete LOB "'+lobs[i].name+'"?')) { lobs.splice(i,1); renderLobs(); } }
+function closeLobModal() { document.getElementById('lobModal').classList.remove('open'); }
+function logout() { sessionStorage.clear(); window.location.href='../landing.html'; }
+renderLobs();
+</script>
+</body>
+</html>
