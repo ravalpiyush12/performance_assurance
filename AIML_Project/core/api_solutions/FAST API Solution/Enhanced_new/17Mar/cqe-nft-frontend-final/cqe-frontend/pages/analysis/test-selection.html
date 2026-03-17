@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Result Analysis - Selection</title>
+    <link rel="stylesheet" href="../../css/global.css">
+</head>
+<body>
+    <div class="top-nav"><a href="../landing.html" class="nav-link">🏠 Home</a></div>
+<div class="container" style="margin-top:80px">
+        <div class="platform-header">
+            <h1>📊 Test Result Analysis</h1>
+            <p>Select LOB and Release to view test results</p>
+        </div>
+
+        <div class="card">
+            <h2 style="font-weight:800;margin-bottom:25px;">Step 1: Select Test Parameters</h2>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Line of Business <span class="required">*</span></label>
+                    <select id="lobSelect" onchange="loadReleases()">
+                        <option value="">-- Select LOB --</option>
+                        <option value="Digital Technology">Digital Technology</option>
+                        <option value="Payments">Payments</option>
+                        <option value="Corporate">Corporate</option>
+                        <option value="Retail Banking">Retail Banking</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Release Name <span class="required">*</span></label>
+                    <select id="releaseSelect" onchange="loadTests()" disabled>
+                        <option value="">-- Select Release --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="testsSection" class="hidden" style="margin-top:30px;">
+                <h3 style="font-weight:800;margin-bottom:20px;">Step 2: Select Test to View Report</h3>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>PC Run ID</th>
+                            <th>Test Name</th>
+                            <th>Track</th>
+                            <th>Test Date</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="testsTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <button class="btn btn-secondary" onclick="window.location.href='../landing.html'">← Back to Home</button>
+        </div>
+    </div>
+
+    <script>
+        // DUMMY DATA - Replace with actual API calls
+        const RELEASES_DATA = {
+            'Digital Technology': [
+                'Release 2.5',
+                'Release 2.4',
+                'Release 2.3',
+                'Release 2.2'
+            ],
+            'Payments': [
+                'Payment Gateway v3.1',
+                'Payment Gateway v3.0'
+            ],
+            'Corporate': [
+                'Corporate Platform 1.5'
+            ],
+            'Retail Banking': [
+                'Retail Banking 4.2',
+                'Retail Banking 4.1'
+            ]
+        };
+
+        const TESTS_DATA = {
+            'Release 2.5': [
+                { pc_run_id: '65989', name: 'Peak Load Test', track: 'CDV3', date: '2026-03-14', duration: '30 min', status: 'Completed' },
+                { pc_run_id: '65985', name: 'Stress Test', track: 'CDV3', date: '2026-03-13', duration: '40 min', status: 'Completed' },
+                { pc_run_id: '65980', name: 'Endurance Test', track: 'Track1', date: '2026-03-12', duration: '60 min', status: 'Completed' },
+                { pc_run_id: '65975', name: 'Spike Test', track: 'CDV3', date: '2026-03-11', duration: '30 min', status: 'Completed' }
+            ],
+            'Release 2.4': [
+                { pc_run_id: '65745', name: 'Regression Test', track: 'CDV3', date: '2026-03-08', duration: '45 min', status: 'Completed' },
+                { pc_run_id: '65740', name: 'Load Test', track: 'CDV3', date: '2026-03-07', duration: '30 min', status: 'Completed' }
+            ],
+            'Payment Gateway v3.1': [
+                { pc_run_id: '65234', name: 'Payment Processing Test', track: 'PayTrack1', date: '2026-03-10', duration: '30 min', status: 'Completed' }
+            ]
+        };
+
+        const API_BASE = 'http://localhost:8000/api/v1';
+        const sess = JSON.parse(sessionStorage.getItem('userSession') || '{}');
+        const tok = sess.session_token || '';
+        function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+
+        // Pre-populate LOB from session
+        (function(){
+          const lob = JSON.parse(sessionStorage.getItem('selectedLob')||'{}');
+          if (lob.name) {
+            const sel = document.getElementById('lobSelect');
+            // Try to match existing option or add one
+            let found = false;
+            for (const opt of sel.options) {
+              if (opt.value === lob.name) { sel.value = lob.name; found = true; break; }
+            }
+            if (!found) {
+              const opt = document.createElement('option');
+              opt.value = lob.name; opt.textContent = lob.name;
+              sel.appendChild(opt); sel.value = lob.name;
+            }
+            loadReleases();
+          }
+        })();
+
+        async function loadReleases() {
+          const lob = document.getElementById('lobSelect').value;
+          const releaseSelect = document.getElementById('releaseSelect');
+          releaseSelect.innerHTML = '<option value="">-- Select Release --</option>';
+          document.getElementById('testsSection').classList.add('hidden');
+          if (!lob) { releaseSelect.disabled = true; return; }
+
+          // Load unique release_names from API_RUN_MASTER for this LOB
+          try {
+            const r = await fetch(
+              `${API_BASE}/test-runs/recent?lob_name=${encodeURIComponent(lob)}&limit=100`,
+              {headers: hdr()}
+            );
+            const data = await r.json();
+            const runs = data.runs || data.test_runs || [];
+            // Extract unique release names — stored in TEST_NAME or TRACK
+            // Group by TRACK as "releases" since release_name may not be a separate field
+            const tracks = [...new Set(runs.map(r => r.track || r.track_name).filter(Boolean))];
+            if (tracks.length) {
+              tracks.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t; opt.textContent = t;
+                releaseSelect.appendChild(opt);
+              });
+              releaseSelect.disabled = false;
+            } else {
+              // Fallback: show "All" option
+              releaseSelect.innerHTML += '<option value="ALL">All Runs</option>';
+              releaseSelect.disabled = false;
+            }
+            // Cache runs for loadTests
+            window._cachedRuns = runs;
+          } catch(e) {
+            console.error('Load releases error:', e);
+            releaseSelect.innerHTML += '<option value="ALL">All Runs</option>';
+            releaseSelect.disabled = false;
+            window._cachedRuns = [];
+          }
+        }
+
+        function statusBadge(status) {
+          const cls = {
+            'COMPLETED': 'badge-success', 'PASSED': 'badge-success',
+            'RUNNING': 'badge-info', 'FAILED': 'badge-error',
+            'STOPPED': 'badge-warning',
+          }[status?.toUpperCase()] || 'badge-secondary';
+          return `<span class="badge ${cls}">${status || 'Unknown'}</span>`;
+        }
+
+        function loadTests() {
+          const track = document.getElementById('releaseSelect').value;
+          const tbody = document.getElementById('testsTableBody');
+          tbody.innerHTML = '';
+          const runs = window._cachedRuns || [];
+          const filtered = track === 'ALL' ? runs : runs.filter(r =>
+            (r.track || r.track_name) === track
+          );
+          if (!filtered.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:24px">No test runs found for this selection.</td></tr>';
+            document.getElementById('testsSection').classList.remove('hidden');
+            return;
+          }
+          filtered.forEach(run => {
+            const row = document.createElement('tr');
+            row.className = 'clickable';
+            const dateStr = run.created_date ? run.created_date.split('T')[0] : run.start_time ? run.start_time.split('T')[0] : '—';
+            const duration = run.test_duration_minutes ? run.test_duration_minutes + ' min' : '—';
+            row.innerHTML = `
+              <td><strong>${run.pc_run_id || run.run_id}</strong></td>
+              <td>${run.test_name || '—'}</td>
+              <td>${run.track || run.track_name || '—'}</td>
+              <td>${dateStr}</td>
+              <td>${duration}</td>
+              <td>${statusBadge(run.test_status || run.status)}</td>
+              <td>
+                <button class="btn btn-primary" style="padding:8px 16px;font-size:13px"
+                    onclick="viewTestReport('${run.pc_run_id || run.run_id}','${(run.test_name||'').replace(/'/g,"\\'")}','${run.run_id||''}')">
+                  📊 View Report
+                </button>
+              </td>`;
+            tbody.appendChild(row);
+          });
+          document.getElementById('testsSection').classList.remove('hidden');
+        }
+
+        function viewTestReport(pcRunId, testName, runId) {
+          const lob = document.getElementById('lobSelect').value;
+          const track = document.getElementById('releaseSelect').value;
+          sessionStorage.setItem('selectedTest', JSON.stringify({
+            pc_run_id: pcRunId,
+            run_id: runId || pcRunId,
+            test_name: testName,
+            lob: lob,
+            track: track,
+          }));
+          window.location.href = 'test-report.html';
+        }
+    </script>
+</body>
+</html>

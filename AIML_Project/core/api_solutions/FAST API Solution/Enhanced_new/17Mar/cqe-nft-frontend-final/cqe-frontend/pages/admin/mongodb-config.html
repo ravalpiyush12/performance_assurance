@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MongoDB Configuration</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.dash-block{border:2px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:white}
+.dash-block-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.data-preview{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;margin-top:10px;font-size:13px}
+.data-warn{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin-top:10px;font-size:13px;color:#92400e}
+</style>
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const s=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+  if(!s.username){window.location.href='../../pages/monitoring/pre-login.html';return;}
+  if(sessionStorage.getItem('navFrom')==='pe'){
+    sessionStorage.removeItem('navFrom');
+    document.querySelectorAll('a.nav-link').forEach(function(el){
+      if(el.getAttribute('href')==='dashboard.html'){el.href='../monitoring/start-monitoring.html';el.textContent='← Back to Monitoring';}
+    });
+  }
+});
+</script>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+<div class="container" style="margin-top:80px">
+  <div class="platform-header"><h1>🍃 MongoDB Configuration</h1><p>LOB: <strong id="lobLabel">—</strong></p></div>
+  <div class="card">
+    <h3 style="font-weight:800;margin-bottom:20px">🔌 Connection Settings</h3>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>URI Env Variable <span class="required">*</span></label>
+        <input type="text" id="mongoUriEnv" placeholder="MONGO_URI_CARDS">
+        <small>Env var name holding the full MongoDB URI — e.g. MONGO_URI_CARDS. Passwords must be in the URI via env var substitution, never stored here.</small>
+      </div>
+      <div class="form-group"><label>Default Database <span class="required">*</span></label><input type="text" id="mongoDb" placeholder="cards_db"></div>
+      <div class="form-group"><label>Auth Database</label><input type="text" id="mongoAuthDb" value="admin" placeholder="admin"></div>
+      <div class="form-group"><label>Username</label><input type="text" id="mongoUser" placeholder="Service account username"></div>
+      <div class="form-group"><label>Password Env Variable</label><input type="text" id="mongoPassEnv" placeholder="MONGO_PASS_CARDS"><small>Env var name holding password</small></div>
+      <div class="form-group"><label>Replica Set Name</label><input type="text" id="mongoRs" placeholder="rs0"></div>
+      <div class="form-group"><label>Connection Timeout (ms)</label><input type="number" id="mongoTimeout" value="5000"></div>
+      <div class="form-group"><label>Read Preference</label>
+        <select id="mongoReadPref"><option>primaryPreferred</option><option>primary</option><option>secondary</option><option>secondaryPreferred</option></select>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <button class="btn btn-success" onclick="testConn()">🔍 Test Connection</button>
+      <button class="btn btn-primary" onclick="saveConn()">💾 Save</button>
+    </div>
+    <div id="connResult" style="margin-top:12px;display:none"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h3 style="font-weight:800;margin:0">📁 Collection Configurations</h3>
+      <button class="btn btn-primary" style="padding:9px 18px;font-size:13px" onclick="addColl()">➕ Add Collection</button>
+    </div>
+    <div class="alert alert-info"><span>ℹ️</span><span>Define which collections to monitor per track. Use <strong>Test</strong> to verify data. If no data, contact Application Development team.</span></div>
+    <div id="collList"></div>
+  </div>
+</div>
+<template id="tmpl">
+  <div class="dash-block" id="coll-__IDX__">
+    <div class="dash-block-header">
+      <span style="font-weight:700;font-size:15px">Collection __NUM__</span>
+      <div style="display:flex;gap:8px">
+        <span class="badge" id="cstatus-__IDX__" style="background:#e5e7eb;color:#374151">Not Tested</span>
+        <button class="btn btn-danger" style="padding:6px 12px;font-size:12px" onclick="removeColl(__IDX__)">✕</button>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Database <span class="required">*</span></label><input type="text" id="cDb-__IDX__" placeholder="cards_db"></div>
+      <div class="form-group"><label>Collection Name <span class="required">*</span></label><input type="text" id="cName-__IDX__" placeholder="e.g. transactions"></div>
+      <div class="form-group"><label>Display Name <span class="required">*</span></label><input type="text" id="cDisplay-__IDX__" placeholder="e.g. Transactions — CDV3"></div>
+      <div class="form-group"><label>Track <span class="required">*</span></label>
+        <select id="cTrack-__IDX__"><option value="">-- Select Track --</option><option>CDV3</option><option>Track1</option><option>Track2</option><option>PayTrack1</option><option>PayTrack2</option><option>CorpTrack1</option></select>
+      </div>
+      <div class="form-group"><label>Slow Query Threshold (ms)</label><input type="number" id="cSlowMs-__IDX__" value="100"></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="padding:8px 16px;font-size:13px" onclick="saveColl(__IDX__)">💾 Save</button>
+      <button class="btn btn-success" style="padding:8px 16px;font-size:13px" onclick="testColl(__IDX__)">🔍 Test — Check Data</button>
+      <button class="btn btn-danger" style="padding:8px 14px;font-size:13px" id="delCBtn-__IDX__" onclick="deleteColl(__IDX__)" style="display:none">🗑 Delete</button>
+    </div>
+    <input type="hidden" id="cConfigId-__IDX__" value="">
+    <div id="cResult-__IDX__" style="display:none"></div>
+  </div>
+</template>
+<script>
+const API='http://localhost:8000/api/v1/nft';
+const lob=JSON.parse(sessionStorage.getItem('selectedLob')||'{}');
+const lobName=lob.name||'';
+const sess=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+const tok=sess.session_token||'';
+document.getElementById('lobLabel').textContent=lobName||'Unknown LOB';
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function apiGet(u){const r=await fetch(u,{headers:hdr()});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function apiPost(u,b){const r=await fetch(u,{method:'POST',headers:hdr(),body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());return r.json();}
+async function apiDel(u){const r=await fetch(u,{method:'DELETE',headers:hdr()});if(!r.ok)throw new Error(await r.text());return r.json();}
+function showEl(id,html){const el=document.getElementById(id);if(el){el.style.display='block';el.innerHTML=html;}}
+function ok(m){return`<div class="alert alert-success"><span>✓</span><span>${m}</span></div>`;}
+function err(m){return`<div class="alert alert-danger"><span>✗</span><span>${m}</span></div>`;}
+function wait(m){return`<div class="alert alert-info"><span>⏳</span><span>${m}</span></div>`;}
+let cc=0;
+async function init(){
+  if(!lobName)return;
+  try{
+    const d=await apiGet(`${API}/config/mongodb/${encodeURIComponent(lobName)}`);
+    (d.configs||[]).forEach(c=>addColl({
+      db:c.database_name,name:c.collection_name,display:c.display_name,
+      track:c.track_name,slowMs:c.slow_query_ms,configId:c.mongodb_config_id,status:c.last_test_status
+    }));
+  }catch(e){}
+}
+function addColl(p){
+  const idx=cc++;
+  const tmpl=document.getElementById('tmpl').innerHTML.replace(/__IDX__/g,idx).replace(/__NUM__/g,idx+1);
+  const wrap=document.createElement('div');wrap.innerHTML=tmpl;
+  document.getElementById('collList').appendChild(wrap.firstElementChild);
+  if(p){
+    document.getElementById('cDb-'+idx).value=p.db||'';
+    document.getElementById('cName-'+idx).value=p.name||'';
+    document.getElementById('cDisplay-'+idx).value=p.display||'';
+    document.getElementById('cTrack-'+idx).value=p.track||'';
+    document.getElementById('cSlowMs-'+idx).value=p.slowMs||100;
+    document.getElementById('cConfigId-'+idx).value=p.configId||'';
+    if(p.configId){const b=document.getElementById('delCBtn-'+idx);if(b)b.style.display='inline-flex';}
+    if(p.status){
+      const badge=document.getElementById('cstatus-'+idx);
+      if(p.status==='PASS'){badge.className='badge badge-success';badge.textContent='✓ Data Found';}
+      else if(p.status==='FAIL'){badge.className='badge badge-error';badge.textContent='✗ No Data';}
+    }
+  }
+}
+function removeColl(idx){const el=document.getElementById('coll-'+idx);if(el)el.remove();}
+async function saveColl(idx){
+  const db=document.getElementById('cDb-'+idx).value.trim();
+  const name=document.getElementById('cName-'+idx).value.trim();
+  const display=document.getElementById('cDisplay-'+idx).value.trim();
+  const track=document.getElementById('cTrack-'+idx).value;
+  if(!db||!name||!display||!track){alert('⚠ Database, Collection, Display Name and Track are required.');return;}
+  showEl('cResult-'+idx,wait('Saving...'));
+  try{
+    await apiPost(`${API}/config/mongodb`,{
+      lob_name:lobName,track_name:track,
+      uri_env_var:document.getElementById('mongoUriEnv').value.trim(),
+      database_name:db,collection_name:name,display_name:display,
+      auth_database:document.getElementById('mongoAuthDb').value.trim()||'admin',
+      username:document.getElementById('mongoUser').value.trim()||null,
+      pass_env_var:document.getElementById('mongoPassEnv').value.trim()||null,
+      replica_set:document.getElementById('mongoRs').value.trim()||null,
+      slow_query_ms:parseInt(document.getElementById('cSlowMs-'+idx).value)||100,
+      read_preference:document.getElementById('mongoReadPref').value,
+      connection_timeout:parseInt(document.getElementById('mongoTimeout').value)||5000
+    });
+    const badge=document.getElementById('cstatus-'+idx);
+    badge.style.background='#dbeafe';badge.style.color='#1d4ed8';badge.textContent='Saved ✓';
+    showEl('cResult-'+idx,ok(`Collection "${display}" saved.`));
+  }catch(e){showEl('cResult-'+idx,err(`Save failed: ${e.message}`));}
+}
+async function deleteColl(idx){
+  const configId=document.getElementById('cConfigId-'+idx).value;
+  if(!configId){document.getElementById('coll-'+idx)?.remove();return;}
+  if(!confirm('Delete this collection config?'))return;
+  try{await apiDel(`${API}/config/mongodb/${configId}`);document.getElementById('coll-'+idx)?.remove();}
+  catch(e){alert('Delete failed: '+e.message);}
+}
+async function testColl(idx){
+  const configId=document.getElementById('cConfigId-'+idx).value;
+  const display=document.getElementById('cDisplay-'+idx).value||'Collection';
+  showEl('cResult-'+idx,'<div class="data-preview">⏳ Querying collection...</div>');
+  if(!configId){showEl('cResult-'+idx,'<div class="data-warn">⚠ Please save this config first.</div>');return;}
+  try{
+    const d=await apiPost(`${API}/config/mongodb/test-connection/${configId}`,{});
+    const badge=document.getElementById('cstatus-'+idx);
+    if(d.success&&d.status==='PASS'){
+      badge.className='badge badge-success';badge.textContent='✓ Data Found';
+      showEl('cResult-'+idx,`<div class="data-preview"><strong>✓ Collection accessible</strong><br><br>Documents: <strong>${(d.document_count||0).toLocaleString()}</strong> · Avg doc size: <strong>${d.avg_doc_size_kb||0} KB</strong><br>Slow queries (>${document.getElementById('cSlowMs-'+idx).value}ms): <strong>${d.slow_queries||0}</strong> · COLLSCAN: <strong>${d.collscan_count||0}</strong></div>`);
+    }else{
+      badge.className='badge badge-error';badge.textContent='✗ No Data';
+      showEl('cResult-'+idx,`<div class="data-warn"><strong>⚠ ${d.message}</strong><br><br>${d.contact_app_team?'<strong>👉 Please contact the Application Development team to verify data.</strong>':''}</div>`);
+    }
+  }catch(e){showEl('cResult-'+idx,err(`Test failed: ${e.message}`));}
+}
+async function testConn(){
+  showEl('connResult',wait('Connecting to MongoDB...'));
+  try{
+    const d=await apiGet('http://localhost:8000/api/health/sql');
+    showEl('connResult',ok('MongoDB connection settings noted.'));
+  }catch(e){showEl('connResult',err(`Error: ${e.message}`));}
+}
+function saveConn(){
+  const uriEnv=document.getElementById('mongoUriEnv').value.trim();
+  if(!uriEnv){alert('⚠ URI Env Variable is required.');return;}
+  showEl('connResult',ok('Connection settings noted. They will be saved with each collection configuration.'));
+}
+function logout(){sessionStorage.clear();window.location.href='../landing.html';}
+init();
+</script>
+</body>
+</html>
