@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Database Console</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.db-card{border:2px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:white}
+.db-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px}
+.sql-editor{width:100%;font-family:'Courier New',Courier,monospace;background:#1f2937;color:#10b981;border:none;border-radius:8px;padding:14px;font-size:13px;line-height:1.7;resize:vertical;min-height:140px;outline:none;tab-size:2}
+.sql-editor::placeholder{color:#4b5563}
+.result-table-wrap{overflow-x:auto;max-height:320px;overflow-y:auto}
+.env-note{background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;font-size:13px;color:#92400e;margin-bottom:14px}
+.stmt-result{padding:10px 14px;border-radius:8px;margin-bottom:6px;font-size:13px;font-family:monospace;border-left:4px solid}
+.stmt-ok{background:#f0fdf4;border-color:#10b981;color:#065f46}
+.stmt-err{background:#fef2f2;border-color:#ef4444;color:#991b1b}
+.db-error-detail{font-size:12px;color:#6b7280;margin-top:4px;font-family:monospace;white-space:pre-wrap}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #e5e7eb;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const s=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+  if(!s.username){window.location.href='../../pages/monitoring/pre-login.html';return;}
+  if(sessionStorage.getItem('navFrom')==='pe'){
+    sessionStorage.removeItem('navFrom');
+    document.querySelectorAll('a.nav-link').forEach(function(el){
+      if(el.getAttribute('href')==='dashboard.html'){el.href='../monitoring/start-monitoring.html';el.textContent='← Back to Monitoring';}
+    });
+  }
+});
+</script>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>🗄️ Database Console</h1>
+    <p>Check database health and execute SQL queries</p>
+  </div>
+
+  <!-- DB HEALTH STATUS -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <h3 style="font-weight:800;margin:0">Database Health</h3>
+      <button class="btn btn-secondary" style="padding:8px 16px;font-size:13px" onclick="checkAllHealth()">🔄 Refresh All</button>
+    </div>
+    <div id="dbHealthList">
+      <div style="text-align:center;padding:24px;color:#9ca3af"><div class="spinner" style="margin:0 auto 8px"></div>Checking databases...</div>
+    </div>
+  </div>
+
+  <!-- SQL CONSOLE -->
+  <div class="card">
+    <h3 style="font-weight:800;margin-bottom:16px">🖥️ SQL Console</h3>
+    <div class="env-note">🔒 API key is selected automatically based on the chosen database. Only <strong>DQL (SELECT)</strong> operations are available on read-only databases. Write operations require the write database.</div>
+
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="form-group" style="margin-bottom:0">
+        <label>Select Database</label>
+        <select id="queryDb" onchange="onDbSelect()">
+          <option value="">Loading databases...</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>API Key (auto-selected)</label>
+        <input type="text" id="apiKeyDisplay" readonly style="background:#f9fafb;font-family:monospace;font-size:13px;color:#374151" placeholder="Select a database first">
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Quick Queries</label>
+      <select onchange="loadQuickQuery(this.value)">
+        <option value="">-- Load a quick query --</option>
+        <option value="latest_runs">Latest 10 Test Runs</option>
+        <option value="run_by_id">Find Run by PC Run ID</option>
+        <option value="nft_registrations">Recent Test Registrations</option>
+        <option value="appd_nodes">Active AppD Nodes</option>
+        <option value="table_check">Check NFT Tables</option>
+        <option value="session_count">Current Session Count</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>SQL — multiple statements separated by <code>;</code></label>
+      <textarea class="sql-editor" id="sqlQuery" placeholder="-- Enter SQL here
+-- Multiple statements separated by semicolons are supported
+SELECT * FROM API_RUN_MASTER ORDER BY CREATED_DATE DESC FETCH FIRST 10 ROWS ONLY;"></textarea>
+    </div>
+
+    <div id="opsWarning" style="display:none;color:#92400e;background:#fef3c7;padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-primary" id="execBtn" onclick="executeQuery()">▶ Execute</button>
+      <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+      <button class="btn btn-secondary" id="exportBtn" onclick="exportCSV()" style="display:none">⬇ Export CSV</button>
+      <label class="btn btn-secondary" style="cursor:pointer;margin:0" title="Upload .sql file">
+        📁 Upload SQL
+        <input type="file" id="sqlFileInput" accept=".sql,.txt" style="display:none" onchange="loadSqlFile(event)">
+      </label>
+    </div>
+
+    <div id="queryResults" style="margin-top:16px;display:none"></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000/api/v1';
+const sess = JSON.parse(sessionStorage.getItem('userSession')||'{}');
+const tok = sess.session_token||'';
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function apiFetch(url,opts={}){
+  const r=await fetch(url,{headers:hdr(),...opts});
+  const d=await r.json().catch(()=>({detail:'Invalid response'}));
+  if(!r.ok)throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+  return d;
+}
+function el(id){return document.getElementById(id);}
+function alertHtml(t,m){const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};return`<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;}
+
+let dbConfigs = [];  // From /api/v1/databases or /api/v1/{db}/health
+let lastResults = [];
+
+// Database → API key mapping (from database_config.py)
+// CQE_NFT uses its own API key; others have their own
+const DB_API_KEY_MAP = {};  // populated from /api/v1/config/api-keys
+
+const QUICK_QUERIES = {
+  latest_runs:`SELECT RUN_ID, PC_RUN_ID, LOB_NAME, TRACK, TEST_NAME,
+  TO_CHAR(CREATED_DATE,'YYYY-MM-DD HH24:MI') AS CREATED,
+  TEST_STATUS
+FROM API_RUN_MASTER
+ORDER BY CREATED_DATE DESC
+FETCH FIRST 10 ROWS ONLY`,
+  run_by_id:`SELECT * FROM API_RUN_MASTER WHERE PC_RUN_ID = '65989'`,
+  nft_registrations:`SELECT REG_ID, PC_RUN_ID, LOB_NAME, TRACK_NAME, TEST_NAME,
+  TEST_TYPE, REGISTERED_BY,
+  TO_CHAR(REGISTRATION_DATE,'YYYY-MM-DD HH24:MI') AS REG_DATE
+FROM API_NFT_TEST_REGISTRATION
+ORDER BY REGISTRATION_DATE DESC
+FETCH FIRST 10 ROWS ONLY`,
+  appd_nodes:`SELECT n.NODE_NAME, n.MACHINE_NAME, n.CALLS_PER_MINUTE,
+  n.IS_ACTIVE, n.NODE_TYPE, t.TIER_NAME, a.APPLICATION_NAME
+FROM API_APPD_NODES n
+JOIN API_APPD_TIERS t ON n.TIER_ID = t.TIER_ID
+JOIN API_APPD_APPLICATIONS a ON t.APP_ID = a.APP_ID
+WHERE n.IS_ACTIVE = 'Y'
+ORDER BY n.CALLS_PER_MINUTE DESC
+FETCH FIRST 20 ROWS ONLY`,
+  table_check:`SELECT TABLE_NAME,
+  TO_CHAR(LAST_ANALYZED,'YYYY-MM-DD') AS LAST_ANALYZED
+FROM USER_TABLES
+WHERE TABLE_NAME LIKE 'API_%'
+ORDER BY TABLE_NAME`,
+  session_count:`SELECT STATUS, COUNT(*) AS SESSION_COUNT
+FROM V$SESSION
+WHERE USERNAME IS NOT NULL
+GROUP BY STATUS
+ORDER BY SESSION_COUNT DESC`
+};
+
+// ─── Load databases and health ─────────────────────────────────────────────
+async function init(){
+  await checkAllHealth();
+}
+
+async function checkAllHealth(){
+  const list = el('dbHealthList');
+  list.innerHTML = '<div style="text-align:center;padding:20px;color:#9ca3af"><div class="spinner" style="margin:0 auto 8px"></div>Checking...</div>';
+
+  try{
+    // Use admin proxy endpoint — Bearer auth, no API key needed in frontend
+    const data = await apiFetch(API+'/admin/db-health');
+    const databases = data.databases || [];
+
+    const sel = el('queryDb');
+    sel.innerHTML = '<option value="">-- Select Database --</option>';
+    dbConfigs = [];
+    let html = '';
+
+    databases.forEach(db => {
+      const ok = db.connected === true || db.status === 'ok';
+      dbConfigs.push({name: db.db_name, status: ok, ops: db.allowed_operations||'DQL', apiKeyPrefix: db.api_key_prefix||''});
+
+      sel.innerHTML += `<option value="${db.db_name}">${db.db_name}${ok?' ✓':' ✗'} — ${db.allowed_operations||'DQL'}</option>`;
+
+      html += `<div class="db-card">
+        <div class="db-card-header">
+          <div style="display:flex;align-items:center;gap:14px">
+            <span style="font-size:26px">🗄️</span>
+            <div>
+              <div style="font-weight:800;font-size:15px">${db.db_name}</div>
+              ${db.connected_as?`<div style="font-size:12px;color:#6b7280">Connected as: <strong>${db.connected_as}</strong></div>`:''}
+              ${db.server_time?`<div style="font-size:12px;color:#6b7280">Server time: ${db.server_time}</div>`:''}
+              <div style="font-size:12px;color:#6b7280">Allowed operations: <strong>${db.allowed_operations||'DQL'}</strong></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="badge ${ok?'badge-success':'badge-error'}">${ok?'✓ Connected':'✗ Error'}</span>
+          </div>
+        </div>
+        ${!ok && db.error ? `<div class="db-error-detail">Error: ${db.error}</div>` : ''}
+      </div>`;
+    });
+
+    list.innerHTML = html || '<div style="color:#9ca3af;padding:20px;text-align:center">No databases configured.</div>';
+
+    // Summary
+    if(databases.length){
+      list.insertAdjacentHTML('afterbegin',
+        `<div class="alert ${data.unhealthy>0?'alert-warning':'alert-success'}" style="margin-bottom:12px">
+          <span>${data.unhealthy>0?'⚠':'✓'}</span>
+          <span>${data.healthy}/${data.total} databases healthy</span>
+        </div>`);
+    }
+
+  }catch(e){
+    list.innerHTML = alertHtml('danger','Failed to load database health: '+e.message+
+      '<br><small>Ensure you are logged in as admin and backend is running.</small>');
+  }
+}
+
+async function checkSingleHealth(dbName, btn){
+  // Re-run full health check
+  await checkAllHealth();
+}
+
+function onDbSelect(){
+  const dbName = el('queryDb').value;
+  if(!dbName){ el('apiKeyDisplay').value=''; el('apiKeyDisplay').style.color=''; return; }
+  const db = dbConfigs.find(d=>d.name===dbName);
+  if(db){
+    // Show API key prefix (read-only — just for reference)
+    const keyInfo = db.apiKeyPrefix
+      ? db.apiKeyPrefix + '••••••••  (read-only display)'
+      : 'Managed on server (env var)';
+    el('apiKeyDisplay').value = keyInfo;
+    el('apiKeyDisplay').style.color = '#374151';
+    // Warn if write ops on read-only DB
+    const writeAllowed = (db.ops||'DQL').includes('DML');
+    el('opsWarning').style.display = writeAllowed ? 'none' : 'block';
+    el('opsWarning').textContent = writeAllowed
+      ? '' : '⚠ Read-only database — only SELECT queries allowed';
+  }
+}
+
+function loadQuickQuery(val){
+  if(val && QUICK_QUERIES[val]) el('sqlQuery').value = QUICK_QUERIES[val];
+}
+
+// ─── Execute Query ─────────────────────────────────────────────────────────
+async function executeQuery(){
+  const dbName = el('queryDb').value;
+  const sql = el('sqlQuery').value.trim();
+  if(!dbName){ alert('⚠ Select a database first.'); return; }
+  if(!sql){ alert('⚠ Enter a SQL query.'); return; }
+
+  const btn = el('execBtn');
+  btn.disabled=true; btn.textContent='⏳ Executing...';
+  el('queryResults').style.display='block';
+  el('queryResults').innerHTML='<div style="color:#6b7280;font-size:13px;padding:10px"><div class="spinner" style="display:inline-block;margin-right:8px"></div>Executing...</div>';
+  el('exportBtn').style.display='none';
+  lastResults = [];
+
+  // Split on semicolons — handle multiple statements
+  const statements = sql.split(';')
+    .map(s => s.trim())
+    .filter(s => s.length > 0 && !s.match(/^--/));
+
+  if(statements.length === 0){
+    el('queryResults').innerHTML = alertHtml('warning','⚠ No valid SQL statements found.');
+    btn.disabled=false; btn.textContent='▶ Execute';
+    return;
+  }
+
+  let resultsHtml = '';
+
+  for(let i=0; i<statements.length; i++){
+    const stmt = statements[i];
+    const stmtNum = statements.length > 1 ? `Statement ${i+1}/${statements.length}: ` : '';
+    const preview = stmt.substring(0,60).replace(/\n/g,' ') + (stmt.length>60?'...':'');
+
+    try{
+      const startTime = Date.now();
+      const data = await apiFetch(API+'/admin/db-execute', {
+        method:'POST',
+        body: JSON.stringify({ db_name: dbName, sql: stmt, limit: 200 })
+      });
+      const elapsed = ((Date.now()-startTime)/1000).toFixed(3);
+      const rows = data.rows || data.results || [];
+      const cols = data.columns || (rows.length ? Object.keys(rows[0]) : []);
+      const rowCount = data.row_count ?? rows.length;
+      const msg = data.message || data.status || '';
+
+      if(statements.length > 1){
+        resultsHtml += `<div class="stmt-result stmt-ok">✓ ${stmtNum}${preview}<br>
+          <small>${rowCount > 0 ? rowCount+' row(s) returned' : (msg || 'Statement executed successfully')} · ${elapsed}s</small>
+        </div>`;
+      }
+
+      if(rows.length > 0){
+        lastResults = rows;
+        const isSelect = stmt.trim().toUpperCase().startsWith('SELECT');
+        resultsHtml += `<div style="margin-bottom:${statements.length>1?'16px':'0'}">
+          <div style="font-size:12px;color:#6b7280;padding:6px 0">${rowCount} row${rowCount!==1?'s':''} · ${elapsed}s · DB: ${dbName}</div>
+          <div class="result-table-wrap">
+            <table class="data-table" style="width:100%">
+              <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+              <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${r[c]===null?'<span style="color:#9ca3af">NULL</span>':String(r[c]??'')}</td>`).join('')}</tr>`).join('')}</tbody>
+            </table>
+          </div>`;
+        if(isSelect) el('exportBtn').style.display='inline-flex';
+        resultsHtml += '</div>';
+      }else{
+        // DML result
+        const dmlMsg = data.message || data.status ||
+          (rowCount > 0 ? rowCount+' row(s) affected' : 'Statement executed successfully');
+        if(statements.length === 1){
+          resultsHtml += `<div class="stmt-result stmt-ok">✓ ${dmlMsg} · ${elapsed}s</div>`;
+        }
+      }
+
+    }catch(e){
+      resultsHtml += `<div class="stmt-result stmt-err">
+        ✗ ${stmtNum}${preview}<br>
+        <strong>${e.message}</strong>
+      </div>`;
+    }
+  }
+
+  if(statements.length > 1){
+    const successCount = (resultsHtml.match(/stmt-ok/g)||[]).length;
+    const failCount = (resultsHtml.match(/stmt-err/g)||[]).length;
+    resultsHtml = `<div class="alert ${failCount>0?'alert-warning':'alert-success'}" style="margin-bottom:12px">
+      <span>${failCount>0?'⚠':'✓'}</span>
+      <span><strong>${statements.length} statements</strong> — ${successCount} succeeded, ${failCount} failed</span>
+    </div>` + resultsHtml;
+  }
+
+  el('queryResults').innerHTML = resultsHtml;
+  btn.disabled=false; btn.textContent='▶ Execute';
+}
+
+// ─── Export CSV ────────────────────────────────────────────────────────────
+function exportCSV(){
+  if(!lastResults.length){ alert('No results to export.'); return; }
+  const cols = Object.keys(lastResults[0]);
+  const csv = [cols.join(','),
+    ...lastResults.map(r => cols.map(c => {
+      const v = String(r[c]??'').replace(/"/g,'""');
+      return v.includes(',') || v.includes('\n') ? `"${v}"` : v;
+    }).join(','))
+  ].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'query_results_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+function clearAll(){
+  el('sqlQuery').value='';
+  el('queryResults').style.display='none';
+  el('exportBtn').style.display='none';
+  lastResults=[];
+}
+
+function loadSqlFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 500*1024){
+    alert('⚠ File too large. Max 500KB per upload.');
+    event.target.value=''; return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const content = e.target.result;
+    el('sqlQuery').value = content;
+    // Count statements
+    const stmts = content.split(';').map(s=>s.trim()).filter(s=>s&&!s.startsWith('--')).length;
+    el('queryResults').style.display='block';
+    el('queryResults').innerHTML = alertHtml('info',
+      `📁 Loaded: <strong>${file.name}</strong> — ${stmts} statement(s) detected. Click ▶ Execute to run.`);
+  };
+  reader.readAsText(file);
+  event.target.value=''; // reset so same file can be re-loaded
+}
+
+function logout(){sessionStorage.clear();window.location.href='../landing.html';}
+init();
+</script>
+</body>
+</html>
