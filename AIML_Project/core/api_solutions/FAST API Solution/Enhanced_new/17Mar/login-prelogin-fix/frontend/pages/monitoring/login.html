@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - CQE NFT Platform</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.login-wrap{max-width:480px;margin:0 auto}
+.login-card{background:white;border-radius:20px;padding:36px;box-shadow:var(--card-shadow)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo h2{font-size:22px;font-weight:800;background:var(--bg-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.login-logo .lob-badge{display:inline-block;margin-top:8px;padding:6px 18px;background:#eff6ff;color:var(--primary);border-radius:20px;font-size:14px;font-weight:700}
+.tab-row{display:flex;gap:0;margin-bottom:24px;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden}
+.tab-btn{flex:1;padding:11px;font-size:13px;font-weight:700;border:none;cursor:pointer;transition:all .2s;background:white;color:#6b7280}
+.tab-btn.active{background:var(--bg-gradient);color:white}
+.totp-input{font-size:22px;font-weight:800;letter-spacing:8px;text-align:center;padding:14px}
+.timer-row{text-align:right;font-size:12px;color:#6b7280;margin-top:4px}
+.timer-val{color:var(--warning);font-weight:700}
+.err-box{background:#fef2f2;color:#991b1b;border-left:4px solid #ef4444;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;font-weight:600;display:none}
+.setup-totp-link{text-align:center;margin-top:18px;font-size:13px}
+.setup-totp-link a{color:var(--primary);cursor:pointer;text-decoration:underline}
+.reset-link{text-align:center;margin-top:10px;font-size:13px}
+.reset-link a{color:#6b7280;cursor:pointer;text-decoration:underline}
+.qr-panel{background:#f9fafb;border-radius:12px;padding:20px;text-align:center;border:2px dashed #e5e7eb;margin-top:16px;display:none}
+.qr-panel.open{display:block}
+.secret-code{font-family:monospace;font-size:13px;color:var(--primary);background:#eff6ff;padding:6px 14px;border-radius:6px;letter-spacing:3px;display:inline-block;margin:8px 0}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal-box{background:white;border-radius:16px;padding:32px;max-width:420px;width:90%}
+</style>
+</head>
+<body>
+<div class="top-nav"><a href="../landing.html" class="nav-link">🏠 Home</a></div>
+<div class="container" style="margin-top:80px">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">
+        <h2>🔐 CQE NFT Platform</h2>
+        <div class="lob-badge" id="lobBadge">Loading...</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:8px">Select role and sign in securely</div>
+      </div>
+
+      <div class="err-box" id="errBox"></div>
+
+      <!-- Role tabs -->
+      <div class="tab-row">
+        <button class="tab-btn active" id="tab-pe" onclick="switchRole('pe')">Performance Engineer</button>
+        <button class="tab-btn" id="tab-admin" onclick="switchRole('admin')">Admin</button>
+      </div>
+
+      <div class="form-group">
+        <label>Username <span class="required">*</span></label>
+        <input type="text" id="username" placeholder="firstname.lastname" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password <span class="required">*</span></label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label>TOTP Code <span class="required">*</span></label>
+        <input class="totp-input" type="text" id="totp" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+        <div class="timer-row">Token expires in: <span class="timer-val" id="totpTimer">30s</span></div>
+      </div>
+
+      <button class="btn btn-primary" id="loginBtn" onclick="doLogin()" style="width:100%;justify-content:center;font-size:16px">🔐 Sign In</button>
+
+      <!-- Setup TOTP link — fetches real QR from backend -->
+      <div class="setup-totp-link">
+        <a onclick="toggleQrPanel()">📱 First time? Setup TOTP Authenticator</a>
+      </div>
+
+      <!-- QR Panel — hidden by default, shown on click -->
+      <div class="qr-panel" id="qrPanel">
+        <div style="font-size:13px;color:#374151;margin-bottom:12px;font-weight:600">Setup Two-Factor Authentication</div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:14px">Enter your username above, then click Load QR Code to get your personal QR code.</div>
+        <button class="btn btn-secondary" onclick="loadQrCode()" style="margin-bottom:14px;font-size:13px">🔄 Load My QR Code</button>
+        <div id="qrContent" style="display:none">
+          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">Scan with Google Authenticator · Authy · 1Password</div>
+          <div id="qrImageWrap" style="display:inline-block;background:white;padding:8px;border-radius:8px;margin-bottom:10px"></div>
+          <div id="qrSecret" class="secret-code"></div>
+          <div style="font-size:10px;color:#9ca3af;margin-top:4px">Issuer: CQE-NFT-Platform</div>
+          <div style="font-size:11px;color:#065f46;background:#f0fdf4;padding:8px;border-radius:6px;margin-top:10px">
+            ✓ After scanning, enter the 6-digit code above to sign in.
+          </div>
+        </div>
+        <div id="qrError" style="display:none;color:#991b1b;font-size:13px;padding:8px"></div>
+      </div>
+
+      <!-- Forgot password / reset MFA -->
+      <div class="reset-link">
+        <a onclick="openReset()">Forgot password or need to reset MFA?</a>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:16px">
+      <button class="btn btn-secondary" onclick="window.location.href='pre-login.html'">← Back to LOB Selection</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESET MODAL -->
+<div class="modal-bg" id="resetModal">
+  <div class="modal-box">
+    <h3 style="font-weight:800;margin-bottom:16px">🔑 Reset Password / MFA</h3>
+    <div class="alert alert-info" style="margin-bottom:16px">
+      <span>ℹ️</span>
+      <span>Contact your platform admin to reset your password or MFA. They can reset via <strong>Admin → User Management → Reset MFA</strong>.</span>
+    </div>
+    <div class="form-group">
+      <label>Your Username</label>
+      <input type="text" id="resetUser" placeholder="firstname.lastname">
+    </div>
+    <div class="form-group">
+      <label>Issue</label>
+      <select id="resetReason">
+        <option value="Forgot password">Forgot password</option>
+        <option value="New device - reset MFA">New device — reset MFA</option>
+        <option value="MFA code not working">MFA code not working</option>
+        <option value="Account locked">Account locked</option>
+      </select>
+    </div>
+    <div id="resetResult" style="display:none;margin-bottom:12px"></div>
+    <div style="display:flex;gap:12px;margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeReset()" style="flex:1">Close</button>
+      <button class="btn btn-primary" id="resetSubmitBtn" onclick="submitReset()" style="flex:1">📧 Notify Admin</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000/api/v1/auth';
+const lob = JSON.parse(sessionStorage.getItem('selectedLob') || '{}');
+document.getElementById('lobBadge').textContent = (lob.icon||'') + ' ' + (lob.name||'Unknown LOB');
+
+let role = 'pe';
+function switchRole(r) {
+  role = r;
+  document.getElementById('tab-pe').classList.toggle('active', r==='pe');
+  document.getElementById('tab-admin').classList.toggle('active', r==='admin');
+}
+
+// TOTP countdown
+let totpSec = 30;
+function tickTotp() {
+  const el = document.getElementById('totpTimer');
+  if (el) { el.textContent = totpSec + 's'; el.style.color = totpSec <= 5 ? '#ef4444' : 'var(--warning)'; }
+  totpSec = totpSec > 0 ? totpSec - 1 : 30;
+  setTimeout(tickTotp, 1000);
+}
+tickTotp();
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value;
+  const t = document.getElementById('totp').value.trim();
+  const errBox = document.getElementById('errBox');
+  errBox.style.display = 'none';
+
+  if (!u || !p) { showErr('⚠ Username and password are required.'); return; }
+  if (t.length > 0 && t.length !== 6) { showErr('⚠ TOTP code must be exactly 6 digits.'); return; }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = '⏳ Signing in...';
+
+  try {
+    const resp = await fetch(API + '/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p, totp_code: t || '' })
+    });
+    const data = await resp.json();
+
+    if (!resp.ok || !data.success) {
+      showErr('✗ ' + (data.detail || data.error || data.message || 'Login failed. Check credentials and TOTP code.'));
+      btn.disabled = false; btn.textContent = '🔐 Sign In';
+      return;
+    }
+
+    const user = data.user || {};
+    const initials = (user.username||u).split('.').map(x=>x[0]||'').join('').toUpperCase().substring(0,2);
+    sessionStorage.setItem('userSession', JSON.stringify({
+      session_token: data.session_token,
+      username:      user.username || u,
+      role:          user.role || role,
+      full_name:     user.full_name || u,
+      email:         user.email || '',
+      initials:      initials,
+      lob:           lob.name || '',
+      loginTime:     new Date().toISOString(),
+    }));
+
+    const userRole = (user.role || role).toLowerCase();
+    window.location.href = userRole === 'admin' ? '../admin/dashboard.html' : 'start-monitoring.html';
+
+  } catch (e) {
+    showErr('✗ Cannot reach server: ' + e.message);
+    btn.disabled = false; btn.textContent = '🔐 Sign In';
+  }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errBox');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+// ─── QR Code Setup ────────────────────────────────────────────────────────────
+function toggleQrPanel() {
+  document.getElementById('qrPanel').classList.toggle('open');
+}
+
+async function loadQrCode() {
+  const username = document.getElementById('username').value.trim();
+  if (!username) {
+    document.getElementById('qrError').style.display = 'block';
+    document.getElementById('qrError').textContent = '⚠ Enter your username above first, then click Load QR Code.';
+    document.getElementById('qrContent').style.display = 'none';
+    return;
+  }
+
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳ Loading...';
+  document.getElementById('qrError').style.display = 'none';
+  document.getElementById('qrContent').style.display = 'none';
+
+  try {
+    // Step 1: Get user_id from username via /me or by logging in first
+    // The QR endpoint is GET /qr/{user_id} — we need the user_id
+    // Use the /qr-image/{username} endpoint which fetches from DB directly
+    const r = await fetch(API + '/qr-image/' + encodeURIComponent(username));
+
+    if (r.ok) {
+      // Returns PNG image
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      document.getElementById('qrImageWrap').innerHTML = '<img src="' + url + '" width="130" height="130" style="display:block">';
+      document.getElementById('qrSecret').textContent = 'Scan QR code above';
+      document.getElementById('qrContent').style.display = 'block';
+    } else if (r.status === 404) {
+      document.getElementById('qrError').style.display = 'block';
+      document.getElementById('qrError').textContent = '⚠ User not found. Check your username spelling.';
+    } else if (r.status === 400) {
+      // QR code regeneration required — admin must reset first
+      document.getElementById('qrError').style.display = 'block';
+      document.getElementById('qrError').textContent = '⚠ QR code needs to be regenerated. Ask your admin to reset your MFA via User Management.';
+    } else {
+      document.getElementById('qrError').style.display = 'block';
+      document.getElementById('qrError').textContent = '⚠ Could not load QR code (HTTP ' + r.status + '). Contact your admin.';
+    }
+  } catch(e) {
+    document.getElementById('qrError').style.display = 'block';
+    document.getElementById('qrError').textContent = '✗ Server error: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '🔄 Load My QR Code';
+  }
+}
+
+// ─── Forgot password / Reset MFA ─────────────────────────────────────────────
+function openReset()  { document.getElementById('resetModal').classList.add('open'); }
+function closeReset() { document.getElementById('resetModal').classList.remove('open'); }
+
+async function submitReset() {
+  const username = document.getElementById('resetUser').value.trim();
+  const reason   = document.getElementById('resetReason').value;
+  const resultEl = document.getElementById('resetResult');
+  const btn      = document.getElementById('resetSubmitBtn');
+
+  if (!username) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '<div class="alert alert-danger"><span>⚠</span><span>Please enter your username.</span></div>';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = '⏳ Submitting...';
+  resultEl.style.display = 'none';
+
+  // Try to call the backend audit log or just record the request
+  // Since this is pre-login we have no token — just show admin instructions
+  try {
+    // POST to a public reset-request endpoint if it exists
+    // For now log to console and show admin contact message
+    console.log('Reset request:', {username, reason, timestamp: new Date().toISOString()});
+
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `<div class="alert alert-success">
+      <span>✓</span>
+      <span>Reset request recorded for <strong>${username}</strong>.<br><br>
+      Ask your <strong>Platform Admin</strong> to go to:<br>
+      Admin Dashboard → User Management → find <strong>${username}</strong> → Reset MFA button.<br><br>
+      They can also reset your password from the same screen.</span>
+    </div>`;
+    btn.textContent = '✓ Submitted';
+
+  } catch(e) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `<div class="alert alert-danger"><span>✗</span><span>${e.message}</span></div>`;
+    btn.disabled = false; btn.textContent = '📧 Notify Admin';
+  }
+}
+
+// Enter key support
+['username','password','totp'].forEach(id => {
+  document.getElementById(id)?.addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+});
+</script>
+</body>
+</html>
