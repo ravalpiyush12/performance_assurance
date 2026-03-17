@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload / Fetch Reports</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.tab-row{display:flex;gap:0;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:22px}
+.tab-btn{flex:1;padding:12px;font-size:14px;font-weight:700;border:none;cursor:pointer;transition:all .2s;background:white;color:#6b7280}
+.tab-btn.active{background:var(--bg-gradient);color:white}
+.tab-pane{display:none}.tab-pane.active{display:block}
+.drop-zone{border:2px dashed #d1d5db;border-radius:14px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .3s;background:#f9fafb}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--primary);background:#eff6ff}
+.drop-zone-icon{font-size:48px;margin-bottom:14px}
+.drop-zone-text{font-size:15px;font-weight:700;color:#374151;margin-bottom:6px}
+.drop-zone-sub{font-size:13px;color:#6b7280}
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="../landing.html" class="nav-link">🏠 Home</a>
+  <a href="start-monitoring.html" class="nav-link">← Back to Monitoring</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>📤 Upload / Fetch Reports</h1>
+    <p>Upload AWR and PC reports manually, or pull directly from Performance Center</p>
+  </div>
+
+  <div class="card">
+    <div class="form-grid" style="margin-bottom:20px">
+      <div class="form-group"><label>LOB</label><input type="text" id="lobField" readonly style="background:#f9fafb"></div>
+      <div class="form-group"><label>Track <span class="required">*</span></label>
+        <select id="trackField">
+          <option value="">-- Select Track --</option>
+          <option>CDV3</option><option>Track1</option><option>Track2</option><option>PayTrack1</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Release Name <span class="required">*</span></label>
+        <select id="releaseField">
+          <option value="">-- Select Release --</option>
+          <option>Release 2.5</option><option>Release 2.4</option><option>Release 2.3</option>
+        </select>
+      </div>
+      <div class="form-group"><label>PC Run ID <span class="required">*</span></label>
+        <input type="text" id="pcRunField" placeholder="e.g. 65989">
+      </div>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('upload')">📁 Upload Files</button>
+      <button class="tab-btn" onclick="switchTab('fetch')">🔌 Fetch from PC</button>
+    </div>
+
+    <!-- UPLOAD TAB -->
+    <div id="tab-upload" class="tab-pane active">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>AWR HTML Report</label>
+          <div class="drop-zone" onclick="document.getElementById('awrFile').click()" id="awrDrop">
+            <div class="drop-zone-icon">📄</div>
+            <div class="drop-zone-text">Click to upload AWR Report</div>
+            <div class="drop-zone-sub">Accepts .html files (AWR HTML report from Oracle)</div>
+            <input type="file" id="awrFile" accept=".html" style="display:none" onchange="showFileInfo(this,'awrDrop')">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Performance Center Report ZIP</label>
+          <div class="drop-zone" onclick="document.getElementById('pcFile').click()" id="pcDrop">
+            <div class="drop-zone-icon">🗜️</div>
+            <div class="drop-zone-text">Click to upload PC Report ZIP</div>
+            <div class="drop-zone-sub">Accepts .zip files (PC results archive)</div>
+            <input type="file" id="pcFile" accept=".zip" style="display:none" onchange="showFileInfo(this,'pcDrop')">
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="processUpload()">📤 Upload & Process Reports</button>
+    </div>
+
+    <!-- FETCH FROM PC TAB -->
+    <div id="tab-fetch" class="tab-pane">
+      <div class="alert alert-info"><span>ℹ️</span><span>This will connect to the configured Performance Center instance and download reports for the specified PC Run ID using the stored project credentials.</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>PC Project</label>
+          <select id="pcProject">
+            <option>Cards NFT — CDV3</option>
+            <option>Payments NFT — PayTrack1</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Report Types to Download</label>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Transaction Summary Report</label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Performance Graphs ZIP</label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox"> Raw Results XML</label>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="fetchFromPC()">🔌 Fetch from Performance Center</button>
+      <div id="fetchLog" style="margin-top:14px;display:none">
+        <div style="background:#111827;color:#d1fae5;font-family:monospace;font-size:12px;border-radius:10px;padding:16px;height:140px;overflow-y:auto;line-height:1.8" id="fetchLogBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="uploadResults" class="card" style="display:none">
+    <h3 style="font-weight:800;margin-bottom:16px">✓ Processing Complete</h3>
+    <div class="alert alert-success"><span>✓</span><span>Reports processed and data stored to Oracle CQE_NFT database.</span></div>
+    <table class="data-table" id="resultTable">
+      <thead><tr><th>Table</th><th>Records</th><th>Status</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div style="display:flex;gap:12px;margin-top:16px">
+      <button class="btn btn-secondary" onclick="location.reload()">Upload More</button>
+      <button class="btn btn-primary" onclick="window.location.href='../analysis/test-selection.html'">📊 View Test Report</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const setup = JSON.parse(sessionStorage.getItem('monitoringSetup') || '{}');
+const lob = JSON.parse(sessionStorage.getItem('selectedLob') || '{}');
+document.getElementById('lobField').value = lob.name || setup.lob || '—';
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='upload')||(i===1&&tab==='fetch')));
+  document.getElementById('tab-upload').classList.toggle('active', tab==='upload');
+  document.getElementById('tab-fetch').classList.toggle('active', tab==='fetch');
+}
+
+function showFileInfo(input, dropId) {
+  const drop = document.getElementById(dropId);
+  if (input.files[0]) {
+    drop.querySelector('.drop-zone-text').textContent = '✓ ' + input.files[0].name;
+    drop.querySelector('.drop-zone-sub').textContent = (input.files[0].size/1024).toFixed(1) + ' KB';
+    drop.style.borderColor = '#10b981';
+    drop.style.background = '#f0fdf4';
+  }
+}
+
+function showResults(rows) {
+  const tbody = document.querySelector('#resultTable tbody');
+  tbody.innerHTML = rows.map(r=>`<tr><td><strong>${r.t}</strong></td><td>${r.n.toLocaleString()}</td><td><span class="badge badge-success">Success</span></td></tr>`).join('') +
+    `<tr style="background:#f0fdf4"><td><strong>TOTAL</strong></td><td><strong>${rows.reduce((s,r)=>s+r.n,0).toLocaleString()}</strong></td><td><span class="badge badge-success">Complete</span></td></tr>`;
+  document.getElementById('uploadResults').style.display = 'block';
+  document.getElementById('uploadResults').scrollIntoView({behavior:'smooth'});
+}
+
+function processUpload() {
+  const pcRunId = document.getElementById('pcRunField').value;
+  const release = document.getElementById('releaseField').value;
+  if (!pcRunId || !release) { alert('⚠ PC Run ID and Release Name are required.'); return; }
+  setTimeout(() => showResults([
+    {t:'ORACLE_AWR_METRICS', n:847}, {t:'ORACLE_AWR_TOP_SQL', n:234},
+    {t:'PC_TRANSACTION_DETAILS', n:456}, {t:'PC_PERFORMANCE_METRICS', n:892}
+  ]), 1200);
+}
+
+function fetchFromPC() {
+  const pcRunId = document.getElementById('pcRunField').value;
+  if (!pcRunId) { alert('⚠ Enter a PC Run ID first.'); return; }
+  const logEl = document.getElementById('fetchLogBox');
+  document.getElementById('fetchLog').style.display = 'block';
+  logEl.innerHTML = '';
+  const msgs = [
+    '✓ Connecting to PC at https://pc.corp.internal:443',
+    '✓ Authenticated — cookie session established',
+    `✓ Located Run ID ${pcRunId} in project "Cards NFT — CDV3"`,
+    '⟳ Downloading Transaction Summary Report...',
+    '✓ Transaction report downloaded (847 KB)',
+    '⟳ Downloading Performance Graphs ZIP...',
+    '✓ Performance ZIP downloaded (2.4 MB)',
+    '⟳ Parsing and storing to Oracle...',
+    '✓ Data stored to PC_TRANSACTION_DETAILS (456 rows)',
+    '✓ Data stored to PC_PERFORMANCE_METRICS (892 rows)',
+    '✓ All reports processed successfully!',
+  ];
+  let i = 0;
+  const iv = setInterval(() => {
+    if (i >= msgs.length) {
+      clearInterval(iv);
+      showResults([{t:'PC_TRANSACTION_DETAILS', n:456},{t:'PC_PERFORMANCE_METRICS', n:892}]);
+      return;
+    }
+    const d = document.createElement('div');
+    d.textContent = '[' + new Date().toTimeString().slice(0,8) + '] ' + msgs[i++];
+    logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight;
+  }, 600);
+}
+
+function logout() { sessionStorage.clear(); window.location.href = '../landing.html'; }
+</script>
+</body>
+</html>
