@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kibana Configuration</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.dash-block{border:2px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:white}
+.data-preview{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;margin-top:10px;font-size:13px}
+.data-warn{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin-top:10px;font-size:13px;color:#92400e}
+.auth-tabs{display:flex;gap:0;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:12px;width:fit-content}
+.auth-tab{padding:8px 20px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:white;color:#6b7280}
+.auth-tab.active{background:var(--primary);color:white}
+</style>
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const s=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+  if(!s.username||s.role!=='admin'){window.location.href='../../pages/monitoring/pre-login.html';return;}
+});
+</script>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>📈 Kibana Configuration</h1>
+    <p>LOB: <strong id="lobLabel">—</strong></p>
+  </div>
+
+  <div class="card">
+    <h3 style="font-weight:800;margin-bottom:16px">🔌 Connection Settings</h3>
+    <div class="form-group">
+      <label>Kibana Base URL <span class="required">*</span></label>
+      <input type="text" id="kibUrl" placeholder="https://kibana.corp.internal:5601">
+    </div>
+
+    <label style="font-weight:700;font-size:14px;margin-bottom:8px;display:block">Authentication</label>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabApiKey" onclick="switchAuth('apikey')">API Key / Token</button>
+      <button class="auth-tab" id="tabBasic" onclick="switchAuth('basic')">Username / Password</button>
+    </div>
+
+    <div id="authApiKey">
+      <div class="form-group">
+        <label>Token Env Variable <span class="required">*</span></label>
+        <input type="text" id="kibTokenEnv" placeholder="KIBANA_TOKEN_DIGTECH">
+        <small>Server env var name holding the API token</small>
+      </div>
+    </div>
+    <div id="authBasic" style="display:none">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Username <span class="required">*</span></label>
+          <input type="text" id="kibUser" placeholder="kibana_svc">
+        </div>
+        <div class="form-group">
+          <label>Password Env Variable <span class="required">*</span></label>
+          <input type="text" id="kibPassEnv" placeholder="KIBANA_PASS_DIGTECH">
+          <small>Env var holding the password</small>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:8px">
+      <button class="btn btn-success" onclick="testKibConn()">🔍 Test Connection</button>
+      <button class="btn btn-primary" onclick="saveKibConn()">💾 Save Settings</button>
+    </div>
+    <div id="kibConnResult" style="display:none;margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="font-weight:800;margin:0">📊 Dashboard Configurations</h3>
+      <button class="btn btn-primary" style="padding:9px 18px;font-size:13px" onclick="addDashboard()">➕ Add Dashboard</button>
+    </div>
+    <div class="alert alert-info"><span>ℹ️</span><span>Map Kibana dashboard IDs to tracks. Use <strong>Test</strong> to verify data is being captured. If no data — contact Application team.</span></div>
+    <div id="dashList">
+      <div style="text-align:center;padding:30px;color:#9ca3af" id="dashLoading">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<template id="dashTmpl">
+  <div class="dash-block" id="dash-__IDX__">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-weight:700;font-size:15px">Dashboard __NUM__</span>
+      <div style="display:flex;gap:8px">
+        <span class="badge" id="dashStatus-__IDX__" style="background:#e5e7eb;color:#374151">Not Tested</span>
+        <button class="btn btn-danger" style="padding:5px 12px;font-size:12px" onclick="deleteDash(__IDX__)">✕</button>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Dashboard ID <span class="required">*</span></label>
+        <input type="text" id="dashId-__IDX__" placeholder="abc12345-def6-7890-ghij-klmn">
+      </div>
+      <div class="form-group">
+        <label>Display Name <span class="required">*</span></label>
+        <input type="text" id="dashName-__IDX__" placeholder="API Performance - CDV3">
+      </div>
+      <div class="form-group">
+        <label>Track <span class="required">*</span></label>
+        <select id="dashTrack-__IDX__">
+          <option value="">-- Select Track --</option>
+          <option>CDV3</option><option>Track1</option><option>Track2</option>
+          <option>PayTrack1</option><option>PayTrack2</option><option>CorpTrack1</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Time Field</label>
+        <input type="text" id="dashTimeField-__IDX__" value="@timestamp">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="padding:8px 16px;font-size:13px" onclick="saveDash(__IDX__)">💾 Save</button>
+      <button class="btn btn-success" style="padding:8px 16px;font-size:13px" onclick="testDash(__IDX__)">🔍 Test Data</button>
+    </div>
+    <input type="hidden" id="dashConfigId-__IDX__" value="">
+    <div id="dashResult-__IDX__" style="display:none"></div>
+  </div>
+</template>
+
+<script>
+const API='http://localhost:8000/api/v1';
+const NFT_API=API+'/nft';
+const sess=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+const tok=sess.session_token||'';
+const lob=JSON.parse(sessionStorage.getItem('selectedLob')||'{}');
+const lobName=lob.name||'';
+document.getElementById('lobLabel').textContent=lobName||'Unknown LOB';
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function api(url,opts={}){
+  const r=await fetch(url,{headers:hdr(),...opts});
+  const d=await r.json().catch(()=>({detail:'?'}));
+  if(!r.ok)throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+  return d;
+}
+function el(id){return document.getElementById(id);}
+function alertHtml(t,m){const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};return`<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;}
+
+let dc=0,authType='apikey';
+
+function switchAuth(type){
+  authType=type;
+  el('tabApiKey').classList.toggle('active',type==='apikey');
+  el('tabBasic').classList.toggle('active',type==='basic');
+  el('authApiKey').style.display=type==='apikey'?'block':'none';
+  el('authBasic').style.display=type==='basic'?'block':'none';
+}
+
+async function init(){
+  if(!lobName)return;
+  try{
+    const d=await api(NFT_API+'/config/kibana/'+encodeURIComponent(lobName));
+    el('dashLoading').style.display='none';
+    (d.configs||[]).forEach(c=>addDashboard({
+      id:c.dashboard_id,name:c.display_name,track:c.track_name,
+      timeField:c.time_field,configId:c.kibana_config_id,
+      kibUrl:c.kibana_url,tokenEnv:c.token_env_var,
+      user:c.username,authType:c.auth_type,status:c.last_test_status
+    }));
+    if(!d.configs||!d.configs.length) el('dashLoading').style.display='none';
+    // Pre-fill connection from first config
+    if(d.configs&&d.configs.length){
+      const c=d.configs[0];
+      el('kibUrl').value=c.kibana_url||'';
+      el('kibTokenEnv').value=c.token_env_var||'';
+      if(c.auth_type==='basic'){switchAuth('basic');el('kibUser').value=c.username||'';el('kibPassEnv').value=c.pass_env_var||'';}
+    }
+  }catch(e){el('dashLoading').innerHTML='<span style="color:#9ca3af">No saved configurations. Add a dashboard below.</span>';}
+}
+
+function addDashboard(prefill){
+  const idx=dc++;
+  const tmpl=el('dashTmpl').innerHTML.replace(/__IDX__/g,idx).replace(/__NUM__/g,idx+1);
+  const wrap=document.createElement('div');wrap.innerHTML=tmpl;
+  el('dashList').appendChild(wrap.firstElementChild);
+  if(prefill){
+    el('dashId-'+idx).value=prefill.id||'';
+    el('dashName-'+idx).value=prefill.name||'';
+    el('dashTrack-'+idx).value=prefill.track||'';
+    el('dashTimeField-'+idx).value=prefill.timeField||'@timestamp';
+    el('dashConfigId-'+idx).value=prefill.configId||'';
+    if(prefill.status){
+      const badge=el('dashStatus-'+idx);
+      if(prefill.status==='PASS'){badge.className='badge badge-success';badge.textContent='✓ Data Found';}
+      else if(prefill.status==='FAIL'){badge.className='badge badge-error';badge.textContent='✗ No Data';}
+    }
+  }
+}
+
+async function saveDash(idx){
+  const dashId=el('dashId-'+idx).value.trim();
+  const name=el('dashName-'+idx).value.trim();
+  const track=el('dashTrack-'+idx).value;
+  const timeField=el('dashTimeField-'+idx).value.trim()||'@timestamp';
+  if(!dashId||!name||!track){alert('⚠ Dashboard ID, Name and Track required.');return;}
+  const kibUrl=el('kibUrl').value.trim();
+  const tokenEnv=el('kibTokenEnv').value.trim();
+  if(!kibUrl){alert('⚠ Save connection settings first (Kibana URL required).');return;}
+  el('dashResult-'+idx).style.display='none';
+  try{
+    const d=await api(NFT_API+'/config/kibana',{
+      method:'POST',
+      body:JSON.stringify({
+        lob_name:lobName,track_name:track,kibana_url:kibUrl,
+        username:authType==='basic'?el('kibUser').value.trim():null,
+        token_env_var:authType==='apikey'?tokenEnv:(el('kibPassEnv').value.trim()||null),
+        auth_type:authType,dashboard_id:dashId,display_name:name,time_field:timeField
+      })
+    });
+    el('dashConfigId-'+idx).value=d.kibana_config_id||'';
+    const badge=el('dashStatus-'+idx);
+    badge.style.background='#dbeafe';badge.style.color='#1d4ed8';badge.textContent='Saved ✓';
+    el('dashResult-'+idx).innerHTML=alertHtml('success','Saved. Click Test to verify data.');
+    el('dashResult-'+idx).style.display='block';
+  }catch(e){
+    el('dashResult-'+idx).innerHTML=alertHtml('danger',e.message);
+    el('dashResult-'+idx).style.display='block';
+  }
+}
+
+async function deleteDash(idx){
+  const configId=el('dashConfigId-'+idx).value;
+  if(!configId){el('dash-'+idx)?.remove();return;}
+  if(!confirm('Delete this dashboard config?'))return;
+  try{
+    await api(NFT_API+'/config/kibana/'+configId,{method:'DELETE'});
+    el('dash-'+idx)?.remove();
+  }catch(e){alert('Delete failed: '+e.message);}
+}
+
+async function testDash(idx){
+  const configId=el('dashConfigId-'+idx).value;
+  const name=el('dashName-'+idx).value||'Dashboard';
+  if(!configId){
+    el('dashResult-'+idx).innerHTML=alertHtml('warning','⚠ Save this dashboard first before testing.');
+    el('dashResult-'+idx).style.display='block';return;
+  }
+  el('dashResult-'+idx).innerHTML='<div class="data-preview">⏳ Fetching data from Kibana...</div>';
+  el('dashResult-'+idx).style.display='block';
+  try{
+    const d=await api(NFT_API+'/config/kibana/test-connection',{
+      method:'POST',body:JSON.stringify({kibana_config_id:parseInt(configId)})
+    });
+    const badge=el('dashStatus-'+idx);
+    if(d.success&&d.status==='PASS'){
+      badge.className='badge badge-success';badge.textContent='✓ Data Found';
+      el('dashResult-'+idx).innerHTML=`<div class="data-preview"><strong>✓ Data captured from "${name}"</strong><br><br>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">
+          <div><div style="font-size:11px;color:#6b7280">Total Requests</div><div style="font-size:18px;font-weight:800;color:#065f46">${(d.record_count||0).toLocaleString()}</div></div>
+          <div><div style="font-size:11px;color:#6b7280">Error Rate</div><div style="font-size:18px;font-weight:800;color:#065f46">${d.error_rate||0}%</div></div>
+          <div><div style="font-size:11px;color:#6b7280">P95 RT</div><div style="font-size:18px;font-weight:800;color:#065f46">${d.p95_ms||0}ms</div></div>
+        </div></div>`;
+    }else{
+      badge.className='badge badge-error';badge.textContent='✗ No Data';
+      el('dashResult-'+idx).innerHTML=`<div class="data-warn"><strong>⚠ ${d.message||'No data found'}</strong><br><br>${d.contact_app_team?'<strong>👉 Contact Application Development team to verify data ingestion.</strong>':''}</div>`;
+    }
+  }catch(e){
+    el('dashStatus-'+idx).className='badge badge-error';
+    el('dashResult-'+idx).innerHTML=alertHtml('danger','Test failed: '+e.message);
+  }
+}
+
+async function testKibConn(){
+  el('kibConnResult').innerHTML=alertHtml('info','⏳ Testing Kibana connection...');
+  el('kibConnResult').style.display='block';
+  try{
+    const d=await api(API+'/health/kibana');
+    if(d.status==='ok'){el('kibConnResult').innerHTML=alertHtml('success','✓ Connected to Kibana. Status: '+d.status);}
+    else{el('kibConnResult').innerHTML=alertHtml('warning',JSON.stringify(d));}
+  }catch(e){el('kibConnResult').innerHTML=alertHtml('danger','✗ '+e.message);}
+}
+
+function saveKibConn(){
+  const url=el('kibUrl').value.trim();
+  if(!url){alert('⚠ Kibana URL required.');return;}
+  el('kibConnResult').innerHTML=alertHtml('success','✓ Connection settings noted. Saved with each dashboard.');
+  el('kibConnResult').style.display='block';
+}
+
+function logout(){sessionStorage.clear();window.location.href='../landing.html';}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AppDynamics Configuration</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.app-block{border:2px solid #e5e7eb;border-radius:14px;padding:20px;margin-bottom:16px;background:white;transition:.2s}
+.app-block:hover{border-color:var(--primary)}
+.app-block-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.tier-row{display:flex;gap:10px;align-items:center;margin-bottom:8px;padding:10px;background:#f9fafb;border-radius:8px;flex-wrap:wrap}
+.tier-row input{flex:1;min-width:120px}
+.batch-bar{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;margin-bottom:20px}
+.section-divider{margin:24px 0 16px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;font-size:16px;font-weight:800}
+.auth-tabs{display:flex;gap:0;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:16px;width:fit-content}
+.auth-tab{padding:8px 20px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:white;color:#6b7280}
+.auth-tab.active{background:var(--primary);color:white}
+.node-tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;margin:2px}
+.node-active{background:#d1fae5;color:#065f46}
+.node-inactive{background:#fee2e2;color:#991b1b}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #e5e7eb;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const s=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+  if(!s.username||s.role!=='admin'){window.location.href='../../pages/monitoring/pre-login.html';return;}
+});
+</script>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>📊 AppDynamics Configuration</h1>
+    <p>LOB: <strong id="lobLabel">—</strong></p>
+  </div>
+
+  <!-- DAILY BATCH STATUS -->
+  <div class="batch-bar">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-weight:700;font-size:14px;color:#1e40af">🔄 Daily Discovery Batch</div>
+        <div style="font-size:13px;color:#3b82f6;margin-top:4px" id="lastDiscovery">Last run: checking...</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span id="batchStatusBadge"></span>
+        <button class="btn btn-primary" style="padding:9px 18px;font-size:13px" onclick="runDiscovery()">▶ Run Discovery Now</button>
+      </div>
+    </div>
+    <div id="discoveryResult" style="display:none;margin-top:12px"></div>
+  </div>
+
+  <!-- CONNECTION SETTINGS -->
+  <div class="card">
+    <div class="section-divider">🔌 Controller Connection</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Controller URL <span class="required">*</span></label>
+        <input type="text" id="appdHost" placeholder="https://appdynamics.corp.internal:8090">
+      </div>
+      <div class="form-group">
+        <label>Account Name <span class="required">*</span></label>
+        <input type="text" id="appdAccount" placeholder="corp-prod-account">
+      </div>
+    </div>
+
+    <label style="font-weight:700;font-size:14px;margin-bottom:8px;display:block">Authentication Type</label>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabToken" onclick="switchAuth('token')">API Token</button>
+      <button class="auth-tab" id="tabBasic" onclick="switchAuth('basic')">Username / Password</button>
+    </div>
+
+    <div id="authToken">
+      <div class="form-group">
+        <label>Token Environment Variable <span class="required">*</span></label>
+        <input type="text" id="appdTokenEnv" placeholder="APPD_TOKEN_DIGTECH">
+        <small>Name of the server env var holding the API token — never paste the actual token here</small>
+      </div>
+    </div>
+    <div id="authBasic" style="display:none">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Username <span class="required">*</span></label>
+          <input type="text" id="appdUser" placeholder="service-account@account">
+        </div>
+        <div class="form-group">
+          <label>Password Env Variable <span class="required">*</span></label>
+          <input type="text" id="appdPassEnv" placeholder="APPD_PASS_DIGTECH">
+          <small>Env var holding the password</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-top:8px">
+      <div class="form-group">
+        <label>Default Node Count Threshold</label>
+        <input type="number" id="defaultNodeCount" value="3" min="1">
+        <small>Used on first day before discovery runs. Nodes with CPM ≥ this are marked active.</small>
+      </div>
+      <div class="form-group">
+        <label>CPM Active Threshold</label>
+        <input type="number" id="cpmThreshold" value="10" min="0">
+        <small>Nodes with Calls/Min ≥ this are marked active by batch job</small>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-success" onclick="testAppdConn()">🔍 Test Connection</button>
+      <button class="btn btn-primary" onclick="saveConnSettings()">💾 Save Connection</button>
+    </div>
+    <div id="appdConnResult" style="display:none;margin-top:12px"></div>
+  </div>
+
+  <!-- APPLICATIONS -->
+  <div class="card">
+    <div class="section-divider">📱 Applications & Tiers</div>
+    <div class="alert alert-info"><span>ℹ️</span><span>Add applications and tracks. After the first discovery batch runs, real tiers and active node counts will appear automatically. You can override expected counts at any time.</span></div>
+    <div id="appsList"></div>
+    <button class="btn btn-primary" onclick="addApp()" style="margin-top:12px">➕ Add Application</button>
+  </div>
+
+  <!-- DISCOVERED NODES (shown after batch runs) -->
+  <div class="card" id="discoveredSection" style="display:none">
+    <div class="section-divider">🖥️ Discovered Nodes (from last batch)</div>
+    <div class="alert alert-info"><span>ℹ️</span><span>These are real nodes fetched from AppDynamics. Green = active (CPM above threshold). Red = inactive. Override expected count per tier below.</span></div>
+    <div id="discoveredNodes"></div>
+  </div>
+</div>
+
+<template id="appTemplate">
+  <div class="app-block" id="appBlock-__IDX__">
+    <div class="app-block-header">
+      <span style="font-weight:800;font-size:15px">Application __NUM__</span>
+      <div style="display:flex;gap:8px">
+        <span class="badge badge-info" id="appStatus-__IDX__">New</span>
+        <button class="btn btn-danger" style="padding:6px 14px;font-size:13px" onclick="removeApp(__IDX__)">✕</button>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Application Name <span class="required">*</span></label>
+        <input type="text" id="appName-__IDX__" placeholder="e.g. Cards-Prod-App">
+      </div>
+      <div class="form-group">
+        <label>Application ID (AppD)</label>
+        <input type="text" id="appId-__IDX__" placeholder="e.g. 173720">
+      </div>
+      <div class="form-group">
+        <label>Track <span class="required">*</span></label>
+        <select id="appTrack-__IDX__">
+          <option value="">-- Select Track --</option>
+          <option>CDV3</option><option>Track1</option><option>Track2</option>
+          <option>PayTrack1</option><option>PayTrack2</option><option>CorpTrack1</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="appEnabled-__IDX__">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div style="font-weight:700;margin-bottom:8px;font-size:13px">Default Tiers (before discovery)</div>
+    <div id="tiersList-__IDX__"></div>
+    <button class="btn btn-secondary" style="padding:7px 14px;font-size:13px;margin-bottom:10px" onclick="addTier(__IDX__)">+ Add Tier</button>
+    <button class="btn btn-success" style="padding:8px 18px;font-size:13px" onclick="saveApp(__IDX__)">💾 Save</button>
+    <div id="appSaveResult-__IDX__" style="display:none;margin-top:8px"></div>
+  </div>
+</template>
+
+<script>
+const API='http://localhost:8000/api/v1';
+const NFT_API=API+'/nft';
+const APPD_API=API+'/monitoring/appd';
+const sess=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+const tok=sess.session_token||'';
+const lob=JSON.parse(sessionStorage.getItem('selectedLob')||'{}');
+const lobName=lob.name||'';
+document.getElementById('lobLabel').textContent=lobName||'Unknown LOB';
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function api(url,opts={}){
+  const r=await fetch(url,{headers:hdr(),...opts});
+  const d=await r.json().catch(()=>({detail:'?'}));
+  if(!r.ok)throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+  return d;
+}
+function el(id){return document.getElementById(id);}
+function alertHtml(t,m){const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};return`<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;}
+
+let appCount=0,authType='token';
+
+function switchAuth(type){
+  authType=type;
+  el('tabToken').classList.toggle('active',type==='token');
+  el('tabBasic').classList.toggle('active',type==='basic');
+  el('authToken').style.display=type==='token'?'block':'none';
+  el('authBasic').style.display=type==='basic'?'block':'none';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init(){
+  if(!lobName)return;
+  try{
+    const d=await api(NFT_API+'/config/appd/'+encodeURIComponent(lobName));
+    if(d.config){
+      const c=d.config;
+      el('appdHost').value=c.controller_url||'';
+      el('appdAccount').value=c.account_name||'';
+      el('appdTokenEnv').value=c.token_env_var||'';
+      el('defaultNodeCount').value=c.default_node_count||3;
+      if(c.auth_type==='basic'){
+        switchAuth('basic');
+        el('appdUser').value=c.username||'';
+        el('appdPassEnv').value=c.pass_env_var||'';
+      }
+    }
+  }catch(e){}
+
+  // Load applications from master
+  try{
+    const d=await api(APPD_API+'/lob/'+encodeURIComponent(lobName)+'/config');
+    if(d.config&&d.config.applications){
+      d.config.applications.forEach(a=>addApp({
+        name:a.application_name||a,id:'',track:d.config.track||'',enabled:'active',tiers:[]
+      }));
+    }
+  }catch(e){}
+
+  // Check last discovery
+  checkLastDiscovery();
+  loadDiscoveredNodes();
+}
+
+async function checkLastDiscovery(){
+  try{
+    const d=await api(APPD_API+'/sessions?lob_name='+encodeURIComponent(lobName));
+    const sessions=d.sessions||[];
+    if(sessions.length){
+      const last=sessions[0];
+      el('lastDiscovery').textContent='Last run: '+new Date(last.start_time).toLocaleString()+' — Status: '+last.status;
+      const ok=last.status==='COMPLETED'||last.status==='SUCCESS';
+      el('batchStatusBadge').innerHTML=`<span class="badge ${ok?'badge-success':'badge-warning'}">${last.status}</span>`;
+    }else{
+      el('lastDiscovery').textContent='No discovery run yet. Click "Run Discovery Now" to start.';
+    }
+  }catch(e){el('lastDiscovery').textContent='Could not check discovery status';}
+}
+
+async function loadDiscoveredNodes(){
+  try{
+    const d=await api(APPD_API+'/active-nodes?lob_name='+encodeURIComponent(lobName));
+    const nodes=d.nodes||[];
+    if(!nodes.length)return;
+    el('discoveredSection').style.display='block';
+
+    // Group by application → tier
+    const appMap={};
+    nodes.forEach(n=>{
+      const app=n.application_name||'Unknown';
+      const tier=n.tier_name||'Unknown';
+      if(!appMap[app])appMap[app]={};
+      if(!appMap[app][tier])appMap[app][tier]=[];
+      appMap[app][tier].push(n);
+    });
+
+    let html='';
+    Object.entries(appMap).forEach(([app,tiers])=>{
+      html+=`<div style="margin-bottom:20px"><div style="font-weight:800;font-size:14px;margin-bottom:10px;color:var(--primary)">📊 ${app}</div>`;
+      Object.entries(tiers).forEach(([tier,tNodes])=>{
+        const activeCount=tNodes.filter(n=>n.is_active==='Y').length;
+        html+=`<div style="border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div>
+              <span style="font-weight:700">${tier}</span>
+              <span style="font-size:12px;color:#6b7280;margin-left:8px">${activeCount}/${tNodes.length} active</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:13px;color:#374151">Expected active:</label>
+              <input type="number" id="thresh-${app}-${tier}" value="${activeCount}" min="1"
+                style="width:70px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px">
+              <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px"
+                onclick="saveThreshold('${app}','${tier}')">Save</button>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px">
+            ${tNodes.map(n=>`<span class="node-tag ${n.is_active==='Y'?'node-active':'node-inactive'}">${n.node_name} (${n.calls_per_minute||0} CPM)</span>`).join('')}
+          </div>
+        </div>`;
+      });
+      html+='</div>';
+    });
+    el('discoveredNodes').innerHTML=html;
+  }catch(e){}
+}
+
+async function runDiscovery(){
+  const btn=event.target;btn.disabled=true;btn.textContent='⏳ Running...';
+  el('discoveryResult').style.display='none';
+  try{
+    // Get config name for this LOB
+    const d=await api(APPD_API+'/lob/'+encodeURIComponent(lobName)+'/config');
+    const configName=d.config?.config_name;
+    if(!configName)throw new Error('No AppD config found for '+lobName+'. Save connection settings first.');
+
+    const result=await api(APPD_API+'/discovery/run',{
+      method:'POST',
+      body:JSON.stringify({config_name:configName,lob_name:lobName,triggered_by:sess.username||'admin'})
+    });
+    el('discoveryResult').innerHTML=alertHtml('success',`✓ Discovery started (Task: ${result.task_id||'running'}). Nodes will be updated. Refresh in 1-2 minutes.`);
+    el('discoveryResult').style.display='block';
+    setTimeout(()=>{checkLastDiscovery();loadDiscoveredNodes();},5000);
+  }catch(e){
+    el('discoveryResult').innerHTML=alertHtml('danger','✗ '+e.message);
+    el('discoveryResult').style.display='block';
+  }
+  btn.disabled=false;btn.textContent='▶ Run Discovery Now';
+}
+
+async function saveThreshold(appName,tierName){
+  try{
+    const val=parseInt(el('thresh-'+appName+'-'+tierName).value)||1;
+    // Update tier threshold via appd discovery config
+    await api(APPD_API+'/tier-threshold',{
+      method:'POST',
+      body:JSON.stringify({lob_name:lobName,application_name:appName,tier_name:tierName,expected_nodes:val})
+    }).catch(()=>{});
+    alert(`✓ Expected node count for "${tierName}" saved to ${val}`);
+  }catch(e){alert('Save threshold failed: '+e.message);}
+}
+
+function addApp(prefill){
+  const idx=appCount++;
+  const tmpl=el('appTemplate').innerHTML.replace(/__IDX__/g,idx).replace(/__NUM__/g,idx+1);
+  const wrap=document.createElement('div');wrap.innerHTML=tmpl;
+  el('appsList').appendChild(wrap.firstElementChild);
+  if(prefill){
+    el('appName-'+idx).value=prefill.name||'';
+    el('appId-'+idx).value=String(prefill.id||'');
+    el('appTrack-'+idx).value=prefill.track||'';
+    el('appEnabled-'+idx).value=prefill.enabled||'active';
+    el('appStatus-'+idx).className='badge badge-success';
+    el('appStatus-'+idx).textContent='Saved';
+    (prefill.tiers||[]).forEach(t=>addTier(idx,t));
+  }
+}
+function removeApp(idx){const e=el('appBlock-'+idx);if(e&&confirm('Remove?'))e.remove();}
+function addTier(idx,p){
+  const c=el('tiersList-'+idx),d=document.createElement('div');
+  d.className='tier-row';
+  d.innerHTML=`<input type="text" placeholder="Tier name" style="flex:2" value="${p?.name||''}">
+    <input type="number" placeholder="Expected nodes" style="width:120px;min-width:120px" value="${p?.count||3}" min="1">
+    <button class="btn btn-danger" style="padding:6px 12px;font-size:12px;flex-shrink:0" onclick="this.closest('.tier-row').remove()">✕</button>`;
+  c.appendChild(d);
+}
+
+async function saveApp(idx){
+  const name=el('appName-'+idx).value.trim();
+  const track=el('appTrack-'+idx).value;
+  if(!name){alert('⚠ Application name required');return;}
+  if(!track){alert('⚠ Track required');return;}
+  const badge=el('appStatus-'+idx);
+  badge.className='badge badge-info';badge.textContent='Saving...';
+  el('appSaveResult-'+idx).style.display='none';
+  try{
+    // Save to APPD_APPLICATIONS_MASTER via appd route
+    await api(APPD_API+'/applications',{
+      method:'POST',
+      body:JSON.stringify({
+        lob_name:lobName,application_name:name,
+        track,is_active:el('appEnabled-'+idx).value==='active'?'Y':'N'
+      })
+    });
+    badge.className='badge badge-success';badge.textContent='Saved ✓';
+    el('appSaveResult-'+idx).innerHTML=alertHtml('success',`"${name}" saved.`);
+    el('appSaveResult-'+idx).style.display='block';
+  }catch(e){
+    badge.className='badge badge-error';badge.textContent='Error';
+    el('appSaveResult-'+idx).innerHTML=alertHtml('danger',e.message);
+    el('appSaveResult-'+idx).style.display='block';
+  }
+}
+
+async function saveConnSettings(){
+  const url=el('appdHost').value.trim();
+  const account=el('appdAccount').value.trim();
+  if(!url||!account){alert('⚠ Controller URL and Account Name required.');return;}
+  if(authType==='token'&&!el('appdTokenEnv').value.trim()){alert('⚠ Token Env Variable required.');return;}
+  if(authType==='basic'&&(!el('appdUser').value.trim()||!el('appdPassEnv').value.trim())){alert('⚠ Username and Password Env Variable required.');return;}
+
+  el('appdConnResult').style.display='none';
+  try{
+    await api(NFT_API+'/config/appd',{
+      method:'POST',
+      body:JSON.stringify({
+        lob_name:lobName,controller_url:url,account_name:account,
+        auth_type:authType,
+        token_env_var:authType==='token'?el('appdTokenEnv').value.trim():null,
+        username:authType==='basic'?el('appdUser').value.trim():null,
+        pass_env_var:authType==='basic'?el('appdPassEnv').value.trim():null,
+        default_node_count:parseInt(el('defaultNodeCount').value)||3,
+        cpm_threshold:parseInt(el('cpmThreshold').value)||10,
+      })
+    });
+    el('appdConnResult').innerHTML=alertHtml('success','✓ Connection settings saved.');
+    el('appdConnResult').style.display='block';
+  }catch(e){
+    el('appdConnResult').innerHTML=alertHtml('danger','✗ '+e.message);
+    el('appdConnResult').style.display='block';
+  }
+}
+
+async function testAppdConn(){
+  el('appdConnResult').innerHTML=alertHtml('info','⏳ Testing connection...');
+  el('appdConnResult').style.display='block';
+  try{
+    const d=await api(API+'/health/appd');
+    if(d.status==='ok'){el('appdConnResult').innerHTML=alertHtml('success','✓ AppDynamics reachable. Service: '+d.service);}
+    else{el('appdConnResult').innerHTML=alertHtml('warning','⚠ Status: '+JSON.stringify(d));}
+  }catch(e){el('appdConnResult').innerHTML=alertHtml('danger','✗ '+e.message);}
+}
+
+function logout(){sessionStorage.clear();window.location.href='../landing.html';}
+init();
+</script>
+</body>
+</html>
