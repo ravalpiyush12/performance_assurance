@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOB Configuration</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal-box{background:white;border-radius:16px;padding:28px;max-width:560px;width:92%;max-height:90vh;overflow-y:auto}
+.lob-row{border:2px solid #e5e7eb;border-radius:12px;margin-bottom:10px;overflow:hidden}
+.lob-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
+  background:#f9fafb;cursor:pointer;gap:10px;flex-wrap:wrap}
+.lob-header:hover{background:#f0f4ff}
+.lob-tracks{padding:14px 18px;border-top:1px solid #e5e7eb;display:none}
+.lob-tracks.open{display:block}
+.track-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
+  background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;
+  font-size:13px;font-weight:600;color:#1d4ed8;margin:4px}
+.track-chip .del{cursor:pointer;color:#9ca3af;font-size:14px;margin-left:2px}
+.track-chip .del:hover{color:#ef4444}
+.spinner{display:inline-block;width:16px;height:16px;border:3px solid #e5e7eb;
+  border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const s=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+  if(!s.username||s.role!=='admin'){window.location.href='../../pages/monitoring/pre-login.html';return;}
+});
+</script>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>🏢 LOB Configuration</h1>
+    <p>Manage Lines of Business and their tracks</p>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <h3 style="font-weight:800;margin:0">Active LOBs <span id="lobCount" style="color:#6b7280;font-size:14px;font-weight:400"></span></h3>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="loadLOBs()">🔄 Refresh</button>
+        <button class="btn btn-primary" style="padding:9px 16px;font-size:13px" onclick="openAddLob()">➕ Add LOB</button>
+      </div>
+    </div>
+
+    <div id="loadingState" style="text-align:center;padding:32px;color:#9ca3af">
+      <div class="spinner" style="margin:0 auto 10px"></div>Loading...
+    </div>
+    <div id="lobList" style="display:none"></div>
+    <div id="errorState" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ADD / EDIT LOB MODAL -->
+<div class="modal-bg" id="lobModal">
+  <div class="modal-box">
+    <h3 style="font-weight:800;margin-bottom:20px" id="lobModalTitle">Add New LOB</h3>
+    <div class="form-group">
+      <label>LOB Name <span class="required">*</span></label>
+      <input type="text" id="mLobName" placeholder="e.g. Digital Technology">
+    </div>
+    <div class="form-group">
+      <label>Database Name <span class="required">*</span></label>
+      <input type="text" id="mDbName" placeholder="e.g. CQE_NFT" value="CQE_NFT">
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="mIsActive">
+        <option value="Y">Active</option>
+        <option value="N">Inactive</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Tracks <span class="required">*</span></label>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="mTrackInput" placeholder="Track name e.g. CDV3"
+          style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addTrackChip();}">
+        <button class="btn btn-secondary" style="padding:8px 14px;font-size:13px;flex-shrink:0"
+          onclick="addTrackChip()">+ Add</button>
+      </div>
+      <div id="mTrackChips" style="min-height:36px;padding:6px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb"></div>
+      <small>Press Enter or click Add after each track name</small>
+    </div>
+    <div id="modalResult" style="display:none;margin:10px 0"></div>
+    <div style="display:flex;gap:12px;margin-top:18px">
+      <button class="btn btn-secondary" onclick="closeModal()" style="flex:1">Cancel</button>
+      <button class="btn btn-primary" id="saveLobBtn" onclick="saveLOB()" style="flex:1">💾 Save LOB</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TRACK MODAL -->
+<div class="modal-bg" id="trackModal">
+  <div class="modal-box">
+    <h3 style="font-weight:800;margin-bottom:16px">Add Track to <span id="trackModalLob"></span></h3>
+    <div class="form-group">
+      <label>Track Name <span class="required">*</span></label>
+      <input type="text" id="newTrackName" placeholder="e.g. CDV3"
+        onkeydown="if(event.key==='Enter') saveTrack()">
+    </div>
+    <div class="form-group">
+      <label>Database</label>
+      <input type="text" id="newTrackDb" value="CQE_NFT">
+    </div>
+    <div id="trackResult" style="display:none;margin:8px 0"></div>
+    <div style="display:flex;gap:12px;margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeTrackModal()" style="flex:1">Cancel</button>
+      <button class="btn btn-primary" id="saveTrackBtn" onclick="saveTrack()" style="flex:1">💾 Add Track</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000/api/v1';
+const AUTH_API = API+'/auth';
+const sess = JSON.parse(sessionStorage.getItem('userSession')||'{}');
+const tok = sess.session_token||'';
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function apiFetch(url,opts={}){
+  const r=await fetch(url,{headers:hdr(),...opts});
+  const d=await r.json().catch(()=>({detail:'Invalid response'}));
+  if(!r.ok)throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+  return d;
+}
+function el(id){return document.getElementById(id);}
+function alertHtml(t,m){const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};return`<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;}
+
+let lobData = []; // {lob_name, tracks:[...], database_name, is_active}
+let editingLob = null;
+let currentTrackLob = null;
+let modalTracks = [];
+
+// ─── Load LOBs ─────────────────────────────────────────────────────────────
+async function loadLOBs(){
+  el('loadingState').style.display='block';
+  el('lobList').style.display='none';
+  el('errorState').style.display='none';
+  try{
+    // Use public endpoint — no auth needed to list LOBs
+    const d = await apiFetch(AUTH_API+'/lob-config');
+    const configs = d.all_configurations || d.data || [];
+
+    // Group by LOB name
+    const lobMap = {};
+    configs.forEach(c=>{
+      if(!c.lob_name) return;
+      if(!lobMap[c.lob_name]){
+        lobMap[c.lob_name] = {
+          lob_name:      c.lob_name,
+          database_name: c.database_name || 'CQE_NFT',
+          is_active:     c.is_active !== false && c.is_active !== 'N',
+          tracks: [],
+        };
+      }
+      if(c.track_name && !lobMap[c.lob_name].tracks.includes(c.track_name)){
+        lobMap[c.lob_name].tracks.push(c.track_name);
+      }
+    });
+    lobData = Object.values(lobMap);
+    el('lobCount').textContent = `(${lobData.length} LOBs)`;
+    renderLOBs();
+    el('loadingState').style.display='none';
+    el('lobList').style.display='block';
+  }catch(e){
+    el('loadingState').style.display='none';
+    el('errorState').innerHTML=alertHtml('danger','Failed to load LOBs: '+e.message);
+    el('errorState').style.display='block';
+  }
+}
+
+function renderLOBs(){
+  if(!lobData.length){
+    el('lobList').innerHTML='<div style="text-align:center;padding:32px;color:#9ca3af">No LOBs configured. Add one above.</div>';
+    return;
+  }
+  el('lobList').innerHTML = lobData.map((lob,i) => `
+    <div class="lob-row" id="lob-row-${i}">
+      <div class="lob-header" onclick="toggleTracks(${i})">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:22px">${getLobIcon(lob.lob_name)}</span>
+          <div>
+            <div style="font-weight:800;font-size:15px">${lob.lob_name}</div>
+            <div style="font-size:12px;color:#6b7280">
+              ${lob.tracks.length} track${lob.tracks.length!==1?'s':''} ·
+              DB: ${lob.database_name} ·
+              <span style="color:${lob.is_active?'#10b981':'#ef4444'};font-weight:700">
+                ${lob.is_active?'Active':'Inactive'}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" onclick="event.stopPropagation()">
+          <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px"
+            onclick="openEditLob(${i})">✏️ Edit</button>
+          <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px"
+            onclick="openAddTrack('${lob.lob_name}')">+ Track</button>
+          <button class="btn ${lob.is_active?'btn-danger':'btn-success'}" style="padding:6px 12px;font-size:12px"
+            onclick="toggleLobStatus('${lob.lob_name}',${lob.is_active})">${lob.is_active?'Disable':'Enable'}</button>
+        </div>
+      </div>
+      <div class="lob-tracks" id="tracks-${i}">
+        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">TRACKS</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+          ${lob.tracks.map(t=>`
+            <span class="track-chip">
+              ${t}
+              <span class="del" onclick="deleteTrack('${lob.lob_name}','${t}')" title="Remove track">✕</span>
+            </span>`).join('')}
+          ${!lob.tracks.length?'<span style="color:#9ca3af;font-size:13px">No tracks yet</span>':''}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleTracks(i){
+  const el2 = el('tracks-'+i);
+  el2.classList.toggle('open');
+}
+
+function getLobIcon(name){
+  const lower = name.toLowerCase();
+  if(lower.includes('digital'))  return '💻';
+  if(lower.includes('pay'))      return '💳';
+  if(lower.includes('corp'))     return '🏢';
+  if(lower.includes('retail'))   return '🏦';
+  if(lower.includes('wealth'))   return '📈';
+  if(lower.includes('insur'))    return '🛡️';
+  return '📊';
+}
+
+// ─── Add LOB ───────────────────────────────────────────────────────────────
+function openAddLob(){
+  editingLob = null;
+  el('lobModalTitle').textContent = 'Add New LOB';
+  el('mLobName').value = '';
+  el('mDbName').value = 'CQE_NFT';
+  el('mIsActive').value = 'Y';
+  el('mLobName').removeAttribute('readonly');
+  modalTracks = [];
+  renderModalTracks();
+  el('modalResult').style.display='none';
+  el('lobModal').classList.add('open');
+  setTimeout(()=>el('mLobName').focus(),100);
+}
+
+function openEditLob(i){
+  const lob = lobData[i];
+  editingLob = lob.lob_name;
+  el('lobModalTitle').textContent = 'Edit LOB — '+lob.lob_name;
+  el('mLobName').value = lob.lob_name;
+  el('mLobName').setAttribute('readonly','');
+  el('mDbName').value = lob.database_name || 'CQE_NFT';
+  el('mIsActive').value = lob.is_active ? 'Y' : 'N';
+  modalTracks = [...lob.tracks];
+  renderModalTracks();
+  el('modalResult').style.display='none';
+  el('lobModal').classList.add('open');
+}
+
+function renderModalTracks(){
+  el('mTrackChips').innerHTML = modalTracks.map(t=>
+    `<span class="track-chip">${t}
+      <span class="del" onclick="removeModalTrack('${t}')">✕</span>
+    </span>`).join('') || '<span style="color:#9ca3af;font-size:12px">No tracks added yet</span>';
+}
+
+function addTrackChip(){
+  const val = el('mTrackInput').value.trim();
+  if(!val) return;
+  if(modalTracks.includes(val)){ alert('Track "'+val+'" already added.'); return; }
+  modalTracks.push(val);
+  el('mTrackInput').value = '';
+  renderModalTracks();
+  el('mTrackInput').focus();
+}
+
+function removeModalTrack(track){
+  modalTracks = modalTracks.filter(t=>t!==track);
+  renderModalTracks();
+}
+
+function closeModal(){ el('lobModal').classList.remove('open'); }
+
+async function saveLOB(){
+  const lobName = el('mLobName').value.trim();
+  const dbName  = el('mDbName').value.trim() || 'CQE_NFT';
+  const isActive = el('mIsActive').value;
+  if(!lobName){ showModalResult('warning','⚠ LOB name is required.'); return; }
+  if(!modalTracks.length){ showModalResult('warning','⚠ Add at least one track.'); return; }
+
+  const btn = el('saveLobBtn');
+  btn.disabled=true; btn.textContent='⏳ Saving...';
+
+  try{
+    // Save each track as a separate row in API_LOB_MASTER
+    for(const track of modalTracks){
+      await apiFetch(AUTH_API+'/lob-config', {
+        method:'POST',
+        body: JSON.stringify({
+          lob_name:      lobName,
+          track_name:    track,
+          database_name: dbName,
+          is_active:     isActive,
+        })
+      });
+    }
+    showModalResult('success',`✓ LOB "${lobName}" saved with ${modalTracks.length} track(s).`);
+    await loadLOBs();
+    setTimeout(closeModal, 1200);
+  }catch(e){
+    showModalResult('danger','✗ '+e.message);
+  }
+  btn.disabled=false; btn.textContent='💾 Save LOB';
+}
+
+function showModalResult(t,m){
+  el('modalResult').innerHTML=alertHtml(t,m);
+  el('modalResult').style.display='block';
+}
+
+// ─── Add Track ─────────────────────────────────────────────────────────────
+function openAddTrack(lobName){
+  currentTrackLob = lobName;
+  el('trackModalLob').textContent = lobName;
+  el('newTrackName').value = '';
+  el('newTrackDb').value = 'CQE_NFT';
+  el('trackResult').style.display='none';
+  el('saveTrackBtn').disabled=false;
+  el('saveTrackBtn').textContent='💾 Add Track';
+  el('trackModal').classList.add('open');
+  setTimeout(()=>el('newTrackName').focus(),100);
+}
+function closeTrackModal(){ el('trackModal').classList.remove('open'); }
+
+async function saveTrack(){
+  const track = el('newTrackName').value.trim();
+  const db    = el('newTrackDb').value.trim() || 'CQE_NFT';
+  if(!track){ el('trackResult').innerHTML=alertHtml('warning','⚠ Track name required.'); el('trackResult').style.display='block'; return; }
+  const btn = el('saveTrackBtn');
+  btn.disabled=true; btn.textContent='⏳...';
+  try{
+    await apiFetch(AUTH_API+'/lob-config',{
+      method:'POST',
+      body:JSON.stringify({lob_name:currentTrackLob, track_name:track, database_name:db, is_active:'Y'})
+    });
+    el('trackResult').innerHTML=alertHtml('success',`✓ Track "${track}" added.`);
+    el('trackResult').style.display='block';
+    await loadLOBs();
+    setTimeout(closeTrackModal,1000);
+  }catch(e){
+    el('trackResult').innerHTML=alertHtml('danger','✗ '+e.message);
+    el('trackResult').style.display='block';
+  }
+  btn.disabled=false; btn.textContent='💾 Add Track';
+}
+
+// ─── Delete Track ──────────────────────────────────────────────────────────
+async function deleteTrack(lobName, track){
+  if(!confirm(`Remove track "${track}" from "${lobName}"?\nThis will also remove it from any track templates.`)) return;
+  try{
+    await apiFetch(`${AUTH_API}/lob-config/${encodeURIComponent(lobName)}/${encodeURIComponent(track)}`,
+      {method:'DELETE'});
+    await loadLOBs();
+  }catch(e){ alert('Failed to delete track: '+e.message); }
+}
+
+// ─── Toggle LOB status ─────────────────────────────────────────────────────
+async function toggleLobStatus(lobName, currentlyActive){
+  const action = currentlyActive ? 'disable' : 'enable';
+  if(!confirm(`${action.charAt(0).toUpperCase()+action.slice(1)} LOB "${lobName}"? This affects all tracks.`)) return;
+  try{
+    await apiFetch(`${AUTH_API}/lob-config/${encodeURIComponent(lobName)}/status`,{
+      method:'PUT',
+      body:JSON.stringify({is_active: currentlyActive ? 'N' : 'Y'})
+    });
+    await loadLOBs();
+  }catch(e){ alert('Failed to update LOB: '+e.message); }
+}
+
+function logout(){sessionStorage.clear();window.location.href='../landing.html';}
+loadLOBs();
+</script>
+</body>
+</html>
