@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AppDynamics Configuration</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.appd-tabs{display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:0}
+.atab{padding:11px 20px;font-size:13px;font-weight:700;border:none;cursor:pointer;
+background:transparent;color:#6b7280;border-bottom:3px solid transparent;
+margin-bottom:-2px;transition:.15s;white-space:nowrap}
+.atab.active{color:var(--primary);border-bottom-color:var(--primary);background:#f8f9ff}
+.atab-content{display:none;padding:22px 0 0}
+.atab-content.active{display:block}
+
+.auth-tabs{display:flex;gap:0;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;width:fit-content;margin-bottom:14px}
+.auth-tab{padding:8px 20px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:white;color:#6b7280}
+.auth-tab.active{background:var(–primary);color:white}
+
+.app-card{border:2px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:white}
+.app-card-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+.node-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:700;margin:3px}
+.node-active{background:#d1fae5;color:#065f46}
+.node-inactive{background:#fee2e2;color:#991b1b}
+
+.config-row{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;flex-wrap:wrap}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #e5e7eb;border-top-color:var(–primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.env-note{background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e}
+</style>
+
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+const s=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+if(!s.username||s.role!=='admin'){window.location.href='../../pages/monitoring/pre-login.html';return;}
+});
+</script>
+<div class="top-nav">
+<a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+<a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+<a href="track-management.html" class="nav-link">⚙️ Track Template</a>
+<a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+<div class="platform-header">
+<h1>📊 AppDynamics Configuration</h1>
+<p>Configure controller connection, applications, and discovery for <strong id="lobLabel">—</strong></p>
+</div>
+
+<!-- LOB SELECTOR -->
+
+<div class="card" style="margin-bottom:16px">
+<div class="form-grid" style="margin:0">
+<div class="form-group" style="margin:0">
+<label>Select LOB</label>
+<select id="lobSelect" onchange="onLobChange()">
+<option value="">-- Select LOB --</option>
+</select>
+</div>
+<div class="form-group" style="margin:0">
+<label>Select Track</label>
+<select id="trackSelect" disabled onchange="onTrackChange()">
+<option value="">-- Select Track --</option>
+</select>
+</div>
+</div>
+</div>
+
+<!-- MAIN CONTENT (hidden until LOB+Track selected) -->
+
+<div id="mainContent" style="display:none">
+
+```
+<!-- Sub-tabs -->
+<div class="card" style="padding:0;overflow:hidden">
+<div style="padding:0 20px;background:#f8f9ff;border-bottom:2px solid #e5e7eb">
+<div class="appd-tabs">
+<button class="atab active" onclick="showTab('connection',this)">🔌 Connection</button>
+<button class="atab" onclick="showTab('applications',this)">📱 Applications</button>
+<button class="atab" onclick="showTab('configs',this)">📋 Saved Configs</button>
+<button class="atab" onclick="showTab('discovery',this)">🔍 Discovery Results</button>
+</div>
+</div>
+<div style="padding:20px">
+
+<!-- CONNECTION TAB -->
+<div id="tab-connection" class="atab-content active">
+<h3 style="margin:0 0 16px;font-weight:800">🔌 Controller Connection</h3>
+
+<div class="form-group">
+<label>Controller URL <span class="required">*</span></label>
+<input type="text" id="connUrl" placeholder="https://appdynamics.corp.internal:8090">
+</div>
+<div class="form-group">
+<label>Account Name <span class="required">*</span></label>
+<input type="text" id="connAccount" placeholder="corp-prod-account">
+</div>
+
+<label style="font-weight:700;font-size:14px;margin-bottom:8px;display:block">Authentication</label>
+<div class="auth-tabs">
+<button class="auth-tab active" id="authTabOAuth" onclick="switchAuth('oauth')">Client ID + Secret (OAuth2)</button>
+<button class="auth-tab" id="authTabBasic" onclick="switchAuth('basic')">Username / Password</button>
+<button class="auth-tab" id="authTabToken" onclick="switchAuth('token')">API Token</button>
+</div>
+
+<!-- OAuth2 -->
+<div id="authOAuth">
+<div class="env-note" style="margin-bottom:12px">
+🔒 Client ID + Secret are stored as environment variable names only — never the actual values.
+</div>
+<div class="form-grid">
+<div class="form-group">
+<label>Client ID Env Variable <span class="required">*</span></label>
+<input type="text" id="oauthClientIdEnv" placeholder="APPD_CLIENT_ID_DIGTECH">
+<small>Server env var holding the Client ID</small>
+</div>
+<div class="form-group">
+<label>Client Secret Env Variable <span class="required">*</span></label>
+<input type="text" id="oauthClientSecretEnv" placeholder="APPD_CLIENT_SECRET_DIGTECH">
+<small>Server env var holding the Client Secret</small>
+</div>
+</div>
+</div>
+
+<!-- Basic Auth -->
+<div id="authBasic" style="display:none">
+<div class="form-grid">
+<div class="form-group">
+<label>Username <span class="required">*</span></label>
+<input type="text" id="basicUser" placeholder="service_account@account">
+</div>
+<div class="form-group">
+<label>Password Env Variable <span class="required">*</span></label>
+<input type="text" id="basicPassEnv" placeholder="APPD_PASS_DIGTECH">
+<small>Server env var holding the password</small>
+</div>
+</div>
+</div>
+
+<!-- API Token -->
+<div id="authToken" style="display:none">
+<div class="form-group">
+<label>Token Env Variable <span class="required">*</span></label>
+<input type="text" id="tokenEnv" placeholder="APPD_TOKEN_DIGTECH">
+<small>Server env var holding the API token</small>
+</div>
+</div>
+
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+<button class="btn btn-success" onclick="testConnection()">🔍 Test Connection</button>
+<button class="btn btn-primary" onclick="saveConnection()">💾 Save Connection</button>
+</div>
+<div id="connResult" style="display:none;margin-top:12px"></div>
+</div>
+
+<!-- APPLICATIONS TAB -->
+<div id="tab-applications" class="atab-content">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+<h3 style="margin:0;font-weight:800">📱 Applications</h3>
+<button class="btn btn-primary" style="padding:9px 16px;font-size:13px" onclick="addApp()">➕ Add Application</button>
+</div>
+<div class="alert alert-info" style="margin-bottom:16px">
+<span>ℹ️</span>
+<span>Add AppDynamics application names and IDs for this LOB/Track. Discovery will run for all applications listed here.</span>
+</div>
+<div id="appsList"></div>
+<div id="appsLoading" style="text-align:center;padding:20px;color:#9ca3af">
+<div class="spinner" style="margin:0 auto 8px"></div>Loading...
+</div>
+</div>
+
+<!-- SAVED CONFIGS TAB -->
+<div id="tab-configs" class="atab-content">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+<h3 style="margin:0;font-weight:800">📋 Saved Discovery Configs</h3>
+<button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="loadConfigs()">🔄 Refresh</button>
+</div>
+<div id="configsList">
+<div style="text-align:center;padding:20px;color:#9ca3af">Loading...</div>
+</div>
+</div>
+
+<!-- DISCOVERY RESULTS TAB -->
+<div id="tab-discovery" class="atab-content">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+<div>
+<h3 style="margin:0;font-weight:800">🔍 Discovery Results</h3>
+<p style="margin:4px 0 0;font-size:13px;color:#6b7280" id="lastDiscoveryTime">Last run: checking...</p>
+</div>
+<div style="display:flex;gap:10px">
+<button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="loadDiscoveryResults()">🔄 Refresh</button>
+<button class="btn btn-primary" style="padding:9px 16px;font-size:13px" onclick="runDiscovery()">▶ Run Now</button>
+</div>
+</div>
+<div id="discoveryResult" style="display:none;margin-bottom:12px"></div>
+<div id="discoveryNodes">
+<div style="text-align:center;padding:30px;color:#9ca3af">
+Click "Run Now" to trigger discovery, or wait for the daily 2 AM batch.
+</div>
+</div>
+</div>
+
+</div>
+</div>
+```
+
+</div>
+
+<!-- Prompt when no LOB selected -->
+
+<div id="noLobMsg" class="card" style="text-align:center;padding:40px;color:#9ca3af">
+<div style="font-size:3em;margin-bottom:12px">📊</div>
+<div>Select a LOB and Track above to configure AppDynamics</div>
+</div>
+</div>
+
+<!-- APP FORM TEMPLATE -->
+
+<template id="appTemplate">
+<div class="app-card" id="app-__IDX__">
+<div class="app-card-header">
+<span style="font-weight:800;font-size:14px">Application __NUM__</span>
+<div style="display:flex;gap:8px;align-items:center">
+<span class="badge" id="appBadge-__IDX__" style="background:#e5e7eb;color:#374151">Unsaved</span>
+<button class="btn btn-danger" style="padding:5px 12px;font-size:12px"
+onclick="removeApp(__IDX__)">✕ Remove</button>
+</div>
+</div>
+<div class="form-grid" style="margin-top:12px">
+<div class="form-group">
+<label>Application Name <span class="required">*</span></label>
+<input type="text" id="appName-__IDX__" placeholder="e.g. Cards-Prod-App">
+</div>
+<div class="form-group">
+<label>Application ID (AppD) <span class="required">*</span></label>
+<input type="text" id="appId-__IDX__" placeholder="e.g. 173720">
+</div>
+<div class="form-group">
+<label>Discovery Frequency</label>
+<select id="appFreq-__IDX__">
+<option value="daily">Daily (2 AM)</option>
+<option value="6h">Every 6 hours</option>
+<option value="manual">Manual only</option>
+</select>
+</div>
+</div>
+<div id="appSaveResult-__IDX__" style="display:none;margin-top:8px"></div>
+<button class="btn btn-primary" style="padding:8px 18px;font-size:13px;margin-top:8px"
+onclick="saveApp(__IDX__)">💾 Save Application</button>
+</div>
+</template>
+
+<script>
+const API = 'http://localhost:8000/api/v1';
+const NFT_API = API+'/nft';
+const APPD_API = API+'/monitoring/appd';
+const AUTH_API = API+'/auth';
+const sess = JSON.parse(sessionStorage.getItem('userSession')||'{}');
+const tok = sess.session_token||'';
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function apiFetch(url,opts={}){
+const r=await fetch(url,{headers:hdr(),...opts});
+const d=await r.json().catch(()=>({detail:'Invalid response'}));
+if(!r.ok)throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+return d;
+}
+function el(id){return document.getElementById(id);}
+function alertHtml(t,m){const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};return`<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;}
+function show(id,v='block'){el(id).style.display=v;}
+function hide(id){el(id).style.display='none';}
+
+let currentLob='', currentTrack='', authType='oauth', appCount=0;
+let savedConfigId=null;
+
+async function init(){
+const sessionLob = JSON.parse(sessionStorage.getItem('selectedLob')||'{}');
+try{
+const d = await apiFetch(AUTH_API+'/lob-config/public');
+const lobs = d.lobs||[];
+const sel = el('lobSelect');
+sel.innerHTML='<option value="">-- Select LOB --</option>';
+lobs.forEach(l=>{
+const opt=document.createElement('option');
+opt.value=l.name; opt.textContent=l.name;
+opt.dataset.tracks=l.tracks.join(',');
+sel.appendChild(opt);
+});
+if(sessionLob.name){
+sel.value=sessionLob.name;
+onLobChange();
+if(sessionLob.tracks?.length===1){
+el('trackSelect').value=sessionLob.tracks[0];
+onTrackChange();
+}
+}
+}catch(e){ console.error('LOB load error',e); }
+}
+
+function onLobChange(){
+currentLob = el('lobSelect').value;
+el('lobLabel').textContent = currentLob||'—';
+const sel = el('trackSelect');
+sel.innerHTML='<option value="">-- Select Track --</option>';
+sel.disabled=true;
+hide('mainContent'); show('noLobMsg');
+if(!currentLob) return;
+const opt = el('lobSelect').querySelector(`option[value="${currentLob}"]`);
+const tracks = (opt?.dataset.tracks||'').split(',').filter(Boolean);
+tracks.forEach(t=>{ const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o); });
+sel.disabled=false;
+}
+
+function onTrackChange(){
+currentTrack = el('trackSelect').value;
+if(!currentLob||!currentTrack){ hide('mainContent');show('noLobMsg'); return; }
+hide('noLobMsg'); show('mainContent');
+loadConnectionConfig();
+loadApplicationsList();
+loadConfigs();
+loadDiscoveryResults();
+}
+
+function showTab(id, btn){
+document.querySelectorAll('.atab-content').forEach(t=>t.classList.remove('active'));
+document.querySelectorAll('.atab').forEach(t=>t.classList.remove('active'));
+el('tab-'+id).classList.add('active');
+btn.classList.add('active');
+}
+
+function switchAuth(type){
+authType = type;
+el('authTabOAuth').classList.toggle('active', type==='oauth');
+el('authTabBasic').classList.toggle('active', type==='basic');
+el('authTabToken').classList.toggle('active', type==='token');
+el('authOAuth').style.display = type==='oauth' ? 'block' : 'none';
+el('authBasic').style.display = type==='basic' ? 'block' : 'none';
+el('authToken').style.display = type==='token' ? 'block' : 'none';
+}
+
+async function loadConnectionConfig(){
+try{
+const d = await apiFetch(NFT_API+'/config/appd/'+encodeURIComponent(currentLob));
+const c = d.config;
+if(!c) return;
+savedConfigId = c.config_id || c.appd_config_id;
+el('connUrl').value = c.controller_url||'';
+el('connAccount').value = c.account_name||'';
+if(c.auth_type==='oauth'){
+switchAuth('oauth');
+el('oauthClientIdEnv').value = c.client_id_env_var||'';
+el('oauthClientSecretEnv').value = c.client_secret_env_var||'';
+}else if(c.auth_type==='basic'){
+switchAuth('basic');
+el('basicUser').value = c.username||'';
+el('basicPassEnv').value = c.pass_env_var||'';
+}else if(c.auth_type==='token'){
+switchAuth('token');
+el('tokenEnv').value = c.token_env_var||'';
+}
+}catch(e){}
+}
+
+async function testConnection(){
+const url = el('connUrl').value.trim();
+const account = el('connAccount').value.trim();
+if(!url||!account){ showConnResult('warning','⚠ URL and Account Name required.'); return; }
+showConnResult('info','⏳ Testing connection to AppDynamics controller...');
+try{
+const payload = buildConnPayload();
+const d = await apiFetch(APPD_API+'/test-connection',{method:'POST', body:JSON.stringify(payload)});
+if(d.success||d.status==='ok'){
+showConnResult('success',`✓ Connected to AppDynamics!<br>
+Controller: ${url}<br>
+${d.controller_version?'Version: '+d.controller_version:''}
+${d.account_name?'Account: '+d.account_name:''}`);
+}else{
+showConnResult('danger','✗ Connection failed: '+(d.message||d.detail||'Check credentials'));
+}
+}catch(e){ showConnResult('danger','✗ '+e.message); }
+}
+
+function buildConnPayload(){
+const base = {
+lob_name: currentLob, track: currentTrack,
+controller_url: el('connUrl').value.trim(),
+account_name: el('connAccount').value.trim(),
+auth_type: authType,
+};
+if(authType==='oauth'){
+base.client_id_env_var = el('oauthClientIdEnv').value.trim();
+base.client_secret_env_var = el('oauthClientSecretEnv').value.trim();
+}else if(authType==='basic'){
+base.username = el('basicUser').value.trim();
+base.pass_env_var = el('basicPassEnv').value.trim();
+}else{
+base.token_env_var = el('tokenEnv').value.trim();
+}
+return base;
+}
+
+async function saveConnection(){
+const url = el('connUrl').value.trim();
+const account = el('connAccount').value.trim();
+if(!url||!account){ showConnResult('warning','⚠ URL and Account Name required.'); return; }
+showConnResult('info','⏳ Saving...');
+try{
+const d = await apiFetch(NFT_API+'/config/appd',{method:'POST', body:JSON.stringify(buildConnPayload())});
+savedConfigId = d.config_id || d.appd_config_id;
+showConnResult('success','✓ Connection settings saved. Now add applications in the Applications tab.');
+}catch(e){ showConnResult('danger','✗ '+e.message); }
+}
+
+function showConnResult(t,m){ el('connResult').innerHTML=alertHtml(t,m); show('connResult'); }
+
+async function loadApplicationsList(){
+hide('appsLoading'); hide('appsList');
+show('appsLoading');
+try{
+const d = await apiFetch(
+`${APPD_API}/master-applications?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`
+);
+const apps = d.applications||[];
+el('appsList').innerHTML='';
+appCount=0;
+apps.forEach(app=>{
+const idx=appCount++;
+const tmpl=el('appTemplate').innerHTML.replace(/__IDX__/g,idx).replace(/__NUM__/g,idx+1);
+const wrap=document.createElement('div');wrap.innerHTML=tmpl;
+el('appsList').appendChild(wrap.firstElementChild);
+el('appName-'+idx).value = app.application_name||'';
+el('appId-'+idx).value = app.application_id||app.app_id_appd||'';
+el('appFreq-'+idx).value = app.discovery_frequency||'daily';
+const badge=el('appBadge-'+idx);
+badge.style.background='#d1fae5';badge.style.color='#065f46';badge.textContent='Saved';
+});
+hide('appsLoading');
+show('appsList');
+if(!apps.length) el('appsList').innerHTML='<div style="text-align:center;padding:24px;color:#9ca3af">No applications added yet. Click "Add Application".</div>';
+}catch(e){
+hide('appsLoading');
+el('appsList').innerHTML=alertHtml('danger','Failed to load applications: '+e.message);
+show('appsList');
+}
+}
+
+function addApp(){
+const idx=appCount++;
+const tmpl=el('appTemplate').innerHTML.replace(/__IDX__/g,idx).replace(/__NUM__/g,idx+1);
+const wrap=document.createElement('div');wrap.innerHTML=tmpl;
+const appListEl=el('appsList');
+if(appListEl.innerHTML.includes('No applications')){appListEl.innerHTML='';}
+appListEl.appendChild(wrap.firstElementChild);
+el('appName-'+idx).focus();
+}
+
+function removeApp(idx){
+if(confirm('Remove this application?')) el('app-'+idx)?.remove();
+}
+
+async function saveApp(idx){
+const name = el('appName-'+idx).value.trim();
+const appId = el('appId-'+idx).value.trim();
+const freq = el('appFreq-'+idx).value;
+if(!name||!appId){ alert('⚠ Application Name and ID are required.'); return; }
+const badge=el('appBadge-'+idx);
+badge.style.background='#dbeafe';badge.style.color='#1d4ed8';badge.textContent='Saving...';
+el('appSaveResult-'+idx).style.display='none';
+try{
+await apiFetch(`${APPD_API}/applications`,{
+method:'POST',
+body:JSON.stringify({
+lob_name: currentLob, track: currentTrack,
+application_name: name, application_id: appId,
+discovery_frequency: freq, is_active: 'Y',
+})
+});
+badge.style.background='#d1fae5';badge.style.color='#065f46';badge.textContent='Saved ✓';
+el('appSaveResult-'+idx).innerHTML=alertHtml('success',`"${name}" saved.`);
+el('appSaveResult-'+idx).style.display='block';
+}catch(e){
+badge.style.background='#fee2e2';badge.style.color='#991b1b';badge.textContent='Error';
+el('appSaveResult-'+idx).innerHTML=alertHtml('danger',e.message);
+el('appSaveResult-'+idx).style.display='block';
+}
+}
+
+async function loadConfigs(){
+el('configsList').innerHTML='<div style="text-align:center;padding:16px;color:#9ca3af"><div class="spinner" style="margin:0 auto 8px"></div>Loading...</div>';
+try{
+const d = await apiFetch(`${APPD_API}/config/list?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`);
+const configs = d.configs||[];
+if(!configs.length){
+el('configsList').innerHTML='<div style="text-align:center;padding:24px;color:#9ca3af">No saved configs. Run Discovery to create one.</div>';
+return;
+}
+el('configsList').innerHTML=configs.map(c=>`
+<div class="config-row">
+<div style="flex:1;min-width:0">
+<div style="font-weight:700;font-size:14px">${c.config_name}</div>
+<div style="font-size:12px;color:#6b7280">
+${c.applications?.length||0} apps ·
+Created: ${c.created_date?new Date(c.created_date).toLocaleDateString():'—'} ·
+Last discovery: ${c.last_discovery_run?new Date(c.last_discovery_run).toLocaleString():'Never'}
+</div>
+<div style="margin-top:6px">
+${(c.applications||[]).map(a=>`<span class="badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;margin:2px;font-size:11px">${a}</span>`).join('')}
+</div>
+</div>
+<div style="display:flex;gap:8px;flex-shrink:0">
+<span class="badge ${c.is_active==='Y'?'badge-success':'badge-warning'}">${c.is_active==='Y'?'Active':'Inactive'}</span>
+<button class="btn btn-secondary" style="padding:5px 10px;font-size:12px"
+onclick="deactivateConfig('${c.config_name}')">Delete</button>
+</div>
+</div>`).join('');
+}catch(e){
+el('configsList').innerHTML=alertHtml('danger','Failed to load configs: '+e.message);
+}
+}
+
+async function deactivateConfig(configName){
+if(!confirm(`Delete config "${configName}"?`)) return;
+try{
+await apiFetch(`${APPD_API}/config/${encodeURIComponent(configName)}`,{method:'DELETE'});
+loadConfigs();
+}catch(e){ alert('Delete failed: '+e.message); }
+}
+
+async function runDiscovery(){
+const btn=event.target; btn.disabled=true; btn.textContent='⏳ Running...';
+el('discoveryResult').innerHTML=alertHtml('info','⏳ Discovery started. This may take 1-2 minutes...');
+show('discoveryResult');
+try{
+const d = await apiFetch(`${APPD_API}/discovery/run`,{
+method:'POST',
+body:JSON.stringify({lob_name:currentLob, track:currentTrack, triggered_by:sess.username||'admin'})
+});
+el('discoveryResult').innerHTML=alertHtml('success',
+`✓ Discovery triggered. Apps: ${d.apps_discovered||'?'}, Nodes: ${d.nodes_discovered||'?'}.<br>
+Refresh results in 1-2 minutes.`);
+setTimeout(loadDiscoveryResults, 3000);
+}catch(e){
+el('discoveryResult').innerHTML=alertHtml('danger','✗ '+e.message);
+}
+btn.disabled=false; btn.textContent='▶ Run Now';
+}
+
+async function loadDiscoveryResults(){
+el('discoveryNodes').innerHTML='<div style="text-align:center;padding:16px;color:#9ca3af"><div class="spinner" style="margin:0 auto 8px"></div>Loading...</div>';
+try{
+const d = await apiFetch(`${APPD_API}/active-nodes?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`);
+const nodes = d.nodes||[];
+
+if(d.last_discovery_time){
+el('lastDiscoveryTime').textContent='Last run: '+new Date(d.last_discovery_time).toLocaleString();
+}
+
+if(!nodes.length){
+el('discoveryNodes').innerHTML='<div style="text-align:center;padding:30px;color:#9ca3af">No nodes discovered yet. Click "Run Now" to start discovery.</div>';
+return;
+}
+
+const appMap={};
+nodes.forEach(n=>{
+const app=n.application_name||'Unknown';
+const tier=n.tier_name||'Unknown';
+if(!appMap[app]) appMap[app]={};
+if(!appMap[app][tier]) appMap[app][tier]=[];
+appMap[app][tier].push(n);
+});
+
+const total=nodes.length, active=nodes.filter(n=>n.is_active==='Y').length;
+let html=`
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;flex:1;min-width:100px;text-align:center">
+<div style="font-size:24px;font-weight:800;color:#065f46">${active}</div>
+<div style="font-size:12px;color:#6b7280">Active Nodes</div>
+</div>
+<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px;flex:1;min-width:100px;text-align:center">
+<div style="font-size:24px;font-weight:800;color:#991b1b">${total-active}</div>
+<div style="font-size:12px;color:#6b7280">Inactive</div>
+</div>
+<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px;flex:1;min-width:100px;text-align:center">
+<div style="font-size:24px;font-weight:800;color:#1d4ed8">${total}</div>
+<div style="font-size:12px;color:#6b7280">Total</div>
+</div>
+</div>`;
+
+Object.entries(appMap).forEach(([app,tiers])=>{
+html+=`<div style="margin-bottom:20px;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+<div style="background:#f8f9ff;padding:12px 16px;font-weight:800;font-size:14px;color:var(--primary)">📊 ${app}</div>`;
+Object.entries(tiers).forEach(([tier,tNodes])=>{
+const activeCount=tNodes.filter(n=>n.is_active==='Y').length;
+html+=`<div style="padding:14px 16px;border-top:1px solid #f0f0f0">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:10px">
+<div>
+<span style="font-weight:700">${tier}</span>
+<span style="font-size:12px;color:#6b7280;margin-left:8px">${activeCount}/${tNodes.length} active</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px">
+<label style="font-size:13px;color:#374151;font-weight:600">Expected active:</label>
+<input type="number" id="thresh-${app.replace(/\s/g,'_')}-${tier.replace(/\s/g,'_')}"
+value="${activeCount}" min="0"
+style="width:70px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px">
+<button class="btn btn-secondary" style="padding:5px 12px;font-size:12px"
+onclick="saveThreshold('${app}','${tier}')">Save</button>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap">
+${tNodes.map(n=>`
+<span class="node-badge ${n.is_active==='Y'?'node-active':'node-inactive'}">
+${n.is_active==='Y'?'●':'○'} ${n.node_name} (${n.calls_per_minute||0} CPM)
+</span>`).join('')}
+</div>
+</div>`;
+});
+html+='</div>';
+});
+
+el('discoveryNodes').innerHTML=html;
+}catch(e){
+el('discoveryNodes').innerHTML=alertHtml('danger','Failed to load discovery results: '+e.message);
+}
+}
+
+async function saveThreshold(appName, tierName){
+const safeApp = appName.replace(/\s/g,'_');
+const safeTier = tierName.replace(/\s/g,'_');
+const val = parseInt(el('thresh-'+safeApp+'-'+safeTier)?.value)||0;
+try{
+await apiFetch(`${APPD_API}/tier-threshold`,{
+method:'POST',
+body:JSON.stringify({lob_name:currentLob, track:currentTrack,
+application_name:appName, tier_name:tierName, expected_nodes:val})
+});
+alert(`✓ Expected nodes for "${tierName}" set to ${val}`);
+}catch(e){ alert('Save failed: '+e.message); }
+}
+
+function logout(){sessionStorage.clear();window.location.href='../landing.html';}
+init();
+</script>
+
+</body>
+</html>
