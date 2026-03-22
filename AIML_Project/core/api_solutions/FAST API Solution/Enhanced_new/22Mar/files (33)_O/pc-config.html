@@ -317,12 +317,12 @@ async function saveProject(idx){
       method:'POST',
       body:JSON.stringify({
         lob_name:          currentLob,
-        track_name:        track,
+        track_name:        track,         // matches TRACK_NAME column
         project_name:      name,
         display_name:      el('pDisplay-'+idx).value.trim()||name,
         pc_url:            url,
         pc_port:           parseInt(el('pPort-'+idx).value)||443,
-        domain:            domain,
+        domain:            domain,        // matches DOMAIN column
         username:          user,
         pass_env_var:      passEnv,
         duration_format:   el('pDurFormat-'+idx).value,
@@ -333,12 +333,11 @@ async function saveProject(idx){
       })
     });
 
-    // Store returned config_id — needed for Test Connection endpoint
-    const configId = result.pc_config_id||result.config_id;
-    if(configId) el('pConfigId-'+idx).value = configId;
-
+    if(result.pc_config_id||result.config_id){
+      el('pConfigId-'+idx).value = result.pc_config_id||result.config_id;
+    }
     badge.style.background='#d1fae5'; badge.style.color='#065f46'; badge.textContent='Saved ✓';
-    el('pSaveResult-'+idx).innerHTML=alertHtml('success',`"${name}" saved. You can now Test Connection.`);
+    el('pSaveResult-'+idx).innerHTML=alertHtml('success',`"${name}" saved successfully.`);
     show('pSaveResult-'+idx);
   }catch(e){
     badge.style.background='#fee2e2'; badge.style.color='#991b1b'; badge.textContent='Error';
@@ -347,64 +346,79 @@ async function saveProject(idx){
   }
 }
 
-// ── Test connection — uses POST /nft/config/pc/test-connection/{pc_config_id}
+// ── Test connection & show latest run ─────────────────────────────────────────
 async function testProject(idx){
-  const configId = el('pConfigId-'+idx)?.value;
-  const name     = el('pName-'+idx).value.trim();
+  const name    = el('pName-'+idx).value.trim();
+  const url     = el('pUrl-'+idx).value.trim();
+  const domain  = el('pDomain-'+idx).value.trim()||'DEFAULT';
+  const user    = el('pUser-'+idx).value.trim();
+  const passEnv = el('pPassEnv-'+idx).value.trim();
+  const track   = el('pTrack-'+idx).value;
 
-  // Must be saved first to get config_id
-  if(!configId){
-    alert('⚠ Save the project first before testing the connection.');
-    return;
-  }
+  if(!url||!user||!passEnv){ alert('⚠ Save the project first (URL, Username and Password Env Var required).'); return; }
 
   const resultEl=el('pResult-'+idx);
   show('pResult-'+idx);
-  resultEl.innerHTML=`<div style="color:#6b7280;font-size:13px"><span class="spinner"></span> Connecting to PC for "${name}"...</div>`;
+  resultEl.innerHTML=`<div style="color:#6b7280;font-size:13px"><span class="spinner"></span> Connecting to PC and fetching latest run for "${name}"...</div>`;
+
   const badge=el('pBadge-'+idx);
 
   try{
-    // Existing endpoint: POST /nft/config/pc/test-connection/{pc_config_id}
-    const d = await apiFetch(`${NFT_API}/config/pc/test-connection/${configId}`,{
+    // Test connection
+    const connResult=await apiFetch(`${PC_API}/test-connection`,{
       method:'POST',
+      body:JSON.stringify({
+        pc_url:      url,
+        pc_port:     parseInt(el('pPort-'+idx).value)||443,
+        domain:      domain,
+        username:    user,
+        pass_env_var:passEnv,
+        lob_name:    currentLob,
+        project_name:name,
+      })
     });
 
-    if(d.success || d.status==='PASS'){
-      badge.style.background='#d1fae5'; badge.style.color='#065f46'; badge.textContent='✓ Connected';
-      resultEl.innerHTML=`
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px">
-          <div style="font-weight:700;color:#065f46;margin-bottom:10px">
-            ✓ Connected to PC ${d.pc_version||'24.1.0'}. Cookie session established.
-          </div>
-          <div class="run-kpi-grid">
-            <div class="run-kpi">
-              <div class="run-kpi-val" style="color:#1d4ed8">${d.latest_run_id||'—'}</div>
-              <div class="run-kpi-label">Latest Run ID</div>
-            </div>
-            <div class="run-kpi">
-              <div class="run-kpi-val" style="color:${d.latest_run_status==='PASSED'?'#065f46':'#991b1b'};font-size:13px">${d.latest_run_status||'—'}</div>
-              <div class="run-kpi-label">Last Status</div>
-            </div>
-            <div class="run-kpi">
-              <div class="run-kpi-val" style="color:#374151;font-size:13px">${d.latest_run_duration||'—'}</div>
-              <div class="run-kpi-label">Duration</div>
-            </div>
-            <div class="run-kpi">
-              <div class="run-kpi-val" style="color:#374151">${d.latest_run_date||'—'}</div>
-              <div class="run-kpi-label">Run Date</div>
-            </div>
-            ${d.latest_pass_rate!=null?`
-            <div class="run-kpi">
-              <div class="run-kpi-val" style="color:#065f46">${d.latest_pass_rate}%</div>
-              <div class="run-kpi-label">Pass Rate</div>
-            </div>`:''}
-          </div>
-          <div style="font-size:12px;color:#6b7280;margin-top:10px">${d.message||''}</div>
-        </div>`;
-    } else {
+    if(!connResult.success && connResult.status!=='ok'){
       badge.style.background='#fee2e2'; badge.style.color='#991b1b'; badge.textContent='Failed';
-      resultEl.innerHTML=alertHtml('danger','Connection failed: '+(d.message||'Check credentials and PC URL'));
+      resultEl.innerHTML=alertHtml('danger','Connection failed: '+(connResult.message||'Check credentials'));
+      return;
     }
+
+    // Get latest run for this LOB/track
+    const healthResult=await apiFetch(
+      `${PC_API}/health/${encodeURIComponent(currentLob)}?track=${encodeURIComponent(track)}&project=${encodeURIComponent(name)}`
+    ).catch(()=>({tests:[]}));
+
+    const latest=(healthResult.tests||[])[0];
+    badge.style.background='#d1fae5'; badge.style.color='#065f46'; badge.textContent='✓ Connected';
+
+    const statusColor=latest?.test_status==='completed'?'#065f46':latest?.test_status==='failed'?'#991b1b':'#1d4ed8';
+    resultEl.innerHTML=`
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px">
+        <div style="font-weight:700;color:#065f46;margin-bottom:10px">
+          ✓ Connected to PC ${connResult.pc_version||''}
+          ${connResult.accessible_projects?` · ${connResult.accessible_projects} project(s) accessible`:''}
+        </div>
+        ${latest ? `
+        <div class="run-kpi-grid">
+          <div class="run-kpi">
+            <div class="run-kpi-val" style="color:#1d4ed8">${latest.pc_run_id||latest.run_id||'—'}</div>
+            <div class="run-kpi-label">Latest Run ID</div>
+          </div>
+          <div class="run-kpi">
+            <div class="run-kpi-val" style="color:${statusColor};font-size:13px;text-transform:uppercase">${latest.test_status||'—'}</div>
+            <div class="run-kpi-label">Status</div>
+          </div>
+          <div class="run-kpi">
+            <div class="run-kpi-val" style="color:#374151;font-size:13px">${latest.test_name||'—'}</div>
+            <div class="run-kpi-label">Test Name</div>
+          </div>
+          <div class="run-kpi">
+            <div class="run-kpi-val" style="color:#374151">${latest.created_date?new Date(latest.created_date).toLocaleDateString():'—'}</div>
+            <div class="run-kpi-label">Run Date</div>
+          </div>
+        </div>` : `<div style="font-size:13px;color:#6b7280">No recent test runs found for this project.</div>`}
+      </div>`;
   }catch(e){
     badge.style.background='#fee2e2'; badge.style.color='#991b1b'; badge.textContent='Failed';
     resultEl.innerHTML=alertHtml('danger','Test failed: '+e.message);
