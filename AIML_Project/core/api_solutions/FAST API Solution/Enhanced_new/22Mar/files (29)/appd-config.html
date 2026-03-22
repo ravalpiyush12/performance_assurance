@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AppDynamics Configuration</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.appd-tabs{display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:0}
+.atab{padding:11px 20px;font-size:13px;font-weight:700;border:none;cursor:pointer;
+  background:transparent;color:#6b7280;border-bottom:3px solid transparent;
+  margin-bottom:-2px;transition:.15s;white-space:nowrap}
+.atab.active{color:var(--primary);border-bottom-color:var(--primary);background:#f8f9ff}
+.atab-content{display:none;padding:22px 0 0}
+.atab-content.active{display:block}
+
+.auth-tabs{display:flex;gap:0;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;width:fit-content;margin-bottom:14px}
+.auth-tab{padding:8px 20px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:white;color:#6b7280}
+.auth-tab.active{background:var(--primary);color:white}
+
+.app-card{border:2px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:white}
+.app-card-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+.config-card{border:1.5px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:8px;
+  background:white;cursor:pointer;transition:.15s}
+.config-card:hover{border-color:#c7d2fe;box-shadow:0 2px 8px rgba(99,102,241,.1)}
+.config-card.selected-config{border-color:var(--primary);background:#f8f9ff;
+  box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+
+.node-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:12px;
+  font-size:12px;font-weight:700;margin:3px}
+.node-active{background:#d1fae5;color:#065f46}
+.node-inactive{background:#fee2e2;color:#991b1b}
+
+.action-panel{border:2px solid #e0e7ff;border-radius:12px;background:#f8f9ff;padding:16px;margin-bottom:16px}
+.action-panel.mode-update-same{border-color:#bbf7d0;background:#f0fdf4}
+.action-panel.mode-update-diff{border-color:#fde68a;background:#fffbeb}
+.action-panel.mode-create{border-color:#fde68a;background:#fffbeb}
+
+.app-check-list{border:2px solid #e5e7eb;border-radius:10px;max-height:220px;overflow-y:auto;background:white}
+.app-check-item{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;
+  border-bottom:1px solid #f3f4f6;transition:.1s}
+.app-check-item:last-child{border-bottom:none}
+.app-check-item:hover{background:#f8f9ff}
+.app-check-item input{margin-top:2px;accent-color:var(--primary);width:15px;height:15px;cursor:pointer;flex-shrink:0}
+.app-check-item label{cursor:pointer;font-size:13px;font-weight:600;color:#374151;display:block}
+.app-check-item small{font-size:11px;color:#9ca3af;margin-top:1px;display:block}
+
+.discovery-table{width:100%;border-collapse:collapse;font-size:13px}
+.discovery-table th{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+  color:white;padding:10px 12px;text-align:left;font-weight:700;white-space:nowrap}
+.discovery-table td{padding:9px 12px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.discovery-table tr:nth-child(even) td{background:#fafafa}
+.discovery-table tr:hover td{background:#f0f4ff}
+
+.diff-added{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;
+  border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;display:inline-block;margin:2px}
+.diff-removed{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;
+  border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;display:inline-block;margin:2px}
+.diff-same{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;
+  border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700;display:inline-block;margin:2px}
+
+.step-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  color:#9ca3af;margin-bottom:8px;margin-top:20px}
+.step-label:first-child{margin-top:0}
+
+.config-name-box{font-family:monospace;font-size:13px;background:#1e1e2e;color:#a6e3a1;
+  padding:8px 14px;border-radius:8px;letter-spacing:.02em;display:inline-block}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #e5e7eb;
+  border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.env-note{background:#fef3c7;border:1px solid #fde68a;border-radius:8px;
+  padding:10px 14px;font-size:13px;color:#92400e}
+.summary-stat{border-radius:10px;padding:14px;flex:1;min-width:90px;text-align:center}
+</style>
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const s=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+  if(!s.username||s.role!=='admin'){window.location.href='../../pages/monitoring/pre-login.html';return;}
+});
+</script>
+
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="track-management.html" class="nav-link">⚙️ Track Template</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>📊 AppDynamics Configuration</h1>
+    <p>Configure controller connection, applications, and discovery for <strong id="lobLabel">—</strong></p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="form-grid" style="margin:0">
+      <div class="form-group" style="margin:0">
+        <label>Select LOB</label>
+        <select id="lobSelect" onchange="onLobChange()">
+          <option value="">-- Select LOB --</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Select Track</label>
+        <select id="trackSelect" disabled onchange="onTrackChange()">
+          <option value="">-- Select Track --</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainContent" style="display:none">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:0 20px;background:#f8f9ff;border-bottom:2px solid #e5e7eb">
+        <div class="appd-tabs">
+          <button class="atab active" onclick="showTab('connection',this)">🔌 Connection</button>
+          <button class="atab" onclick="showTab('applications',this)">📱 Applications</button>
+          <button class="atab" onclick="showTab('configs',this)">📋 Saved Configs</button>
+          <button class="atab" onclick="showTab('discovery',this)">🔍 Discovery</button>
+        </div>
+      </div>
+      <div style="padding:20px">
+
+        <!-- CONNECTION TAB -->
+        <div id="tab-connection" class="atab-content active">
+          <h3 style="margin:0 0 16px;font-weight:800">🔌 Controller Connection</h3>
+          <div class="form-group">
+            <label>Controller URL <span class="required">*</span></label>
+            <input type="text" id="connUrl" placeholder="https://appdynamics.corp.internal:8090">
+          </div>
+          <div class="form-group">
+            <label>Account Name <span class="required">*</span></label>
+            <input type="text" id="connAccount" placeholder="corp-prod-account">
+          </div>
+          <label style="font-weight:700;font-size:14px;margin-bottom:8px;display:block">Authentication</label>
+          <div class="auth-tabs">
+            <button class="auth-tab active" id="authTabOAuth" onclick="switchAuth('oauth')">Client ID + Secret (OAuth2)</button>
+            <button class="auth-tab" id="authTabBasic" onclick="switchAuth('basic')">Username / Password</button>
+            <button class="auth-tab" id="authTabToken" onclick="switchAuth('token')">API Token</button>
+          </div>
+          <div id="authOAuth">
+            <div class="env-note" style="margin-bottom:12px">🔒 Credentials stored as env var names only — never actual values.</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Client ID Env Variable <span class="required">*</span></label>
+                <input type="text" id="oauthClientIdEnv" placeholder="APPD_CLIENT_ID_DIGTECH">
+                <small>Server env var holding the Client ID</small>
+              </div>
+              <div class="form-group">
+                <label>Client Secret Env Variable <span class="required">*</span></label>
+                <input type="text" id="oauthClientSecretEnv" placeholder="APPD_CLIENT_SECRET_DIGTECH">
+                <small>Server env var holding the Client Secret</small>
+              </div>
+            </div>
+          </div>
+          <div id="authBasic" style="display:none">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Username <span class="required">*</span></label>
+                <input type="text" id="basicUser" placeholder="service_account@account">
+              </div>
+              <div class="form-group">
+                <label>Password Env Variable <span class="required">*</span></label>
+                <input type="text" id="basicPassEnv" placeholder="APPD_PASS_DIGTECH">
+                <small>Server env var holding the password</small>
+              </div>
+            </div>
+          </div>
+          <div id="authToken" style="display:none">
+            <div class="form-group">
+              <label>Token Env Variable <span class="required">*</span></label>
+              <input type="text" id="tokenEnv" placeholder="APPD_TOKEN_DIGTECH">
+              <small>Server env var holding the API token</small>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+            <button class="btn btn-success" onclick="testConnection()">🔍 Test Connection</button>
+            <button class="btn btn-primary" onclick="saveConnection()">💾 Save Connection</button>
+          </div>
+          <div id="connResult" style="display:none;margin-top:12px"></div>
+        </div>
+
+        <!-- APPLICATIONS TAB -->
+        <!-- FIX 1: Added description field to app card template -->
+        <!-- FIX 2: removeApp() now calls DELETE API endpoint -->
+        <div id="tab-applications" class="atab-content">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <h3 style="margin:0;font-weight:800">📱 Applications</h3>
+            <button class="btn btn-primary" style="padding:9px 16px;font-size:13px" onclick="addApp()">➕ Add Application</button>
+          </div>
+          <div class="alert alert-info" style="margin-bottom:16px">
+            <span>ℹ️</span>
+            <span>Add AppDynamics application names, IDs and descriptions for this LOB/Track.</span>
+          </div>
+          <div id="appsList"></div>
+          <div id="appsLoading" style="text-align:center;padding:20px;color:#9ca3af;display:none">
+            <div class="spinner" style="margin:0 auto 8px"></div>Loading...
+          </div>
+        </div>
+
+        <!-- SAVED CONFIGS TAB -->
+        <div id="tab-configs" class="atab-content">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <h3 style="margin:0;font-weight:800">📋 Saved Discovery Configs</h3>
+            <button class="btn btn-secondary" style="padding:9px 16px;font-size:13px" onclick="loadConfigs()">🔄 Refresh</button>
+          </div>
+          <div id="configsList"><div style="text-align:center;padding:20px;color:#9ca3af">Loading...</div></div>
+        </div>
+
+        <!-- DISCOVERY TAB -->
+        <div id="tab-discovery" class="atab-content">
+          <h3 style="margin:0 0 4px;font-weight:800">🔍 Discovery</h3>
+          <p style="color:#6b7280;font-size:13px;margin:0 0 20px">
+            Select applications, choose to update an existing config or create a new one, then run discovery to classify active/inactive nodes (CPM ≥ 10 = active).
+          </p>
+
+          <!-- STEP 1 -->
+          <div class="step-label">Step 1 — Choose Config (Existing or New)</div>
+          <div id="existingConfigsPanel">
+            <div style="text-align:center;padding:14px;color:#9ca3af">
+              <div class="spinner" style="margin:0 auto 6px"></div>Loading existing configs...
+            </div>
+          </div>
+
+          <!-- Config name (shown for new only) -->
+          <div id="configNameSection" style="display:none;margin-top:14px">
+            <div class="step-label">Config Name</div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+              <div class="config-name-box" id="configNamePreview">—</div>
+            </div>
+            <input type="text" id="configNameInput" placeholder="Auto-generated"
+              style="font-family:monospace;font-size:13px;max-width:480px"
+              oninput="el('configNamePreview').textContent=this.value||'—'">
+            <small style="color:#9ca3af;display:block;margin-top:4px">Format: NFT_LOB_Track_DDMmmYYYY_HHMM</small>
+            <!-- FIX 3: Save Config button for new configs BEFORE running discovery -->
+            <div style="margin-top:12px">
+              <button class="btn btn-success" id="btnSaveConfig" onclick="saveConfigFirst()">
+                💾 Save Config
+              </button>
+              <span id="saveConfigStatus" style="margin-left:12px;font-size:13px;color:#6b7280"></span>
+            </div>
+          </div>
+
+          <!-- STEP 2 -->
+          <div class="step-label">Step 2 — Select Applications</div>
+          <div id="discoveryAppsPanel">
+            <div style="text-align:center;padding:16px;color:#9ca3af">
+              <div class="spinner" style="margin:0 auto 6px"></div>Loading applications...
+            </div>
+          </div>
+          <div style="margin-top:6px;font-size:13px;color:#6b7280">
+            Selected: <strong id="selectedAppsCount" style="color:var(--primary)">0</strong> application(s)
+          </div>
+
+          <!-- STEP 3: Smart action panel -->
+          <div id="actionPanel" class="action-panel" style="display:none;margin-top:14px">
+            <div id="actionContent"></div>
+          </div>
+
+          <!-- Buttons -->
+          <div id="discoveryBtns" style="display:none;gap:10px;flex-wrap:wrap;margin-top:14px">
+            <button class="btn btn-primary" id="btnRunDiscovery" onclick="runDiscovery()">▶ Run Discovery</button>
+            <button class="btn btn-secondary" id="btnUpdateNodes" onclick="updateNodes()" style="display:none">🔄 Update Nodes Only</button>
+          </div>
+
+          <!-- Status -->
+          <div id="discoveryStatus" style="display:none;margin-top:14px"></div>
+
+          <!-- Results -->
+          <div id="resultsSection" style="display:none;margin-top:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <div>
+                <div class="step-label" style="margin:0">Discovery Results</div>
+                <span style="font-size:12px;color:#6b7280" id="lastRunTime"></span>
+              </div>
+              <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px"
+                onclick="loadDiscoveryResults()">🔄 Refresh</button>
+            </div>
+            <div id="summaryCards" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"></div>
+            <div id="nodesOutput"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div id="noLobMsg" class="card" style="text-align:center;padding:40px;color:#9ca3af">
+    <div style="font-size:3em;margin-bottom:12px">📊</div>
+    <div>Select a LOB and Track above to configure AppDynamics</div>
+  </div>
+</div>
+
+<!-- APP TEMPLATE — FIX 1: Added description field, FIX 2: Remove calls API -->
+<template id="appTemplate">
+  <div class="app-card" id="app-__IDX__">
+    <div class="app-card-header">
+      <span style="font-weight:800;font-size:14px">Application __NUM__</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge" id="appBadge-__IDX__" style="background:#e5e7eb;color:#374151">Unsaved</span>
+        <button class="btn btn-danger" style="padding:5px 12px;font-size:12px"
+          onclick="removeApp(__IDX__)">✕ Remove</button>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:12px">
+      <div class="form-group">
+        <label>Application Name <span class="required">*</span></label>
+        <input type="text" id="appName-__IDX__" placeholder="e.g. Cards-Prod-App">
+      </div>
+      <div class="form-group">
+        <label>Application ID (AppD) <span class="required">*</span></label>
+        <input type="text" id="appId-__IDX__" placeholder="e.g. 173720">
+      </div>
+      <div class="form-group">
+        <label>Discovery Frequency</label>
+        <select id="appFreq-__IDX__">
+          <option value="daily">Daily (2 AM)</option>
+          <option value="6h">Every 6 hours</option>
+          <option value="manual">Manual only</option>
+        </select>
+      </div>
+    </div>
+    <!-- FIX 1: Description field -->
+    <div class="form-group" style="margin-top:8px">
+      <label>Description</label>
+      <input type="text" id="appDesc-__IDX__" placeholder="e.g. Production Cards application for NFT performance testing">
+      <small>Optional — stored in database for reference</small>
+    </div>
+    <!-- Hidden field to store saved app master_id for delete -->
+    <input type="hidden" id="appMasterId-__IDX__" value="">
+    <div id="appSaveResult-__IDX__" style="display:none;margin-top:8px"></div>
+    <button class="btn btn-primary" style="padding:8px 18px;font-size:13px;margin-top:8px"
+      onclick="saveApp(__IDX__)">💾 Save Application</button>
+  </div>
+</template>
+
+<script>
+const API      = 'http://localhost:8000/api/v1';
+const NFT_API  = API + '/nft';
+const APPD_API = API + '/monitoring/appd';
+const AUTH_API = API + '/auth';
+const sess = JSON.parse(sessionStorage.getItem('userSession') || '{}');
+const tok  = sess.session_token || '';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let currentLob   = '', currentTrack = '', authType = 'oauth', appCount = 0;
+let existingConfigs      = [];
+let allMasterApps        = [];
+let selectedConfig       = null;   // existing config chosen (null = create new)
+let activeDiscoveryConfig = null;  // config name used for last/current run
+let newConfigSaved       = false;  // FIX 3: track if new config was saved before run
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function apiFetch(url,opts={}){
+  const r=await fetch(url,{headers:hdr(),...opts});
+  const d=await r.json().catch(()=>({detail:'Invalid response'}));
+  if(!r.ok) throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+  return d;
+}
+const el   = id => document.getElementById(id);
+const show = (id,v='block') => { if(el(id)) el(id).style.display=v; };
+const hide = id => { if(el(id)) el(id).style.display='none'; };
+function alertHtml(t,m){
+  const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};
+  return `<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;
+}
+function genConfigName(lob,track){
+  const now=new Date(), mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const d=String(now.getDate()).padStart(2,'0'), yr=now.getFullYear();
+  const hh=String(now.getHours()).padStart(2,'0'), mm=String(now.getMinutes()).padStart(2,'0');
+  const cl=lob.replace(/[^a-zA-Z0-9]/g,'_'), ct=track.replace(/[^a-zA-Z0-9]/g,'_');
+  return `NFT_${cl}_${ct}_${d}${mo[now.getMonth()]}${yr}_${hh}${mm}`;
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────
+async function init(){
+  const sLob=JSON.parse(sessionStorage.getItem('selectedLob')||'{}');
+  try{
+    const d=await apiFetch(AUTH_API+'/lob-config/public');
+    const sel=el('lobSelect');
+    (d.lobs||[]).forEach(l=>{
+      const o=document.createElement('option');
+      o.value=l.name; o.textContent=l.name; o.dataset.tracks=l.tracks.join(',');
+      sel.appendChild(o);
+    });
+    if(sLob.name){ sel.value=sLob.name; onLobChange();
+      if(sLob.tracks?.length===1){ el('trackSelect').value=sLob.tracks[0]; onTrackChange(); } }
+  }catch(e){console.error('LOB load',e);}
+}
+
+function onLobChange(){
+  currentLob=el('lobSelect').value;
+  el('lobLabel').textContent=currentLob||'—';
+  const ts=el('trackSelect');
+  ts.innerHTML='<option value="">-- Select Track --</option>'; ts.disabled=true;
+  hide('mainContent'); show('noLobMsg');
+  if(!currentLob) return;
+  const opt=el('lobSelect').querySelector(`option[value="${currentLob}"]`);
+  (opt?.dataset.tracks||'').split(',').filter(Boolean).forEach(t=>{
+    const o=document.createElement('option'); o.value=t; o.textContent=t; ts.appendChild(o);
+  });
+  ts.disabled=false;
+}
+
+function onTrackChange(){
+  currentTrack=el('trackSelect').value;
+  if(!currentLob||!currentTrack){ hide('mainContent'); show('noLobMsg'); return; }
+  hide('noLobMsg'); show('mainContent');
+  loadConnectionConfig(); loadApplicationsList(); loadConfigs(); initDiscovery();
+}
+
+function showTab(id,btn){
+  document.querySelectorAll('.atab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.atab').forEach(t=>t.classList.remove('active'));
+  el('tab-'+id).classList.add('active'); btn.classList.add('active');
+  if(id==='discovery') initDiscovery();
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+function switchAuth(type){
+  authType=type;
+  ['OAuth','Basic','Token'].forEach(t=>{
+    el('authTab'+t).classList.toggle('active',t.toLowerCase()===type);
+    el('auth'+t).style.display=t.toLowerCase()===type?'block':'none';
+  });
+}
+
+// ── Connection ────────────────────────────────────────────────────────────
+async function loadConnectionConfig(){
+  try{
+    const d=await apiFetch(NFT_API+'/config/appd/'+encodeURIComponent(currentLob));
+    const c=d.config; if(!c) return;
+    el('connUrl').value=c.controller_url||''; el('connAccount').value=c.account_name||'';
+    if(c.auth_type==='oauth'){ switchAuth('oauth');
+      el('oauthClientIdEnv').value=c.client_id_env_var||'';
+      el('oauthClientSecretEnv').value=c.client_secret_env_var||'';
+    } else if(c.auth_type==='basic'){ switchAuth('basic');
+      el('basicUser').value=c.username||''; el('basicPassEnv').value=c.pass_env_var||'';
+    } else if(c.auth_type==='token'){ switchAuth('token'); el('tokenEnv').value=c.token_env_var||''; }
+  }catch(e){}
+}
+
+function buildConnPayload(){
+  const b={lob_name:currentLob,track:currentTrack,
+    controller_url:el('connUrl').value.trim(),account_name:el('connAccount').value.trim(),auth_type:authType};
+  if(authType==='oauth'){ b.client_id_env_var=el('oauthClientIdEnv').value.trim(); b.client_secret_env_var=el('oauthClientSecretEnv').value.trim(); }
+  else if(authType==='basic'){ b.username=el('basicUser').value.trim(); b.pass_env_var=el('basicPassEnv').value.trim(); }
+  else{ b.token_env_var=el('tokenEnv').value.trim(); }
+  return b;
+}
+
+async function testConnection(){
+  if(!el('connUrl').value.trim()||!el('connAccount').value.trim()){ showConnRes('warning','⚠ URL and Account required.'); return; }
+  showConnRes('info','⏳ Testing...');
+  try{
+    const d=await apiFetch(APPD_API+'/test-connection',{method:'POST',body:JSON.stringify(buildConnPayload())});
+    if(d.success||d.status==='ok') showConnRes('success','✓ Connected to AppDynamics!');
+    else showConnRes('danger','✗ '+(d.message||'Check credentials'));
+  }catch(e){ showConnRes('danger','✗ '+e.message); }
+}
+
+async function saveConnection(){
+  if(!el('connUrl').value.trim()||!el('connAccount').value.trim()){ showConnRes('warning','⚠ URL and Account required.'); return; }
+  showConnRes('info','⏳ Saving...');
+  try{
+    await apiFetch(NFT_API+'/config/appd',{method:'POST',body:JSON.stringify(buildConnPayload())});
+    showConnRes('success','✓ Connection settings saved.');
+  }catch(e){ showConnRes('danger','✗ '+e.message); }
+}
+function showConnRes(t,m){ el('connResult').innerHTML=alertHtml(t,m); show('connResult'); }
+
+// ── Applications tab ──────────────────────────────────────────────────────
+async function loadApplicationsList(){
+  show('appsLoading'); el('appsList').innerHTML='';
+  try{
+    const d=await apiFetch(`${APPD_API}/master-applications?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`);
+    const apps=d.applications||[]; appCount=0; el('appsList').innerHTML='';
+    if(!apps.length){
+      el('appsList').innerHTML='<div style="text-align:center;padding:24px;color:#9ca3af">No applications yet. Click "Add Application".</div>';
+    } else {
+      apps.forEach(app=>{
+        const idx=appCount++;
+        const tmpl=el('appTemplate').innerHTML.replace(/__IDX__/g,idx).replace(/__NUM__/g,idx+1);
+        const wrap=document.createElement('div'); wrap.innerHTML=tmpl;
+        el('appsList').appendChild(wrap.firstElementChild);
+        el('appName-'+idx).value  = app.application_name||'';
+        el('appId-'+idx).value    = app.application_id||app.app_id_appd||'';
+        el('appFreq-'+idx).value  = app.discovery_frequency||'daily';
+        el('appDesc-'+idx).value  = app.description||'';
+        el('appMasterId-'+idx).value = app.app_master_id||'';
+        Object.assign(el('appBadge-'+idx).style,{background:'#d1fae5',color:'#065f46'});
+        el('appBadge-'+idx).textContent='Saved';
+      });
+    }
+    hide('appsLoading');
+  }catch(e){ el('appsList').innerHTML=alertHtml('danger','Failed: '+e.message); hide('appsLoading'); }
+}
+
+function addApp(){
+  const idx=appCount++;
+  const tmpl=el('appTemplate').innerHTML.replace(/__IDX__/g,idx).replace(/__NUM__/g,idx+1);
+  const wrap=document.createElement('div'); wrap.innerHTML=tmpl;
+  const list=el('appsList');
+  if(list.innerHTML.includes('No applications')) list.innerHTML='';
+  list.appendChild(wrap.firstElementChild); el('appName-'+idx).focus();
+}
+
+// removeApp: calls DELETE /applications/{masterId} — ID populated after save
+async function removeApp(idx){
+  const masterId = el('appMasterId-'+idx)?.value?.trim();
+  const appName  = el('appName-'+idx)?.value?.trim() || 'this application';
+  const badge    = el('appBadge-'+idx);
+  const isSaved  = badge?.textContent?.includes('Saved');
+
+  if(!confirm(`Remove "${appName}"?\nThis will delete it from the database.`)) return;
+
+  if(isSaved && masterId){
+    // Saved to DB with known ID — call DELETE endpoint
+    Object.assign(badge.style,{background:'#fde68a',color:'#92400e'}); badge.textContent='Deleting...';
+    try{
+      console.log(`[RemoveApp] DELETE /applications/${masterId}`);
+      await apiFetch(`${APPD_API}/applications/${masterId}`,{method:'DELETE'});
+      loadDiscoveryApps();
+    }catch(e){
+      console.error('[RemoveApp] Failed:', e);
+      alert('Delete failed: '+e.message);
+      Object.assign(badge.style,{background:'#fee2e2',color:'#991b1b'}); badge.textContent='Error';
+      return;
+    }
+  } else if(isSaved && !masterId){
+    // Saved but ID not captured — warn user
+    const proceed = confirm(
+      `⚠ Could not find the database ID for "${appName}".\n\n` +
+      `This may happen if the app was saved in a previous session.\n\n` +
+      `Click OK to remove from UI only (app remains in DB).\n` +
+      `To fully delete, refresh the page and try again.`
+    );
+    if(!proceed) return;
+  }
+  // Remove card from DOM
+  el('app-'+idx)?.remove();
+}
+
+// FIX: saveApp sends description + fetches app ID after save (backend doesn't return ID)
+async function saveApp(idx){
+  const name  = el('appName-'+idx).value.trim();
+  const appId = el('appId-'+idx).value.trim();
+  const freq  = el('appFreq-'+idx).value;
+  const desc  = el('appDesc-'+idx).value.trim();
+  if(!name||!appId){ alert('⚠ Name and ID required.'); return; }
+  const badge=el('appBadge-'+idx);
+  Object.assign(badge.style,{background:'#dbeafe',color:'#1d4ed8'}); badge.textContent='Saving...';
+  try{
+    await apiFetch(`${APPD_API}/applications`,{method:'POST',
+      body:JSON.stringify({
+        lob_name:currentLob, track:currentTrack,
+        application_name:name, application_id:appId,
+        discovery_frequency:freq, is_active:'Y',
+        description:desc,
+      })});
+
+    // Backend returns no ID — fetch it from master-applications list
+    try{
+      const listData = await apiFetch(
+        `${APPD_API}/master-applications?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`
+      );
+      const apps = listData.applications || [];
+      const saved = apps.find(a => a.application_name === name);
+      if(saved){
+        const mid = saved.app_master_id || '';
+        if(mid){
+          el('appMasterId-'+idx).value = mid;
+          console.log(`[SaveApp] Stored master ID for "${name}": ${mid}`);
+        } else {
+          console.warn(`[SaveApp] app_master_id missing for "${name}" — backend fix needed`);
+        }
+      }
+    }catch(fetchErr){
+      console.warn('[SaveApp] Could not fetch master ID after save:', fetchErr);
+    }
+
+    Object.assign(badge.style,{background:'#d1fae5',color:'#065f46'}); badge.textContent='Saved ✓';
+    el('appSaveResult-'+idx).innerHTML=alertHtml('success',`"${name}" saved.`); show('appSaveResult-'+idx);
+    loadDiscoveryApps();
+  }catch(e){
+    Object.assign(badge.style,{background:'#fee2e2',color:'#991b1b'}); badge.textContent='Error';
+    el('appSaveResult-'+idx).innerHTML=alertHtml('danger',e.message); show('appSaveResult-'+idx);
+  }
+}
+
+// ── Saved Configs tab ─────────────────────────────────────────────────────
+async function loadConfigs(){
+  el('configsList').innerHTML='<div style="text-align:center;padding:14px;color:#9ca3af"><div class="spinner" style="margin:0 auto 8px"></div>Loading...</div>';
+  try{
+    const d=await apiFetch(`${APPD_API}/config/list?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`);
+    const configs=d.configs||[];
+    if(!configs.length){ el('configsList').innerHTML='<div style="text-align:center;padding:24px;color:#9ca3af">No saved configs. Run Discovery to create one.</div>'; return; }
+    el('configsList').innerHTML=configs.map(c=>`
+      <div class="config-card" style="cursor:default">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:14px">${c.config_name}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:3px">
+              ${c.applications?.length||0} app(s) ·
+              Created: ${c.created_date?new Date(c.created_date).toLocaleDateString():'—'} ·
+              Last discovery: ${c.last_discovery_run?new Date(c.last_discovery_run).toLocaleString():'Never'}
+            </div>
+            <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:3px">
+              ${(c.applications||[]).map(a=>`<span class="diff-same">${a}</span>`).join('')}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+            <span class="badge ${c.is_active==='Y'?'badge-success':'badge-warning'}">${c.is_active==='Y'?'Active':'Inactive'}</span>
+            <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteConfig('${c.config_name}')">🗑 Delete</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }catch(e){ el('configsList').innerHTML=alertHtml('danger','Failed: '+e.message); }
+}
+
+async function deleteConfig(name){
+  if(!confirm(`Delete config "${name}"?\n\nDiscovered nodes will NOT be deleted.`)) return;
+  try{ await apiFetch(`${APPD_API}/config/${encodeURIComponent(name)}`,{method:'DELETE'}); loadConfigs(); initDiscovery(); }
+  catch(e){ alert('Delete failed: '+e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DISCOVERY TAB
+// ═══════════════════════════════════════════════════════════════════════════
+async function initDiscovery(){
+  if(!currentLob||!currentTrack) return;
+  selectedConfig=null; activeDiscoveryConfig=null; newConfigSaved=false;
+  hide('actionPanel'); hide('configNameSection'); hide('discoveryStatus'); hide('resultsSection');
+  el('discoveryBtns').style.display='none';
+  await Promise.all([loadExistingConfigs(), loadDiscoveryApps()]);
+}
+
+// ── Step 1: existing configs ──────────────────────────────────────────────
+async function loadExistingConfigs(){
+  el('existingConfigsPanel').innerHTML=
+    '<div style="text-align:center;padding:12px;color:#9ca3af"><div class="spinner" style="margin:0 auto 6px"></div>Loading...</div>';
+  try{
+    const d=await apiFetch(`${APPD_API}/config/list?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`);
+    existingConfigs=d.configs||[];
+    if(!existingConfigs.length){
+      el('existingConfigsPanel').innerHTML=`
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px;font-size:13px;color:#92400e">
+          <strong>📝 No existing configs</strong> — a new config will be created when you run discovery.
+        </div>`;
+      setTimeout(()=>selectNew(), 100);
+      return;
+    }
+    let html=`<div style="font-size:13px;color:#374151;margin-bottom:8px">
+      Select an existing config to <strong>update</strong>, or choose to <strong>create new</strong>:</div><div style="display:grid;gap:6px">`;
+    existingConfigs.forEach((c,i)=>{
+      const lastRun=c.last_discovery_run?new Date(c.last_discovery_run).toLocaleString():'Never run';
+      html+=`<div class="config-card" id="eCard-${i}" onclick="selectExisting(${i})">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="radio" name="cfg" id="eRadio-${i}" style="accent-color:var(--primary);width:15px;height:15px;cursor:pointer;flex-shrink:0">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:13px">${c.config_name}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">${c.applications?.length||0} app(s) · Last run: ${lastRun}</div>
+            <div style="margin-top:5px;display:flex;flex-wrap:wrap">${(c.applications||[]).map(a=>`<span class="diff-same">${a}</span>`).join('')}</div>
+          </div>
+          ${c.last_discovery_run
+            ?'<span class="badge badge-success" style="font-size:11px;flex-shrink:0">Has nodes</span>'
+            :'<span class="badge badge-warning" style="font-size:11px;flex-shrink:0">No run yet</span>'}
+        </div>
+      </div>`;
+    });
+    html+=`<div class="config-card" id="eCard-new" onclick="selectNew()" style="border-style:dashed">
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="radio" name="cfg" id="eRadio-new" style="accent-color:var(--primary);width:15px;height:15px;cursor:pointer;flex-shrink:0">
+        <div><div style="font-weight:800;font-size:13px;color:#374151">➕ Create New Config</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:2px">Generate a fresh config with your selected applications</div>
+        </div>
+      </div>
+    </div></div>`;
+    el('existingConfigsPanel').innerHTML=html;
+  }catch(e){ el('existingConfigsPanel').innerHTML=alertHtml('danger','Failed to load: '+e.message); }
+}
+
+function selectExisting(idx){
+  selectedConfig=existingConfigs[idx];
+  newConfigSaved=true; // existing config is already saved
+  document.querySelectorAll('[id^="eCard-"]').forEach(c=>c.classList.remove('selected-config'));
+  el('eCard-'+idx).classList.add('selected-config'); el('eRadio-'+idx).checked=true;
+  hide('configNameSection');
+  preselectApps(selectedConfig.applications||[]);
+  evalAction();
+}
+
+function selectNew(){
+  selectedConfig=null;
+  newConfigSaved=false; // FIX 3: reset — must save before run
+  document.querySelectorAll('[id^="eCard-"]').forEach(c=>c.classList.remove('selected-config'));
+  if(el('eCard-new')){ el('eCard-new').classList.add('selected-config'); }
+  if(el('eRadio-new')) el('eRadio-new').checked=true;
+  const name=genConfigName(currentLob,currentTrack);
+  if(el('configNameInput')) el('configNameInput').value=name;
+  el('configNamePreview').textContent=name;
+  el('saveConfigStatus').textContent='';
+  el('btnSaveConfig').disabled=false;
+  el('btnSaveConfig').textContent='💾 Save Config';
+  show('configNameSection');
+  document.querySelectorAll('#discoveryAppsPanel input[type=checkbox]').forEach(cb=>cb.checked=true);
+  updateAppsCount(); evalAction();
+}
+
+function preselectApps(appNames){
+  document.querySelectorAll('#discoveryAppsPanel input[type=checkbox]').forEach(cb=>{
+    cb.checked=appNames.includes(cb.value);
+  });
+  updateAppsCount();
+}
+
+// FIX 3: Save config to DB BEFORE running discovery
+async function saveConfigFirst(){
+  const configName = el('configNameInput')?.value.trim();
+  if(!configName){ alert('⚠ Please enter a config name.'); return; }
+  const selected = getSelectedApps();
+  if(!selected.length){ alert('⚠ Please select at least one application first.'); return; }
+
+  const btn=el('btnSaveConfig');
+  btn.disabled=true; btn.textContent='⏳ Saving...';
+  el('saveConfigStatus').textContent='';
+
+  try{
+    await apiFetch(`${APPD_API}/config/save`,{
+      method:'POST',
+      body:JSON.stringify({
+        config_name: configName,
+        lob_name:    currentLob,
+        track:       currentTrack,
+        applications: selected,
+      })
+    });
+    newConfigSaved=true;
+    btn.textContent='✓ Saved';
+    btn.style.background='#065f46';
+    el('saveConfigStatus').innerHTML='<span style="color:#065f46;font-weight:700">✓ Config saved — you can now run discovery.</span>';
+    // Refresh existing configs list and show in step 1
+    await loadExistingConfigs();
+    // Find and select the newly saved config
+    const newIdx = existingConfigs.findIndex(c=>c.config_name===configName);
+    if(newIdx>=0) selectExisting(newIdx);
+    else { selectedConfig={config_name:configName,applications:selected}; newConfigSaved=true; }
+    evalAction();
+  }catch(e){
+    newConfigSaved=false;
+    btn.disabled=false; btn.textContent='💾 Save Config';
+    el('saveConfigStatus').innerHTML=`<span style="color:#991b1b">✗ ${e.message}</span>`;
+  }
+}
+
+// ── Step 2: app checkboxes ────────────────────────────────────────────────
+async function loadDiscoveryApps(){
+  el('discoveryAppsPanel').innerHTML=
+    '<div style="text-align:center;padding:14px;color:#9ca3af"><div class="spinner" style="margin:0 auto 6px"></div>Loading applications...</div>';
+  try{
+    const d=await apiFetch(`${APPD_API}/master-applications?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`);
+    allMasterApps=d.applications||[];
+    if(!allMasterApps.length){
+      el('discoveryAppsPanel').innerHTML='<div style="text-align:center;padding:18px;color:#9ca3af;font-size:13px">No applications defined yet. Add them in the <strong>Applications</strong> tab first.</div>';
+      return;
+    }
+    let html='<div class="app-check-list">';
+    allMasterApps.forEach(app=>{
+      html+=`<label class="app-check-item" for="ac-${app.application_name}">
+        <input type="checkbox" id="ac-${app.application_name}" value="${app.application_name}" checked onchange="onAppChange()">
+        <div>
+          <label for="ac-${app.application_name}">${app.application_name}</label>
+          <small>App ID: ${app.application_id||app.app_id_appd||'—'}${app.description?' · '+app.description:''}</small>
+        </div>
+      </label>`;
+    });
+    html+='</div>';
+    el('discoveryAppsPanel').innerHTML=html;
+    updateAppsCount(); evalAction();
+  }catch(e){ el('discoveryAppsPanel').innerHTML=alertHtml('danger','Failed: '+e.message); }
+}
+
+function onAppChange(){ updateAppsCount(); evalAction(); }
+function updateAppsCount(){ el('selectedAppsCount').textContent=getSelectedApps().length; }
+function getSelectedApps(){ return Array.from(document.querySelectorAll('#discoveryAppsPanel input[type=checkbox]:checked')).map(c=>c.value); }
+
+// ── Step 3: Smart action panel ─────────────────────────────────────────────
+function evalAction(){
+  const selected=getSelectedApps();
+  if(!selected.length){ hide('actionPanel'); el('discoveryBtns').style.display='none'; return; }
+  const panel=el('actionPanel'), content=el('actionContent');
+
+  if(!selectedConfig){
+    panel.className='action-panel mode-create';
+    content.innerHTML=`
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:1.4em;flex-shrink:0">✨</span>
+        <div>
+          <div style="font-weight:800;font-size:14px;color:#92400e">New Config will be created</div>
+          <div style="font-size:12px;color:#b45309;margin-top:4px">
+            ${newConfigSaved
+              ? '✓ Config saved. Ready to run discovery.'
+              : '⚠ Save the config above before running discovery.'}
+          </div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap">${selected.map(a=>`<span class="diff-added">+ ${a}</span>`).join('')}</div>
+        </div>
+      </div>`;
+    show('actionPanel'); el('discoveryBtns').style.display='flex';
+    el('btnUpdateNodes').style.display='none'; return;
+  }
+
+  const existing=selectedConfig.applications||[];
+  const added=selected.filter(a=>!existing.includes(a));
+  const removed=existing.filter(a=>!selected.includes(a));
+  const same=selected.filter(a=>existing.includes(a));
+  const hasChanges=added.length>0||removed.length>0;
+  const hasNodes=!!selectedConfig.last_discovery_run;
+
+  if(hasChanges){
+    panel.className='action-panel mode-update-diff';
+    content.innerHTML=`
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:1.4em;flex-shrink:0">⚡</span>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:14px;color:#92400e">Update Config: ${selectedConfig.config_name}</div>
+          <div style="font-size:12px;color:#b45309;margin-top:4px">Application list changed — config will be updated then discovery re-run.</div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap">
+            ${same.map(a=>`<span class="diff-same">${a}</span>`).join('')}
+            ${added.map(a=>`<span class="diff-added">+ ${a}</span>`).join('')}
+            ${removed.map(a=>`<span class="diff-removed">− ${a}</span>`).join('')}
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:#9ca3af">🟦 Unchanged &nbsp; 🟩 Added &nbsp; 🟥 Removed</div>
+        </div>
+      </div>`;
+    hide('configNameSection');
+    el('btnUpdateNodes').style.display='none';
+  } else {
+    panel.className='action-panel mode-update-same';
+    content.innerHTML=`
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:1.4em;flex-shrink:0">✅</span>
+        <div>
+          <div style="font-weight:800;font-size:14px;color:#065f46">Config: ${selectedConfig.config_name}</div>
+          <div style="font-size:12px;color:#047857;margin-top:4px">
+            Same ${selected.length} application(s).
+            ${hasNodes
+              ? '<strong>Update Nodes</strong> refreshes CPM only (fast). <strong>Run Discovery</strong> does full re-classification.'
+              : 'Run Discovery to classify nodes for the first time.'}
+          </div>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap">${same.map(a=>`<span class="diff-same">${a}</span>`).join('')}</div>
+        </div>
+      </div>`;
+    hide('configNameSection');
+    el('btnUpdateNodes').style.display=hasNodes?'inline-flex':'none';
+  }
+  show('actionPanel'); el('discoveryBtns').style.display='flex';
+}
+
+// ── Run Discovery ─────────────────────────────────────────────────────────
+async function runDiscovery(){
+  const selected=getSelectedApps();
+  if(!selected.length){ alert('⚠ Select at least one application.'); return; }
+
+  // FIX 3: For new configs, ensure saved first
+  if(!selectedConfig && !newConfigSaved){
+    alert('⚠ Please save the config first using "Save Config" button above.');
+    el('btnSaveConfig')?.scrollIntoView({behavior:'smooth'});
+    return;
+  }
+
+  const configName=selectedConfig
+    ? selectedConfig.config_name
+    : (el('configNameInput')?.value.trim()||genConfigName(currentLob,currentTrack));
+  if(!configName){ alert('⚠ Config name is required.'); return; }
+
+  const btn=el('btnRunDiscovery'); btn.disabled=true; btn.textContent='⏳ Running...';
+  el('discoveryStatus').innerHTML=alertHtml('info',
+    `⏳ Running discovery for <strong>${configName}</strong> across ${selected.length} app(s).<br>
+    <small>Connecting to AppDynamics, collecting CPM data. This may take 1–2 minutes.</small>`);
+  show('discoveryStatus'); hide('resultsSection');
+
+  try{
+    // FIX 4: Run synchronously (not background) OR poll after background trigger
+    const d=await apiFetch(`${APPD_API}/discovery/run`,{method:'POST',
+      body:JSON.stringify({
+        lob_name:currentLob, track:currentTrack,
+        config_name:configName, applications:selected,
+        triggered_by:sess.username||'admin', update_existing:!!selectedConfig,
+      })});
+
+    activeDiscoveryConfig=configName;
+
+    // FIX 4: Background task returns task_id immediately — poll for real counts
+    if(d.task_id && !d.nodes_discovered){
+      el('discoveryStatus').innerHTML=alertHtml('info',
+        `⏳ Discovery running in background for <strong>${configName}</strong>.<br>
+        <small>Task ID: ${d.task_id}. Results will load automatically in ~30 seconds.</small>`);
+      // Poll every 10s for up to 3 minutes
+      pollDiscoveryResults(configName, 0);
+    } else {
+      // Synchronous response with counts
+      el('discoveryStatus').innerHTML=alertHtml('success',
+        `✓ Discovery complete! &nbsp; <strong>Config:</strong> ${configName} &nbsp;
+         <strong>Nodes:</strong> ${d.nodes_discovered||0} &nbsp;
+         <strong>Active:</strong> ${d.active_nodes||0} &nbsp;
+         <strong>Inactive:</strong> ${d.inactive_nodes||0}`);
+      await Promise.all([loadExistingConfigs(), loadConfigs()]);
+      await loadDiscoveryResults();
+    }
+  }catch(e){
+    el('discoveryStatus').innerHTML=alertHtml('danger','✗ Discovery failed: '+e.message);
+  }
+  btn.disabled=false; btn.textContent='▶ Run Discovery';
+}
+
+// FIX 4: Poll for results after background task
+async function pollDiscoveryResults(configName, attempts){
+  if(attempts >= 18) { // 18 x 10s = 3 min max
+    el('discoveryStatus').innerHTML=alertHtml('warning',
+      `⏳ Discovery still running. Click "Refresh" in results below to check progress.`);
+    show('resultsSection');
+    loadDiscoveryResults();
+    return;
+  }
+  await new Promise(r=>setTimeout(r, 10000)); // wait 10s
+  try{
+    const d=await apiFetch(
+      `${APPD_API}/active-nodes?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}&config_name=${encodeURIComponent(configName)}`
+    );
+    const nodes=d.nodes||[];
+    if(nodes.length>0){
+      const active=nodes.filter(n=>n.is_active==='Y').length;
+      el('discoveryStatus').innerHTML=alertHtml('success',
+        `✓ Discovery complete! &nbsp; <strong>Config:</strong> ${configName} &nbsp;
+         <strong>Nodes:</strong> ${nodes.length} &nbsp;
+         <strong>Active:</strong> ${active} &nbsp;
+         <strong>Inactive:</strong> ${nodes.length-active}`);
+      await Promise.all([loadExistingConfigs(), loadConfigs()]);
+      await loadDiscoveryResults();
+    } else {
+      pollDiscoveryResults(configName, attempts+1);
+    }
+  }catch(e){
+    pollDiscoveryResults(configName, attempts+1);
+  }
+}
+
+// ── Update Nodes Only ─────────────────────────────────────────────────────
+async function updateNodes(){
+  if(!selectedConfig) return;
+  const configName=selectedConfig.config_name, selected=getSelectedApps();
+  const btn=el('btnUpdateNodes'); btn.disabled=true; btn.textContent='⏳ Updating...';
+  el('discoveryStatus').innerHTML=alertHtml('info',
+    `⏳ Refreshing node CPM data for <strong>${configName}</strong>...<br>
+    <small>Fetching latest CPM and re-classifying nodes (CPM ≥ 10 = active).</small>`);
+  show('discoveryStatus');
+
+  try{
+    const d=await apiFetch(`${APPD_API}/discovery/update-nodes`,{method:'POST',
+      body:JSON.stringify({
+        lob_name:currentLob, track:currentTrack,
+        config_name:configName, applications:selected,
+        triggered_by:sess.username||'admin',
+      })});
+
+    activeDiscoveryConfig=configName;
+
+    if(d.task_id && !d.nodes_count){
+      el('discoveryStatus').innerHTML=alertHtml('info',
+        `⏳ Node update running in background. Results load automatically in ~20 seconds.`);
+      pollDiscoveryResults(configName, 0);
+    } else {
+      el('discoveryStatus').innerHTML=alertHtml('success',
+        `✓ Nodes updated! &nbsp; <strong>Active:</strong> ${d.active_nodes||0} &nbsp; <strong>Inactive:</strong> ${d.inactive_nodes||0}`);
+      await loadDiscoveryResults();
+    }
+  }catch(e){
+    el('discoveryStatus').innerHTML=alertHtml('danger','✗ Update failed: '+e.message);
+  }
+  btn.disabled=false; btn.textContent='🔄 Update Nodes Only';
+}
+
+// ── Load Discovery Results — FIX 5: uses activeDiscoveryConfig or selectedConfig
+async function loadDiscoveryResults(){
+  // FIX 5: Determine which config to load nodes for
+  const cfg = activeDiscoveryConfig || selectedConfig?.config_name;
+  if(!cfg){
+    el('nodesOutput').innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af">No config selected.</div>';
+    show('resultsSection');
+    return;
+  }
+
+  show('resultsSection');
+  el('nodesOutput').innerHTML='<div style="text-align:center;padding:16px;color:#9ca3af"><div class="spinner" style="margin:0 auto 6px"></div>Loading nodes...</div>';
+  el('summaryCards').innerHTML='';
+
+  try{
+    const d=await apiFetch(
+      `${APPD_API}/active-nodes?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}&config_name=${encodeURIComponent(cfg)}`
+    );
+    const nodes=d.nodes||[];
+    if(d.last_discovery_time) el('lastRunTime').textContent='Last run: '+new Date(d.last_discovery_time).toLocaleString();
+
+    if(!nodes.length){
+      el('nodesOutput').innerHTML='<div style="text-align:center;padding:28px;color:#9ca3af">No nodes discovered yet. Run Discovery first.</div>';
+      return;
+    }
+
+    // Backend now normalizes is_active to 'Y'/'N' always
+    const isActive = n => n.is_active === 'Y';
+
+    const total=nodes.length, active=nodes.filter(isActive).length;
+    el('summaryCards').innerHTML=`
+      <div class="summary-stat" style="background:#f0fdf4;border:1px solid #bbf7d0">
+        <div style="font-size:26px;font-weight:800;color:#065f46">${active}</div>
+        <div style="font-size:12px;color:#6b7280">Active Nodes</div>
+      </div>
+      <div class="summary-stat" style="background:#fef2f2;border:1px solid #fecaca">
+        <div style="font-size:26px;font-weight:800;color:#991b1b">${total-active}</div>
+        <div style="font-size:12px;color:#6b7280">Inactive</div>
+      </div>
+      <div class="summary-stat" style="background:#eff6ff;border:1px solid #bfdbfe">
+        <div style="font-size:26px;font-weight:800;color:#1d4ed8">${total}</div>
+        <div style="font-size:12px;color:#6b7280">Total</div>
+      </div>`;
+
+    // Group app → tier
+    const appMap={};
+    nodes.forEach(n=>{
+      const app=n.application_name||'Unknown', tier=n.tier_name||'Unknown';
+      if(!appMap[app]) appMap[app]={};
+      if(!appMap[app][tier]) appMap[app][tier]=[];
+      appMap[app][tier].push(n);
+    });
+
+    let html='';
+    Object.entries(appMap).forEach(([app,tiers])=>{
+      html+=`<div style="margin-bottom:18px;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:10px 16px;color:white;font-weight:800;font-size:14px">
+          📊 ${app}
+        </div>`;
+      Object.entries(tiers).forEach(([tier,tNodes])=>{
+        const aC=tNodes.filter(isActive).length;
+        const safeA=app.replace(/\W/g,'_'), safeT=tier.replace(/\W/g,'_');
+        const existingThreshold = tNodes[0]?.expected_nodes ?? aC;
+        html+=`<div style="padding:14px 16px;border-top:1px solid #f0f0f0">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div>
+              <span style="font-weight:700;font-size:13px">${tier}</span>
+              <span class="badge ${aC===tNodes.length?'badge-success':'badge-warning'}" style="margin-left:8px;font-size:11px">${aC}/${tNodes.length} active</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap">Expected active:</label>
+              <input type="number" id="thr-${safeA}-${safeT}" value="${existingThreshold}" min="0"
+                style="width:60px;padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px">
+              <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px"
+                onclick="saveThreshold('${app}','${tier}')">Save</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="discovery-table">
+              <thead><tr>
+                <th>Node Name</th><th>Status</th>
+                <th style="text-align:right">CPM</th><th>Last Updated</th>
+              </tr></thead>
+              <tbody>
+                ${tNodes.map(n=>`<tr>
+                  <td style="font-family:monospace;font-size:12px;font-weight:600">${n.node_name}</td>
+                  <td><span class="node-badge ${isActive(n)?'node-active':'node-inactive'}">${isActive(n)?'● Active':'○ Inactive'}</span></td>
+                  <td style="text-align:right;font-weight:700;color:${isActive(n)?'#065f46':'#991b1b'}">${n.calls_per_minute||0}</td>
+                  <td style="font-size:12px;color:#9ca3af">${n.last_updated?new Date(n.last_updated).toLocaleString():'—'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+      });
+      html+='</div>';
+    });
+    el('nodesOutput').innerHTML=html;
+  }catch(e){ el('nodesOutput').innerHTML=alertHtml('danger','Failed to load nodes: '+e.message); }
+}
+
+async function saveThreshold(app,tier){
+  const safeA=app.replace(/\W/g,'_'), safeT=tier.replace(/\W/g,'_');
+  const val=parseInt(el(`thr-${safeA}-${safeT}`)?.value)||0;
+  try{
+    await apiFetch(`${APPD_API}/tier-threshold`,{method:'POST',
+      body:JSON.stringify({lob_name:currentLob,track:currentTrack,
+        application_name:app,tier_name:tier,expected_nodes:val})});
+    alert(`✓ Expected active nodes for "${tier}" set to ${val}`);
+  }catch(e){ alert('Save failed: '+e.message); }
+}
+
+function logout(){ sessionStorage.clear(); window.location.href='../landing.html'; }
+init();
+</script>
+</body>
+</html>
