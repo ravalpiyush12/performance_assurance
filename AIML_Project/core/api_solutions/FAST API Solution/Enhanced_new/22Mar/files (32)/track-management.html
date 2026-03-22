@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Template Management</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.section-card{background:#f9fafb;border:2px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px}
+.section-card-title{font-size:13px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px;color:#374151}
+.item-row{display:flex;gap:8px;align-items:center;padding:8px 12px;background:white;border-radius:8px;margin-bottom:6px;border:1px solid #e5e7eb}
+.item-row .info{flex:1;font-size:13px;font-weight:600}
+.add-row{display:flex;gap:8px;margin-top:8px}
+.preview-chip{display:inline-block;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:600;margin:2px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.saved-row{border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin-bottom:8px;background:white}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #e5e7eb;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tool-select{flex:1;padding:9px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px}
+</style>
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const s=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+  if(!s.username){window.location.href='../../pages/monitoring/pre-login.html';return;}
+  const navFrom=sessionStorage.getItem('navFrom');
+  if(navFrom==='pe'){
+    sessionStorage.removeItem('navFrom');
+    document.querySelectorAll('a.nav-link').forEach(function(el){
+      if(el.getAttribute('href')==='dashboard.html'){el.href='../monitoring/start-monitoring.html';el.textContent='← Back to Monitoring';}
+    });
+  }
+});
+</script>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>⚙️ Track Template Management</h1>
+    <p>Map AppDynamics, AWR databases, and Performance Center resources to a Track template</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+    <!-- LEFT: BUILDER -->
+    <div>
+      <div class="card">
+        <h3 style="font-weight:800;margin-bottom:18px">Build / Edit Track Template</h3>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>LOB <span class="required">*</span></label>
+            <select id="bLob" onchange="onLobChange()">
+              <option value="">-- Select LOB --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Track <span class="required">*</span></label>
+            <select id="bTrack" disabled onchange="onTrackChange()">
+              <option value="">-- Select Track --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- APPD APPS -->
+        <div class="section-card">
+          <div class="section-card-title">📊 AppDynamics Applications</div>
+          <div id="appdItems"></div>
+          <div class="add-row">
+            <select id="appdSelect" class="tool-select">
+              <option value="">-- Select AppD application --</option>
+            </select>
+            <button class="btn btn-secondary" style="padding:9px 14px;font-size:13px" onclick="addItem('appd','appdSelect')">+ Add</button>
+          </div>
+          <div id="appdLoading" style="font-size:12px;color:#9ca3af;margin-top:4px;display:none"><span class="spinner"></span> Loading applications...</div>
+        </div>
+
+        <!-- AWR DATABASES -->
+        <div class="section-card">
+          <div class="section-card-title">🗄️ AWR Databases</div>
+          <div id="awrItems"></div>
+          <div class="add-row">
+            <select id="awrSelect" class="tool-select">
+              <option value="">-- Select Oracle database --</option>
+            </select>
+            <button class="btn btn-secondary" style="padding:9px 14px;font-size:13px" onclick="addItem('awr','awrSelect')">+ Add</button>
+          </div>
+          <div id="awrLoading" style="font-size:12px;color:#9ca3af;margin-top:4px;display:none"><span class="spinner"></span> Loading databases...</div>
+        </div>
+
+        <!-- PC PROJECTS -->
+        <div class="section-card">
+          <div class="section-card-title">⚡ Performance Center Projects</div>
+          <div id="pcItems"></div>
+          <div class="add-row">
+            <select id="pcSelect" class="tool-select">
+              <option value="">-- Select PC project --</option>
+            </select>
+            <button class="btn btn-secondary" style="padding:9px 14px;font-size:13px" onclick="addItem('pc','pcSelect')">+ Add</button>
+          </div>
+          <div id="pcLoading" style="font-size:12px;color:#9ca3af;margin-top:4px;display:none"><span class="spinner"></span> Loading projects...</div>
+        </div>
+
+        <div id="saveResult" style="display:none;margin-bottom:10px"></div>
+        <button class="btn btn-success" style="width:100%" onclick="saveTemplate()" id="btnSave" disabled>
+          💾 Save Track Template
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: PREVIEW + SAVED -->
+    <div>
+      <div class="card">
+        <h3 style="font-weight:800;margin-bottom:16px">Live Preview</h3>
+        <div id="previewEmpty" style="color:#9ca3af;font-size:14px;text-align:center;padding:30px">
+          Select a LOB and Track to start building the template
+        </div>
+        <div id="templatePreview" style="display:none">
+          <div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:10px;padding:14px;margin-bottom:14px">
+            <div style="font-size:16px;font-weight:800" id="previewTitle">—</div>
+            <div style="font-size:12px;color:#4b5563" id="previewSubtitle">Track Template</div>
+          </div>
+          <div id="previewContent"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h3 style="font-weight:800;margin:0">Saved Templates</h3>
+          <button class="btn btn-secondary" style="padding:7px 14px;font-size:12px" onclick="loadSavedTemplates()">🔄 Refresh</button>
+        </div>
+        <div id="savedList">
+          <div style="text-align:center;padding:20px;color:#9ca3af"><span class="spinner"></span> Loading...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API      = 'http://localhost:8000/api/v1';
+const AUTH_API = API + '/auth';
+const APPD_API = API + '/monitoring/appd';
+const PC_API   = API + '/monitoring/pc';
+const NFT_API  = API + '/nft';
+
+const sess = JSON.parse(sessionStorage.getItem('userSession') || '{}');
+const tok  = sess.session_token || '';
+
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function apiFetch(url,opts={}){
+  const r=await fetch(url,{headers:hdr(),...opts});
+  const d=await r.json().catch(()=>({detail:'Invalid response'}));
+  if(!r.ok) throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+  return d;
+}
+const el   = id => document.getElementById(id);
+const show = (id,v='block') => { if(el(id)) el(id).style.display=v; };
+const hide = id => { if(el(id)) el(id).style.display='none'; };
+function alertHtml(t,m){
+  const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};
+  return `<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let currentLob='', currentTrack='';
+let template = {appd:[], awr:[], pc:[]};
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init(){
+  try{
+    const d = await apiFetch(AUTH_API+'/lob-config/public');
+    const sel = el('bLob');
+    (d.lobs||[]).forEach(l=>{
+      const o=document.createElement('option');
+      o.value=l.name; o.textContent=l.name; o.dataset.tracks=l.tracks.join(',');
+      sel.appendChild(o);
+    });
+  }catch(e){ console.error('LOB load error',e); }
+  loadSavedTemplates();
+}
+
+async function onLobChange(){
+  currentLob = el('bLob').value;
+  const ts = el('bTrack');
+  ts.innerHTML='<option value="">-- Select Track --</option>'; ts.disabled=true;
+  resetTemplate();
+  if(!currentLob) return;
+  const opt = el('bLob').querySelector(`option[value="${currentLob}"]`);
+  (opt?.dataset.tracks||'').split(',').filter(Boolean).forEach(t=>{
+    const o=document.createElement('option'); o.value=t; o.textContent=t; ts.appendChild(o);
+  });
+  ts.disabled=false;
+}
+
+async function onTrackChange(){
+  currentTrack = el('bTrack').value;
+  resetTemplate();
+  if(!currentLob||!currentTrack) return;
+  el('btnSave').disabled=false;
+  updatePreview();
+  // Load all tool options for this LOB+Track
+  await Promise.all([loadAppdOptions(), loadAwrOptions(), loadPcOptions()]);
+  // Check if template already exists and pre-fill
+  await loadExistingTemplate();
+}
+
+function resetTemplate(){
+  template={appd:[],awr:[],pc:[]};
+  ['appdItems','awrItems','pcItems'].forEach(id=>{ if(el(id)) el(id).innerHTML=''; });
+  hide('previewEmpty'); hide('templatePreview');
+  show('previewEmpty');
+  el('btnSave').disabled=true;
+  hide('saveResult');
+}
+
+// ── Load tool options ─────────────────────────────────────────────────────────
+async function loadAppdOptions(){
+  show('appdLoading');
+  try{
+    const d = await apiFetch(`${APPD_API}/master-applications?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`);
+    const apps = d.applications||[];
+    const sel = el('appdSelect');
+    sel.innerHTML='<option value="">-- Select AppD application --</option>';
+    apps.forEach(a=>{
+      const o=document.createElement('option');
+      o.value=a.application_name; o.textContent=a.application_name;
+      sel.appendChild(o);
+    });
+  }catch(e){ console.error('AppD options error',e); }
+  hide('appdLoading');
+}
+
+async function loadAwrOptions(){
+  show('awrLoading');
+  try{
+    // Get configured databases for this LOB
+    const d = await apiFetch(`${NFT_API}/config/databases?lob_name=${encodeURIComponent(currentLob)}`);
+    const dbs = d.databases||[];
+    const sel = el('awrSelect');
+    sel.innerHTML='<option value="">-- Select Oracle database --</option>';
+    dbs.forEach(db=>{
+      const o=document.createElement('option');
+      o.value=db.db_name||db.name; o.textContent=db.db_name||db.name;
+      sel.appendChild(o);
+    });
+    // Fallback: add configured DB names from session
+    if(!dbs.length){
+      ['CQE_NFT','CD_PTE_READ','CAS_PTE_READ'].forEach(name=>{
+        const o=document.createElement('option'); o.value=name; o.textContent=name;
+        el('awrSelect').appendChild(o);
+      });
+    }
+  }catch(e){
+    // Fallback to known DBs
+    ['CQE_NFT','CD_PTE_READ','CAS_PTE_READ'].forEach(name=>{
+      const o=document.createElement('option'); o.value=name; o.textContent=name;
+      el('awrSelect').appendChild(o);
+    });
+  }
+  hide('awrLoading');
+}
+
+async function loadPcOptions(){
+  show('pcLoading');
+  try{
+    const d = await apiFetch(`${NFT_API}/config/pc/projects?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`);
+    const projects = d.projects||[];
+    const sel = el('pcSelect');
+    sel.innerHTML='<option value="">-- Select PC project --</option>';
+    projects.forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p.project_name||p.name; o.textContent=p.display_name||p.project_name||p.name;
+      sel.appendChild(o);
+    });
+  }catch(e){ console.error('PC options error',e); }
+  hide('pcLoading');
+}
+
+// ── Load existing template ────────────────────────────────────────────────────
+async function loadExistingTemplate(){
+  try{
+    const d = await apiFetch(`${NFT_API}/track-template?lob_name=${encodeURIComponent(currentLob)}&track=${encodeURIComponent(currentTrack)}`);
+    if(d.template){
+      const t=d.template;
+      template.appd = t.appd_applications||[];
+      template.awr  = t.awr_databases||[];
+      template.pc   = t.pc_projects||[];
+      refreshAllItems();
+      updatePreview();
+    }
+  }catch(e){
+    // No existing template — fresh start
+    console.log('No existing template for',currentLob,currentTrack);
+  }
+}
+
+// ── Add/remove items ──────────────────────────────────────────────────────────
+function addItem(section, selectId){
+  const val = el(selectId)?.value;
+  if(!val){ return; }
+  if(!template[section].includes(val)){
+    template[section].push(val);
+    refreshItems(section);
+    updatePreview();
+  }
+  el(selectId).value='';
+}
+
+function removeItem(section, val){
+  template[section] = template[section].filter(x=>x!==val);
+  refreshItems(section);
+  updatePreview();
+}
+
+const SECTION_META = {
+  appd: {el:'appdItems', icon:'📊'},
+  awr:  {el:'awrItems',  icon:'🗄️'},
+  pc:   {el:'pcItems',   icon:'⚡'},
+};
+
+function refreshItems(section){
+  const {el:elId, icon} = SECTION_META[section];
+  el(elId).innerHTML = template[section].map(v=>`
+    <div class="item-row">
+      <div class="info">${icon} ${v}</div>
+      <button class="btn btn-danger" style="padding:4px 10px;font-size:12px"
+        onclick="removeItem('${section}','${v}')">✕</button>
+    </div>`).join('') || '<div style="font-size:12px;color:#9ca3af;padding:4px">None added yet</div>';
+}
+
+function refreshAllItems(){ Object.keys(SECTION_META).forEach(refreshItems); }
+
+// ── Preview ───────────────────────────────────────────────────────────────────
+function updatePreview(){
+  if(!currentLob||!currentTrack){ show('previewEmpty'); hide('templatePreview'); return; }
+  hide('previewEmpty'); show('templatePreview');
+  el('previewTitle').textContent = currentTrack;
+  el('previewSubtitle').textContent = currentLob+' · Track Template';
+  const sections=[
+    {label:'AppDynamics Applications', items:template.appd},
+    {label:'AWR Databases',           items:template.awr},
+    {label:'PC Projects',             items:template.pc},
+  ];
+  el('previewContent').innerHTML = sections.map(s=>`
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:6px">${s.label}</div>
+      ${s.items.length
+        ? s.items.map(i=>`<span class="preview-chip">${i}</span>`).join('')
+        : '<span style="font-size:12px;color:#9ca3af">None added</span>'}
+    </div>`).join('');
+}
+
+// ── Save template ─────────────────────────────────────────────────────────────
+async function saveTemplate(){
+  if(!currentLob||!currentTrack){ alert('⚠ Select LOB and Track first.'); return; }
+  const total = template.appd.length + template.awr.length + template.pc.length;
+  if(!total){ alert('⚠ Add at least one resource to the template.'); return; }
+
+  const btn=el('btnSave'); btn.disabled=true; btn.textContent='⏳ Saving...';
+  hide('saveResult');
+
+  try{
+    await apiFetch(`${NFT_API}/track-template`,{
+      method:'POST',
+      body:JSON.stringify({
+        lob_name:         currentLob,
+        track:            currentTrack,
+        appd_applications: template.appd,
+        awr_databases:    template.awr,
+        pc_projects:      template.pc,
+        created_by:       sess.username||'admin',
+      })
+    });
+    el('saveResult').innerHTML=alertHtml('success',`✓ Template for "${currentLob} / ${currentTrack}" saved successfully!`);
+    show('saveResult');
+    loadSavedTemplates();
+  }catch(e){
+    el('saveResult').innerHTML=alertHtml('danger','✗ Save failed: '+e.message);
+    show('saveResult');
+  }
+  btn.disabled=false; btn.textContent='💾 Save Track Template';
+}
+
+// ── Saved templates list ──────────────────────────────────────────────────────
+async function loadSavedTemplates(){
+  el('savedList').innerHTML='<div style="text-align:center;padding:16px;color:#9ca3af"><span class="spinner"></span> Loading...</div>';
+  try{
+    const d = await apiFetch(`${NFT_API}/track-template/list`);
+    const templates = d.templates||[];
+    if(!templates.length){
+      el('savedList').innerHTML='<div style="text-align:center;padding:24px;color:#9ca3af">No templates saved yet.</div>';
+      return;
+    }
+    el('savedList').innerHTML = templates.map(t=>`
+      <div class="saved-row">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:14px">${t.track}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">${t.lob_name} · Updated: ${t.updated_date?new Date(t.updated_date).toLocaleDateString():'—'}</div>
+            <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
+              ${(t.appd_applications||[]).map(a=>`<span class="preview-chip">📊 ${a}</span>`).join('')}
+              ${(t.awr_databases||[]).map(a=>`<span class="preview-chip" style="background:#f0fdf4;color:#065f46;border-color:#bbf7d0">🗄️ ${a}</span>`).join('')}
+              ${(t.pc_projects||[]).map(a=>`<span class="preview-chip" style="background:#fffbeb;color:#92400e;border-color:#fde68a">⚡ ${a}</span>`).join('')}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px"
+              onclick='loadTemplate(${JSON.stringify(t)})'>Load</button>
+            <button class="btn btn-danger" style="padding:5px 10px;font-size:12px"
+              onclick="deleteTemplate('${t.lob_name}','${t.track}')">Delete</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }catch(e){
+    el('savedList').innerHTML=`<div style="text-align:center;padding:16px;color:#991b1b">Failed to load: ${e.message}</div>`;
+  }
+}
+
+async function loadTemplate(t){
+  el('bLob').value = t.lob_name; await onLobChange();
+  setTimeout(async()=>{
+    el('bTrack').value = t.track;
+    await onTrackChange();
+    // Override with saved template values
+    template.appd = t.appd_applications||[];
+    template.awr  = t.awr_databases||[];
+    template.pc   = t.pc_projects||[];
+    refreshAllItems(); updatePreview();
+  },100);
+}
+
+async function deleteTemplate(lobName, track){
+  if(!confirm(`Delete template for "${lobName} / ${track}"?`)) return;
+  try{
+    await apiFetch(`${NFT_API}/track-template?lob_name=${encodeURIComponent(lobName)}&track=${encodeURIComponent(track)}`,{method:'DELETE'});
+    loadSavedTemplates();
+  }catch(e){ alert('Delete failed: '+e.message); }
+}
+
+function logout(){ sessionStorage.clear(); window.location.href='../landing.html'; }
+init();
+</script>
+</body>
+</html>

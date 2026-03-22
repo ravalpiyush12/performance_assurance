@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance Center Configuration</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.proj-block{border:2px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:white}
+.proj-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.run-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:12px}
+.run-kpi{background:white;border-radius:8px;padding:12px;text-align:center;border:1px solid #e5e7eb}
+.run-kpi-val{font-size:20px;font-weight:800;margin-bottom:3px}
+.run-kpi-label{font-size:11px;color:#6b7280}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #e5e7eb;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const s=JSON.parse(sessionStorage.getItem('userSession')||'{}');
+  if(!s.username||s.role!=='admin'){window.location.href='../../pages/monitoring/pre-login.html';return;}
+});
+</script>
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link">← Admin Dashboard</a>
+  <a href="audit-logs.html" class="nav-link">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>⚡ Performance Center Configuration</h1>
+    <p>Configure PC connection and project mappings per LOB</p>
+  </div>
+
+  <!-- LOB SELECTOR -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="form-grid" style="margin:0">
+      <div class="form-group" style="margin:0">
+        <label>Select LOB</label>
+        <select id="lobSelect" onchange="onLobChange()">
+          <option value="">-- Select LOB --</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainContent" style="display:none">
+
+    <!-- CONNECTION SETTINGS -->
+    <div class="card">
+      <h3 style="font-weight:800;margin-bottom:18px">🔌 Connection Settings</h3>
+      <div class="alert alert-info" style="margin-bottom:18px">
+        <span>ℹ️</span>
+        <span>PC 24.1 — credentials stored as environment variable names only. Duration format: <strong>Hours/Minutes</strong>. Cookie-based auth (<code>-b</code> flag) required for report downloads.</span>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>PC Base URL <span class="required">*</span></label>
+          <input type="text" id="pcUrl" placeholder="https://pc.corp.internal">
+        </div>
+        <div class="form-group">
+          <label>Port <span class="required">*</span></label>
+          <input type="number" id="pcPort" placeholder="443" value="443">
+        </div>
+        <div class="form-group">
+          <label>Username <span class="required">*</span></label>
+          <input type="text" id="pcUser" placeholder="pc_service_account">
+        </div>
+        <div class="form-group">
+          <label>Password Env Variable <span class="required">*</span></label>
+          <input type="text" id="pcPassEnv" placeholder="PC_PASSWORD_DIGTECH">
+          <small>Server env var holding the password — never the actual value</small>
+        </div>
+        <div class="form-group">
+          <label>Domain <span class="required">*</span></label>
+          <input type="text" id="pcDomain" placeholder="DEFAULT" value="DEFAULT">
+        </div>
+        <div class="form-group">
+          <label>Report Download Timeout (s)</label>
+          <input type="number" id="pcTimeout" value="300">
+        </div>
+      </div>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:6px">PC 24.1 API Notes (read-only)</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#6b7280">
+          <span>🍪 Auth: Cookie-based (<code>-b</code> flag)</span>
+          <span>⏱ Duration: Hours/Minutes format</span>
+          <span>📥 Reports: <code>/Runs/{id}/Results/{rid}/data</code></span>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-success" onclick="testPcConn()">🔍 Test Connection</button>
+        <button class="btn btn-primary" onclick="savePcConn()">💾 Save Settings</button>
+      </div>
+      <div id="pcConnResult" style="display:none;margin-top:14px"></div>
+    </div>
+
+    <!-- PROJECTS -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <h3 style="font-weight:800;margin:0">📁 Project Configurations</h3>
+        <button class="btn btn-primary" style="padding:9px 18px;font-size:13px" onclick="addProject()">➕ Add Project</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:16px">
+        <span>ℹ️</span>
+        <span>Each project maps to a LOB track. <strong>Test Connection</strong> fetches the latest run from PC to confirm connectivity.</span>
+      </div>
+      <div id="projList"></div>
+      <div id="projLoading" style="text-align:center;padding:20px;color:#9ca3af;display:none">
+        <span class="spinner"></span> Loading projects...
+      </div>
+    </div>
+
+  </div>
+
+  <div id="noLobMsg" class="card" style="text-align:center;padding:40px;color:#9ca3af">
+    <div style="font-size:3em;margin-bottom:12px">⚡</div>
+    <div>Select a LOB above to configure Performance Center</div>
+  </div>
+</div>
+
+<template id="projTmpl">
+  <div class="proj-block" id="proj-__IDX__">
+    <div class="proj-header">
+      <span style="font-weight:700;font-size:14px">Project __NUM__</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge" id="pStatus-__IDX__" style="background:#e5e7eb;color:#374151">Not Tested</span>
+        <button class="btn btn-secondary" style="padding:5px 12px;font-size:12px" onclick="saveProject(__IDX__)">💾 Save</button>
+        <button class="btn btn-danger" style="padding:5px 12px;font-size:12px" onclick="removeProj(__IDX__)">✕ Remove</button>
+      </div>
+    </div>
+    <input type="hidden" id="pId-__IDX__" value="">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Project Name <span class="required">*</span></label>
+        <input type="text" id="pName-__IDX__" placeholder="e.g. CQE_CARDS_NFT">
+      </div>
+      <div class="form-group">
+        <label>Track <span class="required">*</span></label>
+        <select id="pTrack-__IDX__"></select>
+      </div>
+      <div class="form-group">
+        <label>Test Plan Name</label>
+        <input type="text" id="pPlan-__IDX__" placeholder="e.g. NFT_Peak_Load_CDV3">
+      </div>
+      <div class="form-group">
+        <label>Display Name</label>
+        <input type="text" id="pDisplay-__IDX__" placeholder="e.g. Cards NFT — CDV3">
+      </div>
+    </div>
+    <div id="pSaveResult-__IDX__" style="display:none;margin-bottom:8px"></div>
+    <button class="btn btn-success" style="padding:8px 16px;font-size:13px"
+      onclick="testProject(__IDX__)">🔍 Test — Show Latest Run</button>
+    <div id="pResult-__IDX__" style="display:none;margin-top:10px"></div>
+  </div>
+</template>
+
+<script>
+const API    = 'http://localhost:8000/api/v1';
+const NFT_API= API+'/nft';
+const PC_API = API+'/monitoring/pc';
+const AUTH_API=API+'/auth';
+const sess   = JSON.parse(sessionStorage.getItem('userSession')||'{}');
+const tok    = sess.session_token||'';
+
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function apiFetch(url,opts={}){
+  const r=await fetch(url,{headers:hdr(),...opts});
+  const d=await r.json().catch(()=>({detail:'Invalid response'}));
+  if(!r.ok) throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+  return d;
+}
+const el   = id=>document.getElementById(id);
+const show = (id,v='block')=>{ if(el(id)) el(id).style.display=v; };
+const hide = id=>{ if(el(id)) el(id).style.display='none'; };
+function alertHtml(t,m){
+  const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};
+  return `<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;
+}
+
+let currentLob='', lobTracks=[], projCount=0;
+
+async function init(){
+  try{
+    const d=await apiFetch(AUTH_API+'/lob-config/public');
+    const sel=el('lobSelect');
+    (d.lobs||[]).forEach(l=>{
+      const o=document.createElement('option');
+      o.value=l.name; o.textContent=l.name; o.dataset.tracks=l.tracks.join(',');
+      sel.appendChild(o);
+    });
+  }catch(e){ console.error('LOB load',e); }
+}
+
+async function onLobChange(){
+  currentLob=el('lobSelect').value;
+  if(!currentLob){ hide('mainContent'); show('noLobMsg'); return; }
+  hide('noLobMsg'); show('mainContent');
+  const opt=el('lobSelect').querySelector(`option[value="${currentLob}"]`);
+  lobTracks=(opt?.dataset.tracks||'').split(',').filter(Boolean);
+  await loadPcConfig();
+  await loadProjects();
+}
+
+async function loadPcConfig(){
+  try{
+    const d=await apiFetch(`${NFT_API}/config/pc/${encodeURIComponent(currentLob)}`);
+    const c=d.config;
+    if(!c) return;
+    el('pcUrl').value     = c.pc_url||c.base_url||'';
+    el('pcPort').value    = c.pc_port||c.port||443;
+    el('pcUser').value    = c.username||'';
+    el('pcPassEnv').value = c.pass_env_var||c.password_env_var||'';
+    el('pcDomain').value  = c.pc_domain||c.domain||'DEFAULT';
+    el('pcTimeout').value = c.timeout_seconds||300;
+  }catch(e){ /* no config yet */ }
+}
+
+async function testPcConn(){
+  const url=el('pcUrl').value.trim(), port=el('pcPort').value, user=el('pcUser').value.trim();
+  const passEnv=el('pcPassEnv').value.trim(), domain=el('pcDomain').value.trim();
+  if(!url||!user||!passEnv){ showConnResult('warning','⚠ URL, Username and Password Env Variable are required.'); return; }
+  showConnResult('info','⏳ Authenticating to Performance Center...');
+  try{
+    const d=await apiFetch(`${PC_API}/test-connection`,{
+      method:'POST',
+      body:JSON.stringify({
+        pc_url:url, pc_port:parseInt(port),
+        username:user, pass_env_var:passEnv,
+        pc_domain:domain, lob_name:currentLob,
+      })
+    });
+    if(d.success||d.status==='ok'){
+      showConnResult('success',`✓ Connected to PC ${d.pc_version||''}. Cookie session established. ${d.accessible_projects||0} project(s) accessible.`);
+    } else {
+      showConnResult('danger','✗ Connection failed: '+(d.message||'Check credentials'));
+    }
+  }catch(e){ showConnResult('danger','✗ '+e.message); }
+}
+
+async function savePcConn(){
+  const url=el('pcUrl').value.trim(), user=el('pcUser').value.trim();
+  const passEnv=el('pcPassEnv').value.trim();
+  if(!url||!user||!passEnv){ showConnResult('warning','⚠ URL, Username and Password Env Variable are required.'); return; }
+  showConnResult('info','⏳ Saving...');
+  try{
+    await apiFetch(`${NFT_API}/config/pc`,{
+      method:'POST',
+      body:JSON.stringify({
+        lob_name:     currentLob,
+        pc_url:       url,
+        pc_port:      parseInt(el('pcPort').value)||443,
+        username:     user,
+        pass_env_var: passEnv,
+        pc_domain:    el('pcDomain').value.trim()||'DEFAULT',
+        timeout_seconds: parseInt(el('pcTimeout').value)||300,
+      })
+    });
+    showConnResult('success','✓ PC connection settings saved.');
+  }catch(e){ showConnResult('danger','✗ '+e.message); }
+}
+
+function showConnResult(t,m){ el('pcConnResult').innerHTML=alertHtml(t,m); show('pcConnResult'); }
+
+async function loadProjects(){
+  show('projLoading'); el('projList').innerHTML=''; projCount=0;
+  try{
+    const d=await apiFetch(`${NFT_API}/config/pc/projects?lob_name=${encodeURIComponent(currentLob)}`);
+    const projects=d.projects||[];
+    hide('projLoading');
+    if(!projects.length){
+      el('projList').innerHTML='<div style="text-align:center;padding:20px;color:#9ca3af">No projects configured. Click "Add Project" to add one.</div>';
+      return;
+    }
+    projects.forEach(p=>addProject(p));
+  }catch(e){
+    hide('projLoading');
+    el('projList').innerHTML=`<div style="color:#991b1b;font-size:13px">Failed to load projects: ${e.message}</div>`;
+  }
+}
+
+function addProject(p){
+  const idx=projCount++;
+  const tmpl=el('projTmpl').innerHTML.replace(/__IDX__/g,idx).replace(/__NUM__/g,idx+1);
+  const wrap=document.createElement('div'); wrap.innerHTML=tmpl;
+  const projListEl=el('projList');
+  if(projListEl.innerHTML.includes('No projects')) projListEl.innerHTML='';
+  projListEl.appendChild(wrap.firstElementChild);
+
+  // Populate track dropdown
+  const ts=el('pTrack-'+idx);
+  ts.innerHTML='<option value="">-- Select Track --</option>';
+  lobTracks.forEach(t=>{ const o=document.createElement('option');o.value=t;o.textContent=t;ts.appendChild(o); });
+
+  // Pre-fill if existing project data passed
+  if(p && typeof p==='object'){
+    el('pId-'+idx).value      = p.config_id||p.id||'';
+    el('pName-'+idx).value    = p.project_name||p.pc_project||'';
+    el('pTrack-'+idx).value   = p.track||'';
+    el('pPlan-'+idx).value    = p.test_plan_name||p.test_set_name||'';
+    el('pDisplay-'+idx).value = p.display_name||'';
+    const badge=el('pStatus-'+idx);
+    badge.style.background='#d1fae5'; badge.style.color='#065f46'; badge.textContent='Saved';
+  }
+}
+
+function removeProj(idx){
+  const projectId=el('pId-'+idx)?.value;
+  if(!confirm('Remove this project?')) return;
+  if(projectId){
+    apiFetch(`${NFT_API}/config/pc/projects/${projectId}`,{method:'DELETE'})
+      .catch(e=>console.error('Delete error',e));
+  }
+  el('proj-'+idx)?.remove();
+}
+
+async function saveProject(idx){
+  const name   = el('pName-'+idx).value.trim();
+  const track  = el('pTrack-'+idx).value;
+  const plan   = el('pPlan-'+idx).value.trim();
+  const display= el('pDisplay-'+idx).value.trim();
+  if(!name||!track){ alert('⚠ Project Name and Track are required.'); return; }
+
+  const badge=el('pStatus-'+idx);
+  badge.style.background='#dbeafe'; badge.style.color='#1d4ed8'; badge.textContent='Saving...';
+  hide('pSaveResult-'+idx);
+
+  try{
+    const result=await apiFetch(`${NFT_API}/config/pc/projects`,{
+      method:'POST',
+      body:JSON.stringify({
+        lob_name:       currentLob,
+        track:          track,
+        project_name:   name,
+        test_plan_name: plan,
+        display_name:   display||name,
+        is_active:      'Y',
+      })
+    });
+    if(result.config_id||result.id){
+      el('pId-'+idx).value=result.config_id||result.id;
+    }
+    badge.style.background='#d1fae5'; badge.style.color='#065f46'; badge.textContent='Saved ✓';
+    el('pSaveResult-'+idx).innerHTML=alertHtml('success',`"${name}" saved.`);
+    show('pSaveResult-'+idx);
+  }catch(e){
+    badge.style.background='#fee2e2'; badge.style.color='#991b1b'; badge.textContent='Error';
+    el('pSaveResult-'+idx).innerHTML=alertHtml('danger',e.message);
+    show('pSaveResult-'+idx);
+  }
+}
+
+async function testProject(idx){
+  const name  = el('pName-'+idx).value.trim();
+  const track = el('pTrack-'+idx).value;
+  if(!name||!track){ alert('⚠ Save the project first.'); return; }
+
+  const resultEl=el('pResult-'+idx); show('pResult-'+idx);
+  resultEl.innerHTML=`<div style="color:#6b7280;font-size:13px"><span class="spinner"></span> Connecting to PC and fetching latest run for "${name}"...</div>`;
+  const badge=el('pStatus-'+idx);
+
+  try{
+    const d=await apiFetch(`${PC_API}/health/${encodeURIComponent(currentLob)}?track=${encodeURIComponent(track)}&project=${encodeURIComponent(name)}`);
+    const tests=d.tests||[];
+    const latest=tests[0];
+
+    if(!latest){
+      badge.style.background='#fef3c7'; badge.style.color='#92400e'; badge.textContent='No Runs';
+      resultEl.innerHTML=alertHtml('warning','No test runs found for this project.');
+      return;
+    }
+
+    badge.style.background='#d1fae5'; badge.style.color='#065f46'; badge.textContent='✓ Connected';
+    const statusColor = latest.test_status==='completed'?'#065f46':latest.test_status==='failed'?'#991b1b':'#1d4ed8';
+    resultEl.innerHTML=`
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px">
+        <div style="font-weight:700;margin-bottom:10px;color:#065f46">✓ Connected — Latest Run</div>
+        <div class="run-kpi-grid">
+          <div class="run-kpi"><div class="run-kpi-val" style="color:#1d4ed8">${latest.pc_run_id||latest.run_id||'—'}</div><div class="run-kpi-label">PC Run ID</div></div>
+          <div class="run-kpi"><div class="run-kpi-val" style="color:${statusColor};font-size:14px;text-transform:uppercase">${latest.test_status||'—'}</div><div class="run-kpi-label">Status</div></div>
+          <div class="run-kpi"><div class="run-kpi-val" style="color:#374151;font-size:14px">${latest.test_name||'—'}</div><div class="run-kpi-label">Test Name</div></div>
+          <div class="run-kpi"><div class="run-kpi-val" style="color:#374151">${latest.created_date?new Date(latest.created_date).toLocaleDateString():'—'}</div><div class="run-kpi-label">Run Date</div></div>
+        </div>
+      </div>`;
+  }catch(e){
+    badge.style.background='#fee2e2'; badge.style.color='#991b1b'; badge.textContent='Failed';
+    resultEl.innerHTML=alertHtml('danger','Connection failed: '+e.message);
+  }
+}
+
+function logout(){ sessionStorage.clear(); window.location.href='../landing.html'; }
+init();
+</script>
+</body>
+</html>
