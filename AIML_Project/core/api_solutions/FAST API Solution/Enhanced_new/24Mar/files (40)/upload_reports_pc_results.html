@@ -1,0 +1,335 @@
+<!-- =============================================================
+     ADD TO upload-reports.html
+     
+     STEP 1: Add this CSS inside your <style> block
+     STEP 2: Add this HTML after your existing results table div
+     STEP 3: Replace showResults() and add loadPcResults() in <script>
+     ============================================================= -->
+
+
+<!-- ═══════════ STEP 1: CSS — add inside <style> ═══════════ -->
+<style>
+/* PC Results Summary Panel */
+.pc-results-panel {
+  background: #fff;
+  border-radius: 12px;
+  border: 1.5px solid #e5e7eb;
+  margin-top: 20px;
+  overflow: hidden;
+}
+.pc-results-header {
+  background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+  color: #fff;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.pc-results-header h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+.pc-results-meta {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.pc-meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.pc-meta-label {
+  font-size: 10px;
+  opacity: .75;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.pc-meta-value {
+  font-size: 14px;
+  font-weight: 700;
+}
+.pc-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1px;
+  background: #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+.pc-stat {
+  background: #f9fafb;
+  padding: 12px 16px;
+  text-align: center;
+}
+.pc-stat-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1f2937;
+}
+.pc-stat-lbl {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+.pc-stat.green .pc-stat-val { color: #10b981; }
+.pc-stat.red   .pc-stat-val { color: #ef4444; }
+.pc-stat.amber .pc-stat-val { color: #f59e0b; }
+.pc-stat.blue  .pc-stat-val { color: #2563eb; }
+
+/* Transaction table */
+.pc-tx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.pc-tx-table thead th {
+  padding: 9px 12px;
+  background: #f3f4f6;
+  font-size: 10px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  border-bottom: 2px solid #e5e7eb;
+  text-align: left;
+}
+.pc-tx-table thead th.right,
+.pc-tx-table tbody td.right { text-align: right; }
+.pc-tx-table tbody td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+}
+.pc-tx-table tbody tr:last-child td { border-bottom: none; }
+.pc-tx-table tbody tr:hover td { background: #f9fafb; }
+.pc-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.pc-badge.pass { background: #d1fae5; color: #065f46; }
+.pc-badge.fail { background: #fee2e2; color: #991b1b; }
+.pc-badge.warn { background: #fef3c7; color: #92400e; }
+.pc-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s;
+  text-decoration: none;
+}
+.pc-view-btn:hover { background: #1d4ed8; }
+</style>
+
+
+<!-- ═══════════ STEP 2: HTML — add after your uploadResults div ═══════════ -->
+<!-- Place this right after:  <div id="uploadResults" ...>  block -->
+
+<div id="pcResultsPanel" style="display:none" class="pc-results-panel">
+
+  <!-- Header -->
+  <div class="pc-results-header">
+    <h4>⚡ PC Results — <span id="prRunId"></span></h4>
+    <div class="pc-results-meta">
+      <div class="pc-meta-item">
+        <span class="pc-meta-label">Status</span>
+        <span class="pc-meta-value" id="prStatus">—</span>
+      </div>
+      <div class="pc-meta-item">
+        <span class="pc-meta-label">Collation</span>
+        <span class="pc-meta-value" id="prCollation">—</span>
+      </div>
+      <div class="pc-meta-item">
+        <span class="pc-meta-label">Project</span>
+        <span class="pc-meta-value" id="prProject">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="pc-stat-row">
+    <div class="pc-stat blue">
+      <div class="pc-stat-val" id="prTotal">—</div>
+      <div class="pc-stat-lbl">Transactions</div>
+    </div>
+    <div class="pc-stat green">
+      <div class="pc-stat-val" id="prPassed">—</div>
+      <div class="pc-stat-lbl">Passed</div>
+    </div>
+    <div class="pc-stat red">
+      <div class="pc-stat-val" id="prFailed">—</div>
+      <div class="pc-stat-lbl">Failed</div>
+    </div>
+    <div class="pc-stat amber">
+      <div class="pc-stat-val" id="prAvgRt">—</div>
+      <div class="pc-stat-lbl">Avg RT (s)</div>
+    </div>
+    <div class="pc-stat amber">
+      <div class="pc-stat-val" id="prMaxP95">—</div>
+      <div class="pc-stat-lbl">Max P95 (s)</div>
+    </div>
+  </div>
+
+  <!-- Transaction table -->
+  <div style="overflow-x:auto; padding: 0 0 4px">
+    <table class="pc-tx-table">
+      <thead>
+        <tr>
+          <th>Transaction</th>
+          <th class="right">Pass</th>
+          <th class="right">Fail</th>
+          <th class="right">Pass %</th>
+          <th class="right">Min (s)</th>
+          <th class="right">Avg (s)</th>
+          <th class="right">P90 (s)</th>
+          <th class="right">P95 (s)</th>
+          <th class="right">Max (s)</th>
+          <th class="right">TPS</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="prTxBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Footer action -->
+  <div style="padding:14px 16px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:10px">
+    <a id="prViewReportBtn" href="#" class="pc-view-btn">
+      📋 View Full Report
+    </a>
+  </div>
+</div>
+
+
+<!-- ═══════════ STEP 3: JS — add/replace in <script> ═══════════ -->
+<script>
+// ── Replace your showResults() to also trigger loadPcResults() ──────────────
+// Find your existing showResults() and ADD this at the end of the success path:
+//
+//   if (type === 'success' && runId) {
+//     loadPcResults(runId, pcRunId);
+//   }
+//
+// Where runId = the run_id returned from the fetch, e.g. d.run_id
+// and pcRunId = el('pcRunField').value.trim()
+//
+// In practice, update your fetchFromPC() success block to call:
+//   loadPcResults(d.run_id || runId, pcRunId);
+// after showResults(...).
+
+
+// ── Add this new function ────────────────────────────────────────────────────
+async function loadPcResults(runId, pcRunId) {
+  if (!runId) return;
+
+  const panel  = document.getElementById('pcResultsPanel');
+  const tok    = localStorage.getItem('session_token');
+
+  // Show panel with loading state
+  panel.style.display = 'block';
+  document.getElementById('prRunId').textContent     = pcRunId || runId;
+  document.getElementById('prStatus').textContent    = '⏳';
+  document.getElementById('prCollation').textContent = '⏳';
+  document.getElementById('prTxBody').innerHTML      =
+    '<tr><td colspan="11" style="text-align:center;padding:20px;color:#9ca3af">Loading transactions…</td></tr>';
+
+  try {
+    const resp = await fetch(
+      `${API_BASE}/monitoring/pc/results/${encodeURIComponent(runId)}`,
+      { headers: { 'Authorization': 'Bearer ' + tok } }
+    );
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    document.getElementById('prRunId').textContent     = data.pc_run_id || pcRunId;
+    document.getElementById('prStatus').textContent    = data.status          || '—';
+    document.getElementById('prCollation').textContent = data.collation_status || '—';
+    document.getElementById('prProject').textContent   = data.project          || '—';
+
+    // ── Stat cards ───────────────────────────────────────────────────────────
+    document.getElementById('prTotal').textContent   = data.total_transactions;
+    document.getElementById('prPassed').textContent  = data.passed_transactions;
+    document.getElementById('prFailed').textContent  = data.failed_transactions;
+    document.getElementById('prAvgRt').textContent   = (data.average_response_time || 0).toFixed(3);
+    document.getElementById('prMaxP95').textContent  = (data.max_p95 || 0).toFixed(3);
+
+    // Colour failed stat card
+    const failCard = document.getElementById('prFailed').closest('.pc-stat');
+    if (data.failed_transactions > 0) failCard.classList.add('red');
+
+    // ── Transaction rows ─────────────────────────────────────────────────────
+    const transactions = data.transactions || [];
+    if (!transactions.length) {
+      document.getElementById('prTxBody').innerHTML =
+        '<tr><td colspan="11" style="text-align:center;padding:20px;color:#9ca3af">No transaction data</td></tr>';
+    } else {
+      document.getElementById('prTxBody').innerHTML = transactions.map(t => {
+        const pct     = t.pass_percentage || 0;
+        const pctColor= pct >= 99 ? '#10b981' : pct >= 95 ? '#f59e0b' : '#ef4444';
+        const failVal = t.fail_count || 0;
+        const status  = failVal === 0 ? 'pass' : pct >= 95 ? 'warn' : 'fail';
+        const label   = failVal === 0 ? 'PASS' : pct >= 95 ? 'WARN' : 'FAIL';
+
+        return `<tr>
+          <td><strong>${t.transaction_name}</strong></td>
+          <td class="right">${(t.pass_count || 0).toLocaleString()}</td>
+          <td class="right" style="color:${failVal > 0 ? '#ef4444' : 'inherit'};font-weight:${failVal > 0 ? 700 : 400}">
+            ${failVal.toLocaleString()}
+          </td>
+          <td class="right" style="color:${pctColor};font-weight:700">${pct.toFixed(1)}%</td>
+          <td class="right">${(t.minimum_time || 0).toFixed(3)}</td>
+          <td class="right">${(t.average_time || 0).toFixed(3)}</td>
+          <td class="right">${(t.percentile_90 || 0).toFixed(3)}</td>
+          <td class="right" style="font-weight:700">${(t.percentile_95 || 0).toFixed(3)}</td>
+          <td class="right">${(t.maximum_time || 0).toFixed(3)}</td>
+          <td class="right">${(t.throughput_tps || 0).toFixed(2)}</td>
+          <td><span class="pc-badge ${status}">${label}</span></td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ── View Full Report button ───────────────────────────────────────────────
+    const reportBtn = document.getElementById('prViewReportBtn');
+    reportBtn.href  = `../analysis/pc_report.html` +
+                      `?run_id=${encodeURIComponent(runId)}` +
+                      `&pc_run_id=${encodeURIComponent(data.pc_run_id || pcRunId)}`;
+
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  } catch (err) {
+    console.error('loadPcResults error:', err);
+    document.getElementById('prStatus').textContent = '✗ Error';
+    document.getElementById('prTxBody').innerHTML   =
+      `<tr><td colspan="11" style="color:#ef4444;padding:14px">${err.message}</td></tr>`;
+  }
+}
+
+
+// ── UPDATE fetchFromPC() success block ───────────────────────────────────────
+// After your existing showResults(...) call, add:
+//
+//   loadPcResults(d.run_id || runId, pcRunId);
+//
+// Full context (the tail of your fetchFromPC try block):
+//
+//   showResults(
+//     [ {t:'PC_TEST_RUNS', n:1}, {t:'LR_TRANSACTION_RESULTS', n:txCount} ],
+//     d.success ? 'success' : 'warning',
+//     d.success ? `✓ PC results fetched...` : `⚠ ...`
+//   );
+//   loadPcResults(d.run_id || runId, pcRunId);   // ← ADD THIS LINE
+//
+</script>
