@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PC Results — CQE NFT</title>
+<style>
+:root {
+  --primary:#2563eb; --primary-dark:#1d4ed8; --primary-light:#eff6ff;
+  --success:#10b981; --warning:#f59e0b; --danger:#ef4444; --info:#6366f1;
+  --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb;
+  --gray-400:#9ca3af; --gray-600:#4b5563; --gray-800:#1f2937;
+  --radius:10px; --shadow:0 2px 8px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:var(--gray-800);min-height:100vh}
+
+.top-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;
+  display:flex;align-items:center;gap:8px;padding:0 20px;height:54px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.nav-brand{color:#fff;font-weight:700;font-size:15px;margin-right:auto}
+.nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:13px;
+  padding:6px 12px;border-radius:6px;transition:all .2s}
+.nav-link:hover{background:rgba(255,255,255,.12);color:#fff}
+.nav-sep{color:rgba(255,255,255,.3);font-size:11px}
+
+.page{padding:72px 24px 40px;max-width:1200px;margin:0 auto}
+
+/* RUN BANNER */
+.run-banner{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;flex-wrap:wrap;gap:20px}
+.run-banner-main{font-size:15px;font-weight:700;color:var(--gray-800)}
+.run-meta{display:flex;gap:20px;flex-wrap:wrap;margin-left:auto}
+.run-meta-item{display:flex;flex-direction:column;align-items:flex-end}
+.run-meta-label{font-size:10px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px}
+.run-meta-value{font-size:13px;font-weight:600;color:var(--gray-800)}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px 16px;border-left:4px solid transparent;cursor:default}
+.stat-card.blue{border-color:var(--primary)}
+.stat-card.green{border-color:var(--success)}
+.stat-card.amber{border-color:var(--warning)}
+.stat-card.red{border-color:var(--danger)}
+.stat-card.purple{border-color:var(--info)}
+.stat-value{font-size:22px;font-weight:700;color:var(--gray-800)}
+.stat-label{font-size:11px;color:var(--gray-400);margin-top:2px}
+.stat-sub{font-size:11px;color:var(--gray-600);margin-top:4px}
+
+/* TABS */
+.tab-bar{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  margin-bottom:20px;display:flex;overflow:hidden;padding:6px 8px;gap:4px}
+.tab-btn{flex:1;padding:10px 8px;border:none;background:transparent;border-radius:7px;
+  font-size:13px;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .2s;text-align:center}
+.tab-btn.active{background:var(--primary);color:#fff}
+.tab-btn:hover:not(.active){background:var(--gray-100)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+
+/* CARDS */
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--gray-100);
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.card-title{font-size:14px;font-weight:700;color:var(--gray-800)}
+.card-body{padding:18px}
+
+/* BADGE */
+.badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-success{background:#d1fae5;color:#065f46}
+.badge-warning{background:#fef3c7;color:#92400e}
+.badge-danger{background:#fee2e2;color:#991b1b}
+.badge-info{background:#dbeafe;color:#1e40af}
+.badge-gray{background:var(--gray-100);color:var(--gray-600)}
+
+/* TABLES */
+table{width:100%;border-collapse:collapse}
+thead{background:var(--gray-50)}
+th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;
+  color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--gray-200)}
+th.right,td.right{text-align:right}
+td{padding:11px 12px;font-size:13px;border-bottom:1px solid var(--gray-100);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--gray-50)}
+tr.sla-breach td{background:#fff5f5}
+tr.sla-ok td{}
+
+/* SLA indicator */
+.sla-pass{color:var(--success);font-weight:700}
+.sla-fail{color:var(--danger);font-weight:700}
+
+/* PROGRESS BAR */
+.perf-bar-wrap{display:flex;align-items:center;gap:8px}
+.perf-bar-bg{flex:1;background:var(--gray-100);border-radius:4px;height:7px;overflow:hidden;max-width:120px}
+.perf-bar-fill{height:100%;border-radius:4px;transition:width .5s ease}
+.bar-green{background:var(--success)}
+.bar-amber{background:var(--warning)}
+.bar-red{background:var(--danger)}
+
+/* ALERTS */
+.alert{padding:14px 16px;border-radius:8px;font-size:13px;margin-bottom:16px}
+.alert-danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+.alert-warning{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.alert-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+
+/* KV PAIRS */
+.kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.kv-row{display:flex;border-bottom:1px solid var(--gray-100);padding:10px 0}
+.kv-key{flex:0 0 200px;font-size:12px;color:var(--gray-600);font-weight:600}
+.kv-val{font-size:13px;color:var(--gray-800)}
+
+/* SEARCH */
+.search-box{position:relative;max-width:280px;margin-bottom:14px}
+.search-box input{width:100%;padding:8px 10px 8px 32px;border:1.5px solid var(--gray-200);border-radius:7px;font-size:13px}
+.search-box::before{content:'🔍';position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px}
+
+/* LOADING */
+.loading-state{padding:60px 20px;text-align:center;color:var(--gray-400)}
+.spinner{display:inline-block;width:32px;height:32px;border:3px solid var(--gray-200);
+  border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.no-data{padding:40px;text-align:center;color:var(--gray-400);font-size:13px}
+
+/* ERROR COUNTS */
+.err-chip{display:inline-flex;align-items:center;gap:4px;background:#fee2e2;
+  color:#991b1b;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <span class="nav-brand">⚡ CQE NFT Monitoring</span>
+  <a href="test-selection.html" class="nav-link">← Test Runs</a>
+  <a href="awr-analysis.html" id="awrLink" class="nav-link">📊 AWR Analysis</a>
+  <span class="nav-sep">|</span>
+  <a href="../landing.html" class="nav-link">🏠 Home</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="page">
+
+  <div class="run-banner" id="runBanner">
+    <div>
+      <div class="run-banner-main" id="bannerTitle">Loading…</div>
+      <div style="font-size:12px;color:var(--gray-400);margin-top:3px" id="bannerSub"></div>
+    </div>
+    <div class="run-meta" id="runMeta"></div>
+  </div>
+
+  <div id="errorBanner" style="display:none"></div>
+  <div id="slaBanner" style="display:none"></div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card blue"><div class="stat-value" id="statTransactions">—</div><div class="stat-label">Transactions</div></div>
+    <div class="stat-card green"><div class="stat-value" id="statPassRate">—</div><div class="stat-label">Pass Rate</div><div class="stat-sub" id="statPassSub"></div></div>
+    <div class="stat-card amber"><div class="stat-value" id="statAvgRT">—</div><div class="stat-label">Avg Response (s)</div></div>
+    <div class="stat-card red"><div class="stat-value" id="statSlaBreach">—</div><div class="stat-label">SLA Breaches</div></div>
+    <div class="stat-card purple"><div class="stat-value" id="statDuration">—</div><div class="stat-label">Duration (min)</div></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('summary')">📋 Summary</button>
+    <button class="tab-btn" onclick="switchTab('transactions')">📊 Transactions</button>
+    <button class="tab-btn" onclick="switchTab('sla')">🎯 SLA</button>
+    <button class="tab-btn" onclick="switchTab('errors')">⚠ Errors</button>
+  </div>
+
+  <!-- ── TAB: SUMMARY ─────────────────────────────────────────── -->
+  <div class="tab-pane active" id="tab-summary">
+    <div id="summaryContent">
+      <div class="loading-state"><div class="spinner"></div><p style="margin-top:12px">Loading summary…</p></div>
+    </div>
+  </div>
+
+  <!-- ── TAB: TRANSACTIONS ─────────────────────────────────────── -->
+  <div class="tab-pane" id="tab-transactions">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📊 Transaction Results</span>
+      </div>
+      <div class="card-body">
+        <div class="search-box">
+          <input type="text" id="txSearch" placeholder="Search transaction name…" oninput="filterTx()">
+        </div>
+        <div id="txContent">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: SLA ───────────────────────────────────────────────── -->
+  <div class="tab-pane" id="tab-sla">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🎯 SLA Compliance</span>
+        <span id="slaOverallBadge"></span>
+      </div>
+      <div class="card-body">
+        <div id="slaContent">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: ERRORS ───────────────────────────────────────────── -->
+  <div class="tab-pane" id="tab-errors">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">⚠ Error Summary</span>
+      </div>
+      <div class="card-body">
+        <div id="errContent">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE  = 'http://localhost:8000/api/v1';
+const el = id => document.getElementById(id);
+const Auth = { getToken: () => localStorage.getItem('session_token') };
+function logout() { localStorage.removeItem('session_token'); window.location.href = '../landing.html'; }
+
+const params    = new URLSearchParams(location.search);
+const RUN_ID    = params.get('run_id')    || '';
+const PC_RUN_ID = params.get('pc_run_id') || '';
+
+let pcData  = null;
+let allTx   = [];
+
+async function apiFetch(url) {
+  const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + Auth.getToken() } });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`); }
+  return r.json();
+}
+function showError(msg) {
+  el('errorBanner').innerHTML = `<div class="alert alert-danger">⚠ ${msg}</div>`;
+  el('errorBanner').style.display = 'block';
+}
+
+function switchTab(name) {
+  ['summary','transactions','sla','errors'].forEach((t,i) => {
+    document.querySelectorAll('.tab-btn')[i].classList.toggle('active', t === name);
+    el('tab-' + t).classList.toggle('active', t === name);
+  });
+}
+
+async function init() {
+  if (!RUN_ID) {
+    showError('No run_id in URL. Go back to <a href="test-selection.html">Test Selection</a>.');
+    return;
+  }
+  el('awrLink').href = `awr-analysis.html?run_id=${encodeURIComponent(RUN_ID)}&pc_run_id=${encodeURIComponent(PC_RUN_ID)}`;
+  el('bannerTitle').textContent = 'Loading…';
+  el('bannerSub').textContent   = `Run ID: ${RUN_ID}`;
+
+  try {
+    // GET /api/v1/monitoring/pc/results/{run_id}
+    pcData = await apiFetch(`${API_BASE}/monitoring/pc/results/${encodeURIComponent(RUN_ID)}`);
+    renderAll();
+  } catch (err) {
+    console.error('PC results load error:', err);
+    showError('Failed to load PC results: ' + err.message +
+      '. Make sure PC results have been fetched for this run.');
+    el('summaryContent').innerHTML = '<div class="no-data">No PC results available for this run.</div>';
+  }
+}
+
+function renderAll() {
+  renderBanner();
+  renderStats();
+  renderSummary();
+  renderTransactions();
+  renderSla();
+  renderErrors();
+}
+
+// ── Banner ────────────────────────────────────────────────────────────────────
+function renderBanner() {
+  const r = pcData;
+  const name = r.test_name || r.run_name || `PC Run ${PC_RUN_ID}`;
+  el('bannerTitle').textContent = `PC Results — ${name}`;
+  el('bannerSub').textContent   = `Run ID: ${RUN_ID} | PC Run ID: ${PC_RUN_ID}`;
+  el('runMeta').innerHTML = `
+    <div class="run-meta-item"><span class="run-meta-label">PC Run ID</span><span class="run-meta-value">${PC_RUN_ID}</span></div>
+    <div class="run-meta-item"><span class="run-meta-label">LOB</span><span class="run-meta-value">${r.lob_name||'—'}</span></div>
+    <div class="run-meta-item"><span class="run-meta-label">Track</span><span class="run-meta-value">${r.track||'—'}</span></div>
+    <div class="run-meta-item"><span class="run-meta-label">Status</span>
+      <span class="badge ${statusBadge(r.status)}">${r.status||'—'}</span>
+    </div>`;
+}
+
+function statusBadge(s) {
+  s = (s||'').toUpperCase();
+  return s === 'FINISHED' || s === 'PASSED' || s === 'COMPLETED' ? 'badge-success'
+    : s === 'FAILED' ? 'badge-danger'
+    : s === 'RUNNING' ? 'badge-info' : 'badge-gray';
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function renderStats() {
+  const r   = pcData;
+  const txs = r.transactions || r.transaction_results || r.transaction_details || [];
+  allTx = txs;
+  const passed = txs.filter(t => (t.status||t.result||'').toUpperCase() === 'PASSED').length;
+  const total  = txs.length;
+  const breaches = txs.filter(t => t.sla_breach || t.sla_breached || t.sla_status === 'BREACH').length;
+  const avgRT  = txs.length ? (txs.reduce((s,t) => s + parseFloat(t.avg_response_time || t.response_time_avg || 0), 0) / txs.length).toFixed(2) : '—';
+
+  el('statTransactions').textContent = total;
+  el('statPassRate').textContent      = total ? `${Math.round(passed/total*100)}%` : '—';
+  el('statPassSub').textContent       = total ? `${passed}/${total} passed` : '';
+  el('statAvgRT').textContent         = avgRT;
+  el('statSlaBreach').textContent     = breaches;
+  el('statDuration').textContent      = r.duration_minutes || r.run_duration || '—';
+
+  if (breaches > 0) {
+    el('slaBanner').innerHTML = `<div class="alert alert-warning">⚠ ${breaches} transaction(s) breached SLA thresholds. Review the SLA tab for details.</div>`;
+    el('slaBanner').style.display = 'block';
+  }
+}
+
+// ── SUMMARY ───────────────────────────────────────────────────────────────────
+function renderSummary() {
+  const r = pcData;
+  const kv = (k, v) => `<div class="kv-row"><span class="kv-key">${k}</span><span class="kv-val">${v ?? '—'}</span></div>`;
+  el('summaryContent').innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header"><span class="card-title">🔬 Test Run Details</span></div>
+      <div class="card-body">
+        ${kv('PC Run ID', PC_RUN_ID)}
+        ${kv('Master Run ID', `<code style="font-size:11px">${RUN_ID}</code>`)}
+        ${kv('Test Name', r.test_name || r.run_name)}
+        ${kv('LOB', r.lob_name)}
+        ${kv('Track', r.track)}
+        ${kv('Status', `<span class="badge ${statusBadge(r.status)}">${r.status||'—'}</span>`)}
+        ${kv('Duration (min)', r.duration_minutes || r.run_duration)}
+        ${kv('Start Time', r.start_time || r.run_start)}
+        ${kv('End Time', r.end_time || r.run_end)}
+        ${kv('VU Count', r.vuser_count || r.virtual_users)}
+        ${kv('Project', r.pc_project || r.project_name)}
+        ${kv('Post Run Action', r.post_run_action)}
+        ${kv('Collate Status', r.collate_status)}
+      </div>
+    </div>
+    ${r.sla_summary ? `
+    <div class="card">
+      <div class="card-header"><span class="card-title">🎯 SLA Overview</span></div>
+      <div class="card-body">
+        ${kv('SLA Status', `<span class="badge ${r.sla_summary.overall_status==='PASSED'?'badge-success':'badge-danger'}">${r.sla_summary.overall_status||'—'}</span>`)}
+        ${kv('SLAs Defined', r.sla_summary.total_slas)}
+        ${kv('SLAs Passed', r.sla_summary.passed_slas)}
+        ${kv('SLAs Failed', r.sla_summary.failed_slas)}
+      </div>
+    </div>` : ''}`;
+}
+
+// ── TRANSACTIONS ──────────────────────────────────────────────────────────────
+function filterTx() {
+  const q = (el('txSearch')?.value || '').toLowerCase();
+  const tx = q ? allTx.filter(t => (t.transaction_name||t.name||'').toLowerCase().includes(q)) : allTx;
+  renderTxTable(tx);
+}
+function renderTransactions() { renderTxTable(allTx); }
+function renderTxTable(tx) {
+  if (!tx.length) {
+    el('txContent').innerHTML = '<div class="no-data">No transaction data available for this run.</div>';
+    return;
+  }
+  const maxRT = Math.max(...tx.map(t => parseFloat(t.avg_response_time || t.response_time_avg || 0) || 0), 1);
+  el('txContent').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Transaction</th>
+          <th class="right">Passed</th>
+          <th class="right">Failed</th>
+          <th class="right">Avg RT (s)</th>
+          <th class="right">90th % (s)</th>
+          <th class="right">Max RT (s)</th>
+          <th>Status</th>
+          <th>Distribution</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tx.map(t => {
+          const name   = t.transaction_name || t.name || '—';
+          const passed = t.passed || t.pass_count || 0;
+          const failed = t.failed || t.fail_count || 0;
+          const avgRT  = parseFloat(t.avg_response_time || t.response_time_avg || 0);
+          const p90    = parseFloat(t.pct_90 || t.response_time_90th || t.percentile_90 || 0);
+          const maxRT  = parseFloat(t.max_response_time || t.response_time_max || 0);
+          const pct    = Math.min(100, (avgRT / maxRT) * 100);
+          const barCls = avgRT < 1 ? 'bar-green' : avgRT < 3 ? 'bar-amber' : 'bar-red';
+          const status = t.status || t.result || (failed > 0 ? 'FAILED' : 'PASSED');
+          const slaFail= t.sla_breach || t.sla_breached;
+          return `<tr class="${slaFail?'sla-breach':''}">
+            <td>${name}</td>
+            <td class="right">${Number(passed).toLocaleString()}</td>
+            <td class="right">${Number(failed).toLocaleString()}</td>
+            <td class="right">${avgRT.toFixed(3)}</td>
+            <td class="right">${p90.toFixed(3)}</td>
+            <td class="right">${maxRT.toFixed(3)}</td>
+            <td>
+              <span class="badge ${status.toUpperCase()==='PASSED'?'badge-success':'badge-danger'}">${status}</span>
+              ${slaFail ? '<span class="badge badge-warning" style="margin-left:4px">SLA ✗</span>' : ''}
+            </td>
+            <td>
+              <div class="perf-bar-wrap">
+                <div class="perf-bar-bg"><div class="perf-bar-fill ${barCls}" style="width:${pct}%"></div></div>
+                <span style="font-size:11px;color:var(--gray-400)">${avgRT.toFixed(2)}s</span>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── SLA ────────────────────────────────────────────────────────────────────────
+function renderSla() {
+  const slas = pcData.sla_results || pcData.sla || [];
+  if (!slas.length) {
+    // Fall back: derive SLA view from transactions that have SLA fields
+    const txSla = allTx.filter(t => t.sla_threshold || t.response_time_sla || t.sla_value);
+    if (!txSla.length) {
+      el('slaContent').innerHTML = '<div class="no-data">No SLA data available for this run.</div>';
+      return;
+    }
+    el('slaContent').innerHTML = renderSlaFromTx(txSla);
+    return;
+  }
+  const breaches = slas.filter(s => (s.status||s.result||'').toUpperCase() !== 'PASSED').length;
+  el('slaOverallBadge').innerHTML = `<span class="badge ${breaches===0?'badge-success':'badge-danger'}">
+    ${breaches===0 ? '✓ All Passed' : `${breaches} Breached`}</span>`;
+  el('slaContent').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Transaction / Metric</th>
+          <th>SLA Type</th>
+          <th class="right">Threshold</th>
+          <th class="right">Actual</th>
+          <th>Result</th>
+          <th>Deviation</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${slas.map(s => {
+          const actual    = parseFloat(s.actual_value    || s.measured_value || 0);
+          const threshold = parseFloat(s.threshold_value || s.sla_value      || 0);
+          const pass      = (s.status || s.result || '').toUpperCase() === 'PASSED';
+          const dev       = threshold ? (((actual - threshold) / threshold) * 100).toFixed(1) : '—';
+          return `<tr class="${pass?'':'sla-breach'}">
+            <td>${s.transaction_name || s.metric_name || s.name || '—'}</td>
+            <td>${s.sla_type || s.type || '—'}</td>
+            <td class="right">${threshold.toFixed(3)}</td>
+            <td class="right"><strong>${actual.toFixed(3)}</strong></td>
+            <td><span class="badge ${pass?'badge-success':'badge-danger'}">${pass?'PASSED':'BREACH'}</span></td>
+            <td class="${pass?'sla-pass':'sla-fail'}">${pass?'—':'+'+dev+'%'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+function renderSlaFromTx(txSla) {
+  return `<table>
+    <thead><tr><th>Transaction</th><th class="right">SLA (s)</th><th class="right">Avg RT (s)</th><th>Result</th></tr></thead>
+    <tbody>
+      ${txSla.map(t => {
+        const thr  = parseFloat(t.sla_threshold || t.response_time_sla || t.sla_value || 0);
+        const act  = parseFloat(t.avg_response_time || t.response_time_avg || 0);
+        const pass = act <= thr;
+        return `<tr class="${pass?'':'sla-breach'}">
+          <td>${t.transaction_name || t.name}</td>
+          <td class="right">${thr.toFixed(3)}</td>
+          <td class="right"><strong>${act.toFixed(3)}</strong></td>
+          <td><span class="badge ${pass?'badge-success':'badge-danger'}">${pass?'PASSED':'BREACH'}</span></td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── ERRORS ─────────────────────────────────────────────────────────────────────
+function renderErrors() {
+  const errors = pcData.errors || pcData.error_details || pcData.error_summary || [];
+  if (!errors.length) {
+    // Try to extract from transactions
+    const txErrors = allTx.filter(t => parseInt(t.failed || t.fail_count || 0) > 0)
+      .map(t => ({ name: t.transaction_name||t.name, count: t.failed||t.fail_count, error: t.error_message||t.last_error||'—' }));
+    if (!txErrors.length) {
+      el('errContent').innerHTML = '<div class="no-data">✓ No errors recorded for this run.</div>';
+      return;
+    }
+    el('errContent').innerHTML = `
+      <div class="alert alert-warning" style="margin-bottom:14px">Errors derived from failed transaction counts — no detailed error log available.</div>
+      <table>
+        <thead><tr><th>Transaction</th><th class="right">Failure Count</th><th>Error Message</th></tr></thead>
+        <tbody>
+          ${txErrors.map(e => `<tr>
+            <td>${e.name}</td>
+            <td class="right"><span class="err-chip">✗ ${e.count}</span></td>
+            <td>${e.error}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    return;
+  }
+  el('errContent').innerHTML = `
+    <table>
+      <thead>
+        <tr><th>Error Code</th><th>Description</th><th>Transaction</th><th class="right">Count</th><th>Severity</th></tr>
+      </thead>
+      <tbody>
+        ${errors.map(e => `<tr>
+          <td><code style="font-size:11px">${e.error_code||e.code||'—'}</code></td>
+          <td>${e.description||e.message||'—'}</td>
+          <td>${e.transaction_name||e.transaction||'—'}</td>
+          <td class="right"><span class="err-chip">✗ ${e.count||e.error_count||0}</span></td>
+          <td><span class="badge ${(e.severity||'').toUpperCase()==='HIGH'?'badge-danger':(e.severity||'').toUpperCase()==='MEDIUM'?'badge-warning':'badge-gray'}">${e.severity||'—'}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

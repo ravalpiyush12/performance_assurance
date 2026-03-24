@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AWR Analysis — CQE NFT</title>
+<style>
+:root {
+  --primary:#2563eb; --primary-dark:#1d4ed8; --primary-light:#eff6ff;
+  --success:#10b981; --warning:#f59e0b; --danger:#ef4444; --info:#6366f1;
+  --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb;
+  --gray-400:#9ca3af; --gray-600:#4b5563; --gray-800:#1f2937;
+  --radius:10px; --shadow:0 2px 8px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:var(--gray-800);min-height:100vh}
+
+/* NAV */
+.top-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;
+  display:flex;align-items:center;gap:8px;padding:0 20px;height:54px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.nav-brand{color:#fff;font-weight:700;font-size:15px;margin-right:auto}
+.nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:13px;
+  padding:6px 12px;border-radius:6px;transition:all .2s}
+.nav-link:hover{background:rgba(255,255,255,.12);color:#fff}
+.nav-sep{color:rgba(255,255,255,.3);font-size:11px}
+
+.page{padding:72px 24px 40px;max-width:1200px;margin:0 auto}
+
+/* RUN INFO BANNER */
+.run-banner{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;flex-wrap:wrap;gap:20px}
+.run-banner-main{font-size:15px;font-weight:700;color:var(--gray-800)}
+.run-meta{display:flex;gap:20px;flex-wrap:wrap;margin-left:auto}
+.run-meta-item{display:flex;flex-direction:column;align-items:flex-end}
+.run-meta-label{font-size:10px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px}
+.run-meta-value{font-size:13px;font-weight:600;color:var(--gray-800)}
+.badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-success{background:#d1fae5;color:#065f46}
+.badge-info{background:#dbeafe;color:#1e40af}
+.badge-warning{background:#fef3c7;color:#92400e}
+.badge-gray{background:var(--gray-100);color:var(--gray-600)}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px 16px;border-left:4px solid transparent}
+.stat-card.blue{border-color:var(--primary)}
+.stat-card.green{border-color:var(--success)}
+.stat-card.amber{border-color:var(--warning)}
+.stat-card.red{border-color:var(--danger)}
+.stat-card.purple{border-color:var(--info)}
+.stat-value{font-size:22px;font-weight:700;color:var(--gray-800)}
+.stat-label{font-size:11px;color:var(--gray-400);margin-top:2px}
+
+/* TABS */
+.tab-bar{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  margin-bottom:20px;display:flex;overflow:hidden;padding:6px 8px;gap:4px}
+.tab-btn{flex:1;padding:10px 8px;border:none;background:transparent;border-radius:7px;
+  font-size:13px;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .2s;text-align:center}
+.tab-btn.active{background:var(--primary);color:#fff}
+.tab-btn:hover:not(.active){background:var(--gray-100)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+
+/* CARDS */
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  overflow:hidden;margin-bottom:18px}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--gray-100);
+  display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:14px;font-weight:700;color:var(--gray-800)}
+.card-body{padding:18px}
+
+/* TABLES */
+table{width:100%;border-collapse:collapse}
+thead{background:var(--gray-50)}
+th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;
+  color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--gray-200)}
+th.right,td.right{text-align:right}
+td{padding:11px 12px;font-size:13px;border-bottom:1px solid var(--gray-100)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--gray-50)}
+
+/* METRIC BARS */
+.metric-row{display:flex;align-items:center;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--gray-100)}
+.metric-row:last-child{border-bottom:none}
+.metric-name{flex:1;font-size:13px;color:var(--gray-800)}
+.metric-val{font-size:13px;font-weight:600;color:var(--gray-800);min-width:80px;text-align:right}
+.metric-bar-wrap{width:160px;background:var(--gray-100);border-radius:4px;height:7px;overflow:hidden}
+.metric-bar{height:100%;border-radius:4px;background:var(--primary);transition:width .5s ease}
+
+/* SQL CARD */
+.sql-block{font-size:11px;font-family:'Consolas','Courier New',monospace;
+  background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;
+  padding:10px;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow-y:auto;
+  color:var(--gray-800);line-height:1.5}
+.expand-btn{background:none;border:none;color:var(--primary);font-size:12px;
+  cursor:pointer;padding:2px 0;font-weight:600}
+
+/* WAIT EVENTS */
+.wait-bar-wrap{width:200px;background:var(--gray-100);border-radius:4px;height:8px;overflow:hidden}
+.wait-bar{height:100%;border-radius:4px}
+.wait-user{background:#2563eb}
+.wait-io{background:#f59e0b}
+.wait-cpu{background:#10b981}
+.wait-other{background:#6366f1}
+.wait-concur{background:#ef4444}
+
+/* ALERTS */
+.alert{padding:14px 16px;border-radius:8px;font-size:13px;margin-bottom:16px}
+.alert-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.alert-danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+.alert-warning{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+
+/* LOADING */
+.loading-state{padding:60px 20px;text-align:center;color:var(--gray-400)}
+.spinner{display:inline-block;width:32px;height:32px;border:3px solid var(--gray-200);
+  border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-icon{font-size:40px;margin-bottom:10px}
+
+/* NO DATA */
+.no-data{padding:40px;text-align:center;color:var(--gray-400);font-size:13px}
+
+/* DB SELECTOR */
+.db-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.db-pill{padding:6px 14px;border:1.5px solid var(--gray-200);border-radius:20px;
+  font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;background:#fff;color:var(--gray-600)}
+.db-pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* SEARCH */
+.search-box{position:relative;max-width:280px;margin-bottom:14px}
+.search-box input{width:100%;padding:8px 10px 8px 32px;border:1.5px solid var(--gray-200);
+  border-radius:7px;font-size:13px}
+.search-box::before{content:'🔍';position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px}
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <span class="nav-brand">⚡ CQE NFT Monitoring</span>
+  <a href="test-selection.html" class="nav-link">← Test Runs</a>
+  <a href="pc-results.html" id="pcLink" class="nav-link">🔬 PC Results</a>
+  <span class="nav-sep">|</span>
+  <a href="../landing.html" class="nav-link">🏠 Home</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="page">
+
+  <!-- RUN BANNER -->
+  <div class="run-banner" id="runBanner">
+    <div>
+      <div class="run-banner-main" id="bannerTitle">Loading…</div>
+      <div style="font-size:12px;color:var(--gray-400);margin-top:3px" id="bannerSub"></div>
+    </div>
+    <div class="run-meta" id="runMeta"></div>
+  </div>
+
+  <div id="errorBanner" style="display:none"></div>
+
+  <!-- SUMMARY STATS -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card blue"><div class="stat-value" id="statDbs">—</div><div class="stat-label">Databases</div></div>
+    <div class="stat-card green"><div class="stat-value" id="statMetrics">—</div><div class="stat-label">Total Metrics</div></div>
+    <div class="stat-card amber"><div class="stat-value" id="statSql">—</div><div class="stat-label">Top SQL Captured</div></div>
+    <div class="stat-card red"><div class="stat-value" id="statWaits">—</div><div class="stat-label">Wait Events</div></div>
+    <div class="stat-card purple"><div class="stat-value" id="statDuration">—</div><div class="stat-label">Snapshot Duration (min)</div></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('summary')">📋 Summary</button>
+    <button class="tab-btn" onclick="switchTab('metrics')">📈 Metrics</button>
+    <button class="tab-btn" onclick="switchTab('topsql')">🗄 Top SQL</button>
+    <button class="tab-btn" onclick="switchTab('waits')">⏱ Wait Events</button>
+  </div>
+
+  <!-- ── TAB: SUMMARY ───────────────────────────────────────────── -->
+  <div class="tab-pane active" id="tab-summary">
+    <div id="summaryContent">
+      <div class="loading-state"><div class="spinner"></div><p style="margin-top:12px">Loading summary…</p></div>
+    </div>
+  </div>
+
+  <!-- ── TAB: METRICS ───────────────────────────────────────────── -->
+  <div class="tab-pane" id="tab-metrics">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📈 Performance Metrics</span>
+        <span style="font-size:12px;color:var(--gray-400)" id="metricsDbLabel"></span>
+      </div>
+      <div class="card-body">
+        <div class="db-selector" id="metricsDbSelector"></div>
+        <div id="metricsContent">
+          <div class="loading-state"><div class="spinner"></div><p style="margin-top:12px">Loading metrics…</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: TOP SQL ───────────────────────────────────────────── -->
+  <div class="tab-pane" id="tab-topsql">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🗄 Top SQL by Elapsed Time</span>
+      </div>
+      <div class="card-body">
+        <div class="db-selector" id="sqlDbSelector"></div>
+        <div class="search-box">
+          <input type="text" id="sqlSearch" placeholder="Search SQL text…" oninput="filterSql()">
+        </div>
+        <div id="sqlContent">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: WAIT EVENTS ──────────────────────────────────────── -->
+  <div class="tab-pane" id="tab-waits">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">⏱ Wait Events</span>
+      </div>
+      <div class="card-body">
+        <div class="db-selector" id="waitsDbSelector"></div>
+        <div id="waitsContent">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+const API_BASE = 'http://localhost:8000/api/v1';
+const el = id => document.getElementById(id);
+
+const Auth = {
+  getToken: () => localStorage.getItem('session_token'),
+};
+function logout() { localStorage.removeItem('session_token'); window.location.href = '../landing.html'; }
+
+// Parse run_id and pc_run_id from URL
+const params   = new URLSearchParams(location.search);
+const RUN_ID   = params.get('run_id')   || '';
+const PC_RUN_ID= params.get('pc_run_id')|| '';
+
+// Store all analysis data keyed by db
+let awrData       = null;   // full API response
+let allAnalyses   = [];     // array of per-db analysis objects
+let activeDb      = null;   // currently selected db name
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+async function apiFetch(url) {
+  const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + Auth.getToken() } });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`); }
+  return r.json();
+}
+function showError(msg) {
+  el('errorBanner').innerHTML = `<div class="alert alert-danger">⚠ ${msg}</div>`;
+  el('errorBanner').style.display = 'block';
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const tabs = ['summary','metrics','topsql','waits'];
+    b.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  el('tab-' + name).classList.add('active');
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function init() {
+  if (!RUN_ID) {
+    showError('No run_id in URL. Go back to <a href="test-selection.html">Test Selection</a>.');
+    return;
+  }
+
+  // Set PC Results link
+  el('pcLink').href = `pc-results.html?run_id=${encodeURIComponent(RUN_ID)}&pc_run_id=${encodeURIComponent(PC_RUN_ID)}`;
+
+  setBanner('Loading…', `Run ID: ${RUN_ID}`);
+
+  try {
+    // GET /api/v1/monitoring/awr/results/{run_id}
+    awrData = await apiFetch(`${API_BASE}/monitoring/awr/results/${encodeURIComponent(RUN_ID)}`);
+    renderAll();
+  } catch (err) {
+    console.error('AWR load error:', err);
+    showError('Failed to load AWR results: ' + err.message +
+      '. Make sure AWR has been uploaded for this run.');
+    el('summaryContent').innerHTML = '<div class="no-data">No AWR data available for this run.</div>';
+  }
+}
+
+// ── Render everything ─────────────────────────────────────────────────────────
+function renderAll() {
+  // The API may return a list of analyses (one per DB) or a single object.
+  // Normalise to array.
+  if (Array.isArray(awrData.analyses))         allAnalyses = awrData.analyses;
+  else if (Array.isArray(awrData.results))     allAnalyses = awrData.results;
+  else if (Array.isArray(awrData.data))        allAnalyses = awrData.data;
+  else if (awrData.analysis_id)                allAnalyses = [awrData];      // single
+  else allAnalyses = [];
+
+  if (allAnalyses.length === 0) {
+    el('summaryContent').innerHTML = '<div class="no-data"><div class="empty-icon">📭</div>No AWR analyses found for this run.</div>';
+    setBanner(`PC Run ${PC_RUN_ID}`, `Run ID: ${RUN_ID}`);
+    return;
+  }
+
+  activeDb = allAnalyses[0].database_name || allAnalyses[0].db_name || 'DB1';
+  renderBanner();
+  renderStats();
+  renderSummary();
+  renderMetrics();
+  renderTopSql();
+  renderWaits();
+  buildDbSelectors();
+}
+
+// ── Banner ────────────────────────────────────────────────────────────────────
+function setBanner(title, sub) {
+  el('bannerTitle').textContent = title;
+  el('bannerSub').textContent   = sub;
+}
+function renderBanner() {
+  const first = allAnalyses[0];
+  setBanner(
+    `AWR Analysis — ${first.test_name || PC_RUN_ID}`,
+    `Run ID: ${RUN_ID} | ${allAnalyses.length} database(s) analysed`
+  );
+  el('runMeta').innerHTML = `
+    <div class="run-meta-item"><span class="run-meta-label">PC Run ID</span><span class="run-meta-value">${PC_RUN_ID}</span></div>
+    <div class="run-meta-item"><span class="run-meta-label">LOB</span><span class="run-meta-value">${first.lob_name || '—'}</span></div>
+    <div class="run-meta-item"><span class="run-meta-label">Track</span><span class="run-meta-value">${first.track || '—'}</span></div>
+    <div class="run-meta-item"><span class="run-meta-label">Databases</span><span class="run-meta-value">${allAnalyses.length}</span></div>`;
+}
+
+// ── Stats row ─────────────────────────────────────────────────────────────────
+function renderStats() {
+  el('statDbs').textContent     = allAnalyses.length;
+  el('statMetrics').textContent = allAnalyses.reduce((s, a) => s + (a.metrics_count || a.total_metrics || (a.metrics||[]).length || 0), 0);
+  el('statSql').textContent     = allAnalyses.reduce((s, a) => s + (a.sql_count || a.top_sql_count || (a.top_sql||[]).length || 0), 0);
+  el('statWaits').textContent   = allAnalyses.reduce((s, a) => s + (a.wait_events_count || (a.wait_events||[]).length || 0), 0);
+  const first = allAnalyses[0];
+  el('statDuration').textContent = first.duration_minutes || first.snapshot_duration || '—';
+}
+
+// ── DB Selectors ──────────────────────────────────────────────────────────────
+function buildDbSelectors() {
+  if (allAnalyses.length <= 1) return; // no selector needed for single DB
+  ['metricsDbSelector','sqlDbSelector','waitsDbSelector'].forEach(id => {
+    el(id).innerHTML = allAnalyses.map(a => {
+      const db = a.database_name || a.db_name || 'DB';
+      return `<button class="db-pill ${db===activeDb?'active':''}" onclick="selectDb('${db}')">${db}</button>`;
+    }).join('');
+  });
+}
+function selectDb(db) {
+  activeDb = db;
+  buildDbSelectors();
+  renderMetrics(); renderTopSql(); renderWaits();
+}
+function getActiveAnalysis() {
+  return allAnalyses.find(a => (a.database_name || a.db_name) === activeDb) || allAnalyses[0];
+}
+
+// ── SUMMARY tab ───────────────────────────────────────────────────────────────
+function renderSummary() {
+  const html = allAnalyses.map(a => {
+    const db = a.database_name || a.db_name || 'Database';
+    const snaps = a.snapshots || {};
+    return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <span class="card-title">🗄 ${db}</span>
+        <span class="badge badge-success">Analysed</span>
+      </div>
+      <div class="card-body">
+        <table>
+          <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Database Name</td><td><strong>${db}</strong></td></tr>
+            <tr><td>Begin Snapshot</td><td>${snaps.begin_snap_id || a.begin_snap_id || '—'}</td></tr>
+            <tr><td>End Snapshot</td><td>${snaps.end_snap_id   || a.end_snap_id   || '—'}</td></tr>
+            <tr><td>Begin Time</td><td>${snaps.begin_time || a.begin_time || '—'}</td></tr>
+            <tr><td>End Time</td><td>${snaps.end_time   || a.end_time   || '—'}</td></tr>
+            <tr><td>Duration (min)</td><td>${a.duration_minutes || a.snapshot_duration || '—'}</td></tr>
+            <tr><td>DB Time (s)</td><td>${a.db_time_seconds ?? '—'}</td></tr>
+            <tr><td>CPU Time (s)</td><td>${a.cpu_time_seconds ?? '—'}</td></tr>
+            <tr><td>Metrics Captured</td><td>${a.metrics_count || (a.metrics||[]).length || '—'}</td></tr>
+            <tr><td>Top SQL Captured</td><td>${a.sql_count || (a.top_sql||[]).length || '—'}</td></tr>
+            <tr><td>Wait Events</td><td>${a.wait_events_count || (a.wait_events||[]).length || '—'}</td></tr>
+            <tr><td>Analysis ID</td><td><code style="font-size:11px">${a.analysis_id || a.awr_run_id || '—'}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+  el('summaryContent').innerHTML = html;
+}
+
+// ── METRICS tab ───────────────────────────────────────────────────────────────
+function renderMetrics() {
+  const a = getActiveAnalysis();
+  const metrics = a.metrics || a.performance_metrics || [];
+  if (!metrics.length) {
+    el('metricsContent').innerHTML = '<div class="no-data">No metrics data available for this database.</div>';
+    return;
+  }
+  // Find max value for bar scaling
+  const maxVal = Math.max(...metrics.map(m => parseFloat(m.value || m.metric_value || 0) || 0), 1);
+  el('metricsContent').innerHTML = `
+    <div style="max-height:500px;overflow-y:auto">
+      ${metrics.map(m => {
+        const name = m.metric_name || m.name || '—';
+        const val  = m.value       || m.metric_value || 0;
+        const unit = m.unit        || '';
+        const pct  = Math.min(100, (parseFloat(val) / maxVal) * 100);
+        return `<div class="metric-row">
+          <span class="metric-name">${name}</span>
+          <div class="metric-bar-wrap"><div class="metric-bar" style="width:${pct}%"></div></div>
+          <span class="metric-val">${Number(val).toLocaleString()} ${unit}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── TOP SQL tab ───────────────────────────────────────────────────────────────
+let allSql = [];
+function renderTopSql() {
+  const a = getActiveAnalysis();
+  allSql = a.top_sql || a.sql_statements || [];
+  filterSql();
+}
+function filterSql() {
+  const search = (el('sqlSearch')?.value || '').toLowerCase();
+  const sql = search ? allSql.filter(s => JSON.stringify(s).toLowerCase().includes(search)) : allSql;
+  if (!sql.length) {
+    el('sqlContent').innerHTML = '<div class="no-data">No Top SQL data available.</div>';
+    return;
+  }
+  el('sqlContent').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>SQL ID</th>
+          <th class="right">Executions</th>
+          <th class="right">Elapsed (s)</th>
+          <th class="right">CPU (s)</th>
+          <th class="right">Gets/Exec</th>
+          <th>SQL Text</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sql.slice(0, 50).map((s, i) => {
+          const sqlText = s.sql_text || s.sql_fulltext || s.text || '';
+          const shortText = sqlText.substring(0, 120).replace(/\s+/g,' ');
+          const id = `sql_${i}`;
+          return `<tr>
+            <td>${i+1}</td>
+            <td><code style="font-size:11px">${s.sql_id || '—'}</code></td>
+            <td class="right">${Number(s.executions || 0).toLocaleString()}</td>
+            <td class="right">${Number(s.elapsed_time_s ?? s.elapsed_time ?? 0).toFixed(2)}</td>
+            <td class="right">${Number(s.cpu_time_s ?? s.cpu_time ?? 0).toFixed(2)}</td>
+            <td class="right">${Number(s.buffer_gets_per_exec ?? s.gets_per_exec ?? 0).toFixed(0)}</td>
+            <td style="max-width:320px">
+              <div id="${id}" class="sql-block" style="max-height:60px;overflow:hidden">${escHtml(shortText)}</div>
+              ${sqlText.length > 120 ? `<button class="expand-btn" onclick="toggleSql('${id}', this)">▼ Show more</button>` : ''}
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function toggleSql(id, btn) {
+  const el2 = document.getElementById(id);
+  if (el2.style.maxHeight === '60px') {
+    el2.style.maxHeight = 'none'; btn.textContent = '▲ Show less';
+  } else {
+    el2.style.maxHeight = '60px'; btn.textContent = '▼ Show more';
+  }
+}
+function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── WAIT EVENTS tab ────────────────────────────────────────────────────────────
+function renderWaits() {
+  const a = getActiveAnalysis();
+  const waits = a.wait_events || a.waits || [];
+  if (!waits.length) {
+    el('waitsContent').innerHTML = '<div class="no-data">No wait events data available.</div>';
+    return;
+  }
+  const maxWait = Math.max(...waits.map(w => parseFloat(w.wait_time_s || w.time_waited_s || w.total_wait_time || 0) || 0), 1);
+  const colorMap = { 'User I/O':'wait-io','CPU':'wait-cpu','Application':'wait-user',
+    'Concurrency':'wait-concur','Other':'wait-other','System I/O':'wait-io','Network':'wait-other' };
+  el('waitsContent').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Event</th>
+          <th>Class</th>
+          <th class="right">Waits</th>
+          <th class="right">Time (s)</th>
+          <th class="right">Avg Wait (ms)</th>
+          <th>Distribution</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${waits.slice(0, 50).map((w, i) => {
+          const cls   = w.wait_class || w.class || 'Other';
+          const color = colorMap[cls] || 'wait-other';
+          const time  = parseFloat(w.wait_time_s || w.time_waited_s || w.total_wait_time || 0);
+          const pct   = Math.min(100, (time / maxWait) * 100);
+          const avg   = parseFloat(w.avg_wait_ms || w.average_wait_ms || 0);
+          return `<tr>
+            <td>${i+1}</td>
+            <td>${w.event_name || w.event || '—'}</td>
+            <td><span class="badge badge-gray">${cls}</span></td>
+            <td class="right">${Number(w.waits || w.total_waits || 0).toLocaleString()}</td>
+            <td class="right">${time.toFixed(2)}</td>
+            <td class="right">${avg.toFixed(1)}</td>
+            <td><div class="wait-bar-wrap"><div class="wait-bar ${color}" style="width:${pct}%"></div></div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
