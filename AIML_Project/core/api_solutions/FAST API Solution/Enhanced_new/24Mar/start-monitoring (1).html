@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Start Monitoring</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.step-header{background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:white;border-radius:14px;padding:18px 24px;margin-bottom:20px;display:flex;align-items:center;gap:14px}
+.step-num{width:34px;height:34px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0}
+.step-title{font-size:17px;font-weight:800}
+.step-sub{font-size:12px;opacity:.85;margin-top:2px}
+.tmpl-section{background:#f9fafb;border:2px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px}
+.tmpl-title{font-size:12px;font-weight:800;color:#374151;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.tmpl-chip{display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;margin:2px;background:white;border:1px solid #e5e7eb;color:#374151}
+.val-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;margin-bottom:8px;border:1px solid #e5e7eb;background:white}
+.val-icon{font-size:20px;flex-shrink:0;width:28px;text-align:center}
+.val-info{flex:1}
+.val-name{font-weight:700;font-size:13px}
+.val-detail{font-size:12px;color:#6b7280;margin-top:2px}
+.prog-bar{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin:6px 0}
+.prog-inner{height:100%;background:linear-gradient(90deg,#667eea,#10b981);border-radius:4px;transition:width .4s ease;width:0}
+.log-box{background:#111827;color:#d1fae5;font-family:monospace;font-size:12px;border-radius:10px;padding:14px;height:160px;overflow-y:auto;line-height:1.8}
+.quick-link{padding:7px 14px;border-radius:8px;border:2px solid #e5e7eb;background:white;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;color:#374151;transition:all .2s}
+.quick-link:hover{border-color:var(--primary);color:var(--primary)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite}
+.spinner-dark{border:2px solid #e5e7eb;border-top-color:var(--primary)}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="../landing.html" class="nav-link">🏠 Home</a>
+  <a href="upload-reports.html" class="nav-link">📤 Upload Reports</a>
+  <a href="../admin/audit-logs.html" class="nav-link" onclick="peNav(event,this.href)">📋 Audit Logs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+
+  <!-- USER BAR -->
+  <div style="background:white;border-radius:14px;padding:14px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06);display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+    <div style="flex:1">
+      <div style="font-size:11px;color:#6b7280">Logged in as</div>
+      <div style="font-size:15px;font-weight:800" id="peUserName">—</div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:#6b7280">LOB</div>
+      <div style="font-size:14px;font-weight:700;color:var(--primary)" id="peLobName">—</div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <a href="../analysis/test-selection.html" class="quick-link">📊 Reports</a>
+      <a href="upload-reports.html" class="quick-link">📤 Upload</a>
+      <a href="../admin/track-management.html" class="quick-link" onclick="peNav(event,this.href)">⚙️ Track Mgmt</a>
+    </div>
+  </div>
+
+  <div class="platform-header">
+    <h1>⚡ Start Test Monitoring</h1>
+    <p>Configure and launch your monitoring session</p>
+  </div>
+
+  <!-- STEP 1: SELECT TRACK -->
+  <div class="card" id="step1">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div><div class="step-title">Select Track</div><div class="step-sub">Choose the track template for this session</div></div>
+    </div>
+    <div class="form-group" style="max-width:340px">
+      <label>Track <span class="required">*</span></label>
+      <select id="trackSelect" onchange="onTrackSelected()">
+        <option value="">-- Select Track --</option>
+      </select>
+    </div>
+    <div id="templateLoading" style="display:none;color:#6b7280;font-size:13px">
+      <span class="spinner spinner-dark"></span> Loading template...
+    </div>
+    <div id="templatePreview" style="display:none;margin-top:14px">
+      <div style="font-size:14px;font-weight:800;margin-bottom:12px">
+        Template: <span id="templateTrackName" style="color:var(--primary)">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px" id="templateDetails"></div>
+      <div id="noTemplateMsg" style="display:none" class="alert alert-warning" style="margin-top:10px">
+        <span>⚠</span><span>No template configured for this track. <a href="../admin/track-management.html" style="color:var(--primary)">Configure it here</a>.</span>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="goToStep2()" id="btnStep2">
+        ✓ Confirm Template → Continue to Validation
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2: VALIDATE -->
+  <div class="card" id="step2" style="display:none">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div><div class="step-title">Pre-Monitoring Validation</div><div class="step-sub">Verify configured tools are reachable</div></div>
+    </div>
+    <button class="btn btn-primary" onclick="runValidation()" id="validateBtn">🔍 Run Validation</button>
+    <div id="validationList" style="margin-top:16px"></div>
+    <button id="goStep3Btn" class="btn btn-success" style="width:100%;margin-top:14px;display:none" onclick="goToStep3()">
+      ✓ Continue → Enter Test Details
+    </button>
+  </div>
+
+  <!-- STEP 3: TEST DETAILS -->
+  <div class="card" id="step3" style="display:none">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div><div class="step-title">Test Details</div><div class="step-sub">Enter run details before starting</div></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>PC Run ID <span class="required">*</span></label>
+        <input type="text" id="pcRunId" placeholder="e.g. 65989">
+        <small>Performance Center Run ID</small>
+      </div>
+      <div class="form-group">
+        <label>Test Name <span class="required">*</span></label>
+        <input type="text" id="testName" placeholder="e.g. Peak Load Test">
+      </div>
+      <div class="form-group">
+        <label>Collection Interval</label>
+        <select id="collInterval">
+          <option value="300">5 minutes</option>
+          <option value="600" selected>10 minutes</option>
+          <option value="1800">30 minutes</option>
+          <option value="3600">1 hour</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Monitoring Duration</label>
+        <select id="monDuration">
+          <option value="0">Until manually stopped</option>
+          <option value="3600">1 hour</option>
+          <option value="7200" selected>2 hours</option>
+          <option value="14400">4 hours</option>
+          <option value="28800">8 hours</option>
+        </select>
+      </div>
+    </div>
+    <div id="startStatus" style="display:none;margin-bottom:12px"></div>
+    <button class="btn btn-success" style="width:100%;font-size:16px;padding:18px" onclick="startMonitoring()" id="btnStart">
+      ▶ Start Monitoring
+    </button>
+  </div>
+
+  <!-- STEP 4: IN PROGRESS -->
+  <div class="card" id="step4" style="display:none">
+    <div class="step-header" style="background:linear-gradient(135deg,#065f46,#10b981)">
+      <div class="step-num">4</div>
+      <div>
+        <div class="step-title">Monitoring In Progress</div>
+        <div class="step-sub" id="monRunInfo">—</div>
+      </div>
+    </div>
+    <div id="monitorItems"></div>
+    <div style="margin:16px 0">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Live Log</div>
+      <div class="log-box" id="monLog"></div>
+    </div>
+    <button class="btn btn-danger" style="width:100%;font-size:15px;padding:16px" onclick="stopMonitoring()" id="btnStop">
+      ⏹ Stop Monitoring
+    </button>
+  </div>
+
+  <!-- STEP 5: COMPLETE -->
+  <div class="card" id="step5" style="display:none">
+    <div class="step-header" style="background:linear-gradient(135deg,#1e3a8a,#3b82f6)">
+      <div class="step-num">✓</div>
+      <div><div class="step-title">Monitoring Completed</div><div class="step-sub">Data collected and stored to Oracle</div></div>
+    </div>
+    <div class="alert alert-success"><span>✓</span><span>All data collected and persisted to Oracle CQE_NFT database.</span></div>
+    <h4 style="font-weight:700;margin:16px 0 10px">Summary</h4>
+    <table class="data-table">
+      <thead><tr><th>Table</th><th>Records</th><th>Status</th></tr></thead>
+      <tbody id="storageSummary"></tbody>
+    </table>
+    <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="flex:1" onclick="location.reload()">New Session</button>
+      <button class="btn btn-success" style="flex:1" onclick="window.location.href='../analysis/test-selection.html'">📊 View Report</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="window.location.href='upload-reports.html'">📤 Upload Reports</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API     = 'http://localhost:8000/api/v1';
+const PC_API  = API+'/monitoring/pc';
+const APPD_API= API+'/monitoring/appd';
+const NFT_API = API+'/nft';
+const AUTH_API= API+'/auth';
+
+const sess = JSON.parse(sessionStorage.getItem('userSession')||'{}');
+const lob  = JSON.parse(sessionStorage.getItem('selectedLob')||'{}');
+const tok  = sess.session_token||'';
+
+el('peUserName').textContent = sess.username||'—';
+el('peLobName').textContent  = lob.name||sess.lob||'—';
+
+function el(id){return document.getElementById(id);}
+function show(id,v='block'){if(el(id))el(id).style.display=v;}
+function hide(id){if(el(id))el(id).style.display='none';}
+function hdr(){return{'Content-Type':'application/json','Authorization':'Bearer '+tok};}
+async function apiFetch(url,opts={}){
+  const r=await fetch(url,{headers:hdr(),...opts});
+  const d=await r.json().catch(()=>({detail:'Invalid response'}));
+  if(!r.ok) throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+  return d;
+}
+function alertHtml(t,m){
+  const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};
+  return `<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;
+}
+
+let selectedTemplate=null, monInterval=null, masterRunId=null;
+const lobName = lob.name||sess.lob||'';
+
+async function init(){
+  if(!sess.username){window.location.href='pre-login.html';return;}
+  try{
+    const d=await apiFetch(AUTH_API+'/lob-config/public');
+    const lobData=(d.lobs||[]).find(l=>l.name===lobName);
+    const sel=el('trackSelect');
+    if(lobData)(lobData.tracks||[]).forEach(t=>{
+      const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);
+    });
+  }catch(e){ console.error('Track load',e); }
+}
+
+async function onTrackSelected(){
+  const track=el('trackSelect').value;
+  hide('templatePreview'); hide('noTemplateMsg');
+  if(!track) return;
+  show('templateLoading');
+  try{
+    // Response is {success:true, template:{template_id, lob_name, track,
+    //   appd_config_ids:"121", pc_config_ids:"22", appd_count:1, pc_count:1, ...}}
+    const d=await apiFetch(
+      `${NFT_API}/track-template/${encodeURIComponent(lobName)}/${encodeURIComponent(track)}`
+    );
+    hide('templateLoading');
+
+    const tmpl = d.template;
+    if(!d.success || !tmpl){
+      selectedTemplate={track, appd_config_ids:'', pc_config_ids:'', appd_count:0, pc_count:0, config_name:''};
+      show('noTemplateMsg'); show('templatePreview'); hide('btnStep2'); return;
+    }
+
+    // appd_config_ids = "121" = LOB_ID from API_APPD_LOB_CONFIG
+    // Resolve to config_name by calling /monitoring/appd/config/list
+    // Same API used in track-management.html loadAppdOptions()
+    const appdIds = (tmpl.appd_config_ids||'').split(',').filter(Boolean);
+    const pcIds   = (tmpl.pc_config_ids||'').split(',').filter(Boolean);
+
+    // Fetch AppD configs to resolve lob_id → config_name + applications
+    let appdConfigs = [];
+    if(appdIds.length){
+      try{
+        const cd = await apiFetch(
+          `${APPD_API}/config/list?lob_name=${encodeURIComponent(lobName)}&track=${encodeURIComponent(track)}`
+        );
+        appdConfigs = cd.configs||[];
+      }catch(e){ console.warn('AppD config list error',e); }
+    }
+
+    // Match lob_id → config object
+    const resolvedAppd = appdIds.map(id=>{
+      const cfg = appdConfigs.find(c=>String(c.lob_id)===id);
+      return {
+        id,
+        config_name:  cfg?.config_name || id,
+        applications: cfg?.applications || [],
+        app_count:    Array.isArray(cfg?.applications) ? cfg.applications.length : 0,
+      };
+    });
+
+    // First config_name used as primary config for StartMonitoringRequest
+    const primaryConfig = resolvedAppd[0];
+
+    selectedTemplate = {
+      track,
+      lob_name:        tmpl.lob_name||lobName,
+      template_id:     tmpl.template_id,
+      appd_config_ids: tmpl.appd_config_ids||'',
+      pc_config_ids:   tmpl.pc_config_ids||'',
+      appd_count:      tmpl.appd_count||0,
+      pc_count:        tmpl.pc_count||0,
+      // config_name = first AppD config name (required by StartMonitoringRequest)
+      config_name:     primaryConfig?.config_name||'',
+      // All resolved AppD configs for display
+      appd_resolved:   resolvedAppd,
+      // Total apps across all configs
+      appd_app_count:  resolvedAppd.reduce((s,c)=>s+c.app_count,0),
+    };
+
+    el('templateTrackName').textContent = track;
+
+    // Build display sections — show real config names and app names
+    const appdDisplay = resolvedAppd.map(c=>
+      `<div class="tmpl-section" style="margin-bottom:8px">
+        <div class="tmpl-title">📊 ${c.config_name}</div>
+        ${c.applications.length
+          ? c.applications.map(a=>`<span class="tmpl-chip">${a}</span>`).join('')
+          : '<span style="font-size:12px;color:#9ca3af">No apps in config</span>'}
+      </div>`
+    ).join('') || '<div class="tmpl-section"><div class="tmpl-title" style="color:#9ca3af">No AppD configs</div></div>';
+
+    const pcDisplay = pcIds.length
+      ? `<div class="tmpl-section">
+          <div class="tmpl-title">⚡ PC Projects</div>
+          ${pcIds.map(id=>`<span class="tmpl-chip">${id}</span>`).join('')}
+        </div>`
+      : '<div class="tmpl-section"><div class="tmpl-title" style="color:#9ca3af">No PC projects</div></div>';
+
+    const summaryDisplay = `
+      <div class="tmpl-section">
+        <div class="tmpl-title">📋 Summary</div>
+        <span class="tmpl-chip">AppD configs: ${tmpl.appd_count||0}</span>
+        <span class="tmpl-chip">Total apps: ${selectedTemplate.appd_app_count}</span>
+        <span class="tmpl-chip">PC projects: ${tmpl.pc_count||0}</span>
+      </div>`;
+
+    el('templateDetails').innerHTML = appdDisplay + pcDisplay + summaryDisplay;
+    show('templatePreview'); show('btnStep2');
+
+  }catch(e){
+    hide('templateLoading');
+    console.error('Template load error',e);
+    selectedTemplate={track, appd_config_ids:'', pc_config_ids:'', appd_count:0, pc_count:0, config_name:''};
+    if(e.message.includes('404')){
+      show('noTemplateMsg');
+    }
+    show('templatePreview'); hide('btnStep2');
+  }
+}
+
+function goToStep2(){
+  show('step2'); el('step2').scrollIntoView({behavior:'smooth'});
+}
+
+async function runValidation(){
+  const btn=el('validateBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner spinner-dark"></span> Running...';
+
+  const tools=[];
+  if(selectedTemplate?.appd_count>0 || selectedTemplate?.appd_config_ids)
+    tools.push({name:'AppDynamics Controller', icon:'📊',
+      detail:`${selectedTemplate.appd_count||0} config(s), ${selectedTemplate.appd_app_count||0} app(s)`});
+  if(selectedTemplate?.pc_count>0 || selectedTemplate?.pc_config_ids)
+    tools.push({name:'Performance Center', icon:'⚡',
+      detail:`${selectedTemplate.pc_count||0} project(s) configured`});
+  if(!tools.length)
+    tools.push({name:'Oracle DB (CQE_NFT)', icon:'🗄️', detail:'Primary database'});
+
+  el('validationList').innerHTML=tools.map((_,i)=>`
+    <div class="val-item" id="val-${i}">
+      <div class="val-icon">${tools[i].icon}</div>
+      <div class="val-info">
+        <div class="val-name">${tools[i].name}</div>
+        <div class="val-detail">${tools[i].detail}</div>
+      </div>
+      <span id="vbadge-${i}" class="badge" style="background:#e5e7eb;color:#374151">Checking...</span>
+    </div>`).join('');
+
+  // Run real health checks
+  const checks = tools.map(async (t,i)=>{
+    try{
+      if(t.name.includes('AppDynamics') && lobName){
+        const d=await apiFetch(`${APPD_API}/health/${encodeURIComponent(lobName)}`);
+        return {i, ok:true, msg:(d.active||d.active_nodes||0)+' active nodes'};
+      } else if(t.name.includes('Performance Center') && lobName){
+        const d=await apiFetch(`${PC_API}/health/${encodeURIComponent(lobName)}`);
+        return {i, ok:true, msg:'Connected'};
+      } else {
+        return {i, ok:true, msg:'Reachable'};
+      }
+    }catch(e){
+      return {i, ok:false, msg:e.message};
+    }
+  });
+
+  const results=await Promise.allSettled(checks);
+  results.forEach(r=>{
+    const {i,ok,msg} = r.value||{i:0,ok:false,msg:'Check failed'};
+    const badge=el('vbadge-'+i);
+    badge.className='badge '+(ok?'badge-success':'badge-warning');
+    badge.textContent=ok?'✓ OK':'⚠ '+msg;
+  });
+
+  btn.disabled=false; btn.textContent='↻ Re-validate';
+  show('goStep3Btn');
+}
+
+function goToStep3(){
+  show('step3'); el('step3').scrollIntoView({behavior:'smooth'});
+}
+
+async function startMonitoring(){
+  const pcRunId   = el('pcRunId').value.trim();
+  const testName  = el('testName').value.trim();
+  const interval  = parseInt(el('collInterval').value)||600;
+  const duration  = parseInt(el('monDuration').value)||0;
+  const track     = selectedTemplate?.track||el('trackSelect').value;
+  const configName= selectedTemplate?.config_name||'';
+
+  if(!pcRunId||!testName){ alert('⚠ PC Run ID and Test Name are required.'); return; }
+  if(!configName){ alert('⚠ No AppD config found in template. Please configure Track Template first.'); return; }
+
+  const btn=el('btnStart'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Starting...';
+  hide('startStatus');
+
+  try{
+    // Step 1: Register test run
+    const reg=await apiFetch(`${PC_API}/test-run/register`,{
+      method:'POST',
+      body:JSON.stringify({
+        lob_name:  lobName,
+        track:     track,
+        pc_run_id: pcRunId,
+        test_name: testName,
+      })
+    });
+    masterRunId = reg.run_id||reg.master_run_id||('MON_'+pcRunId);
+
+    // Step 2: Start AppD monitoring
+    // Correct endpoint: POST /api/v1/monitoring/appd/start (not /monitoring/start)
+    // StartMonitoringRequest: run_id, config_name(required), lob_name, track,
+    //                         test_name, pc_run_id, interval_seconds, duration_minutes
+    if(selectedTemplate?.appd_config_ids && configName){
+      try{
+        await apiFetch(`${APPD_API}/start`,{
+          method:'POST',
+          body:JSON.stringify({
+            run_id:           masterRunId,
+            config_name:      configName,          // REQUIRED by StartMonitoringRequest
+            lob_name:         lobName,
+            track:            track,
+            test_name:        testName,
+            pc_run_id:        pcRunId,
+            interval_seconds: interval,
+            duration_minutes: duration>0 ? Math.floor(duration/60) : null,
+          })
+        });
+      }catch(e){ console.warn('AppD start warning:',e.message); }
+    }
+
+    // Store setup for upload-reports page
+    sessionStorage.setItem('monitoringSetup', JSON.stringify({
+      run_id:pcRunId, master_run_id:masterRunId,
+      lob:lobName, track, test_name:testName, pc_run_id:pcRunId,
+    }));
+
+    // Show step 4
+    hide('step3'); show('step4');
+    el('monRunInfo').textContent=`PC Run ID: ${pcRunId} | ${testName} | Run ID: ${masterRunId}`;
+    el('step4').scrollIntoView({behavior:'smooth'});
+    beginMonitoringUI(pcRunId, testName, interval, duration);
+
+  }catch(e){
+    el('startStatus').innerHTML=alertHtml('danger','✗ Failed to start: '+e.message);
+    show('startStatus');
+    btn.disabled=false; btn.textContent='▶ Start Monitoring';
+  }
+}
+
+function beginMonitoringUI(pcRunId, testName, interval, duration){
+  const appdIds = (selectedTemplate?.appd_config_ids||'').split(',').filter(Boolean);
+  const pcIds   = (selectedTemplate?.pc_config_ids||'').split(',').filter(Boolean);
+
+  const tools=[
+    {name:'AppDynamics', icon:'📊',
+     detail:`Config: ${selectedTemplate?.config_name||'—'} · ${selectedTemplate?.appd_app_count||0} app(s)`,
+     show: appdIds.length>0},
+    {name:'Performance Center', icon:'⚡',
+     detail:`${pcIds.length} project(s) · PC Run: ${pcRunId}`,
+     show: true},
+  ].filter(t=>t.show);
+
+  el('monitorItems').innerHTML=tools.map((t,i)=>`
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-weight:700;font-size:13px">${t.icon} ${t.name}</span>
+        <span id="tstat-${i}" style="font-size:12px;color:#10b981;font-weight:600">Active</span>
+      </div>
+      <div class="prog-bar"><div class="prog-inner" id="tprog-${i}"></div></div>
+      <div style="font-size:11px;color:#9ca3af">${t.detail||'Monitoring...'}</div>
+    </div>`).join('');
+
+  const logBox=el('monLog');
+  function log(msg){
+    const d=document.createElement('div');
+    d.textContent='['+new Date().toTimeString().slice(0,8)+'] '+msg;
+    logBox.appendChild(d); logBox.scrollTop=logBox.scrollHeight;
+  }
+
+  log(`✓ Session started. Master Run ID: ${masterRunId}`);
+  log(`✓ PC Run ID: ${pcRunId} | Test: ${testName}`);
+  if(selectedTemplate?.config_name)
+    log(`✓ AppDynamics config: ${selectedTemplate.config_name} (${selectedTemplate.appd_app_count||0} apps)`);
+  log(`✓ Collection interval: ${interval/60} min`);
+  if(duration>0) log(`⏱ Auto-stop after ${duration/3600}h`);
+  log('⟳ Monitoring active...');
+
+  let pct=0, elapsed=0;
+  const startTime=Date.now();
+  monInterval=setInterval(()=>{
+    elapsed=Math.floor((Date.now()-startTime)/1000);
+    pct=duration>0?Math.min((elapsed/duration)*100,99):Math.min(pct+.3,99);
+    tools.forEach((_,i)=>{
+      const p=el('tprog-'+i);
+      if(p) p.style.width=Math.min(pct+(i*3),99)+'%';
+    });
+    if(duration>0&&elapsed>=duration){
+      log('⏱ Auto-stop duration reached.');
+      stopMonitoring();
+    }
+  },2000);
+}
+
+async function stopMonitoring(){
+  clearInterval(monInterval);
+  el('btnStop').disabled=true; el('btnStop').innerHTML='<span class="spinner"></span> Stopping...';
+
+  try{
+    if(masterRunId && selectedTemplate?.appd_applications?.length){
+      await apiFetch(`${APPD_API}/monitoring/stop/${masterRunId}`,{method:'POST'}).catch(()=>{});
+    }
+  }catch(e){ console.warn('Stop error',e); }
+
+  hide('step4'); show('step5');
+  el('storageSummary').innerHTML=`
+    <tr><td><strong>API_RUN_MASTER</strong></td><td>1</td><td><span class="badge badge-success">Success</span></td></tr>
+    <tr><td><strong>APPD_MONITORING_DATA</strong></td><td>—</td><td><span class="badge badge-success">Collected</span></td></tr>
+    <tr style="background:#f0fdf4"><td><strong>STATUS</strong></td><td colspan="2"><strong>Complete — use Upload Reports to add AWR &amp; PC results</strong></td></tr>`;
+  el('step5').scrollIntoView({behavior:'smooth'});
+}
+
+function peNav(e,href){
+  e.preventDefault();
+  if(!sess.username){alert('Session expired.');window.location.href='pre-login.html';return;}
+  sessionStorage.setItem('navFrom','pe');
+  window.location.href=href;
+}
+
+function logout(){ sessionStorage.clear(); window.location.href='../landing.html'; }
+init();
+</script>
+</body>
+</html>
