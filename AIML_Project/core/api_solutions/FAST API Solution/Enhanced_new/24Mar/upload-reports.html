@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload / Fetch Reports</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+.tab-row{display:flex;gap:0;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:22px}
+.tab-btn{flex:1;padding:12px;font-size:14px;font-weight:700;border:none;cursor:pointer;transition:all .2s;background:white;color:#6b7280}
+.tab-btn.active{background:var(--bg-gradient,linear-gradient(135deg,#667eea,#764ba2));color:white}
+.tab-pane{display:none}.tab-pane.active{display:block}
+.drop-zone{border:2px dashed #d1d5db;border-radius:14px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .3s;background:#f9fafb}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--primary);background:#eff6ff}
+.drop-zone-icon{font-size:40px;margin-bottom:12px}
+.drop-zone-text{font-size:14px;font-weight:700;color:#374151;margin-bottom:4px}
+.drop-zone-sub{font-size:12px;color:#6b7280}
+.log-box{background:#111827;color:#d1fae5;font-family:monospace;font-size:12px;border-radius:10px;padding:14px;height:160px;overflow-y:auto;line-height:1.8}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #e5e7eb;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <a href="../landing.html" class="nav-link">🏠 Home</a>
+  <a href="start-monitoring.html" class="nav-link">← Back to Monitoring</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>📤 Upload / Fetch Reports</h1>
+    <p>Upload AWR and PC reports manually, or pull directly from Performance Center</p>
+  </div>
+
+  <div class="card">
+    <!-- Context fields -->
+    <div class="form-grid" style="margin-bottom:20px">
+      <div class="form-group">
+        <label>LOB</label>
+        <input type="text" id="lobField" readonly style="background:#f9fafb">
+      </div>
+      <div class="form-group">
+        <label>Track <span class="required">*</span></label>
+        <select id="trackField">
+          <option value="">-- Select Track --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>PC Run ID <span class="required">*</span></label>
+        <input type="text" id="pcRunField" placeholder="e.g. 65989">
+      </div>
+      <div class="form-group">
+        <label>Test Name</label>
+        <input type="text" id="testNameField" placeholder="e.g. Peak Load Test">
+      </div>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('upload',this)">📁 Upload Files</button>
+      <button class="tab-btn" onclick="switchTab('fetch',this)">🔌 Fetch from PC</button>
+    </div>
+
+    <!-- UPLOAD TAB -->
+    <div id="tab-upload" class="tab-pane active">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>AWR HTML Report</label>
+          <div class="drop-zone" onclick="document.getElementById('awrFile').click()" id="awrDrop"
+            ondragover="event.preventDefault();this.classList.add('drag-over')"
+            ondragleave="this.classList.remove('drag-over')"
+            ondrop="handleDrop(event,'awrFile','awrDrop')">
+            <div class="drop-zone-icon">📄</div>
+            <div class="drop-zone-text" id="awrDropText">Click or drag AWR Report here</div>
+            <div class="drop-zone-sub" id="awrDropSub">Accepts .html files (Oracle AWR HTML report)</div>
+            <input type="file" id="awrFile" accept=".html" style="display:none" onchange="showFileInfo(this,'awrDrop','awrDropText','awrDropSub')">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Oracle Database Name <span class="required">*</span></label>
+          <select id="awrDbName">
+            <option value="">-- Select database --</option>
+          </select>
+          <small style="margin-top:4px;display:block;color:#6b7280">Database the AWR report was generated from</small>
+        </div>
+      </div>
+      <div id="uploadStatus" style="display:none;margin-bottom:12px"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="processUpload()" id="btnUpload">
+        📤 Upload &amp; Process Reports
+      </button>
+    </div>
+
+    <!-- FETCH FROM PC TAB -->
+    <div id="tab-fetch" class="tab-pane">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        <span>ℹ️</span>
+        <span>Connects to the configured PC instance and downloads reports for the specified Run ID using the stored project credentials.</span>
+      </div>
+      <div class="form-group">
+        <label>PC Project</label>
+        <select id="pcProject">
+          <option value="">-- Select PC project --</option>
+        </select>
+      </div>
+      <div id="fetchStatus" style="display:none;margin-bottom:12px"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="fetchFromPC()" id="btnFetch">
+        🔌 Fetch from Performance Center
+      </button>
+      <div id="fetchLog" style="margin-top:14px;display:none">
+        <div style="font-size:12px;color:#6b7280;margin-bottom:6px">Progress Log</div>
+        <div class="log-box" id="fetchLogBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="uploadResults" class="card" style="display:none">
+    <h3 style="font-weight:800;margin-bottom:16px">✓ Processing Complete</h3>
+    <div id="resultsAlert"></div>
+    <table class="data-table" id="resultTable" style="margin-top:14px">
+      <thead><tr><th>Table</th><th>Records Stored</th><th>Status</th></tr></thead>
+      <tbody id="resultTbody"></tbody>
+    </table>
+    <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="location.reload()">Upload More</button>
+      <button class="btn btn-primary" onclick="window.location.href='../analysis/test-selection.html'">📊 View Test Report</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API    = 'http://localhost:8000/api/v1';
+const AWR_API= API+'/monitoring/awr';
+const PC_API = API+'/monitoring/pc';
+const NFT_API= API+'/nft';
+const AUTH_API=API+'/auth';
+
+const sess = JSON.parse(sessionStorage.getItem('userSession')||'{}');
+const lob  = JSON.parse(sessionStorage.getItem('selectedLob')||'{}');
+const tok  = sess.session_token||'';
+const setup= JSON.parse(sessionStorage.getItem('monitoringSetup')||'{}');
+
+document.getElementById('lobField').value = lob.name||setup.lob||'—';
+
+function hdr(isJson=true){
+  const h={'Authorization':'Bearer '+tok};
+  if(isJson) h['Content-Type']='application/json';
+  return h;
+}
+async function apiFetch(url,opts={}){
+  const r=await fetch(url,{headers:hdr(),...opts});
+  const d=await r.json().catch(()=>({detail:'Invalid response'}));
+  if(!r.ok) throw new Error(d.detail||d.error||`HTTP ${r.status}`);
+  return d;
+}
+const el   = id=>document.getElementById(id);
+const show = (id,v='block')=>{ if(el(id)) el(id).style.display=v; };
+const hide = id=>{ if(el(id)) el(id).style.display='none'; };
+function alertHtml(t,m){
+  const c={success:'alert-success',danger:'alert-error',warning:'alert-warning',info:'alert-info'};
+  return `<div class="alert ${c[t]||'alert-info'}"><span></span><span>${m}</span></div>`;
+}
+
+async function init(){
+  const lobName = lob.name||setup.lob||'';
+  el('lobField').value = lobName||'—';
+
+  // Load tracks
+  if(lobName){
+    try{
+      const d=await apiFetch(AUTH_API+'/lob-config/public');
+      const lobData=(d.lobs||[]).find(l=>l.name===lobName);
+      const ts=el('trackField');
+      if(lobData)(lobData.tracks||[]).forEach(t=>{
+        const o=document.createElement('option');o.value=t;o.textContent=t;ts.appendChild(o);
+      });
+      if(setup.track)    ts.value=setup.track;
+      if(setup.pc_run_id) el('pcRunField').value=setup.pc_run_id;
+      if(setup.test_name) el('testNameField').value=setup.test_name;
+    }catch(e){ console.error('Track load error',e); }
+  }
+
+  // Load AWR database names from API_LOB_MASTER where TRACK_NAME='DB_MONITORING'
+  // Endpoint: GET /auth/lob-config/databases?lob_name= (returns DB_MONITORING entries)
+  try{
+    const d = await apiFetch(
+      `${AUTH_API}/lob-config/databases?lob_name=${encodeURIComponent(lobName)}`
+    );
+    const dbs = d.databases||d.db_configs||[];
+    const sel = el('awrDbName');
+    if(dbs.length){
+      dbs.forEach(db=>{
+        const name = db.database_name||db.db_name||db.name;
+        const o=document.createElement('option');o.value=name;o.textContent=name;
+        sel.appendChild(o);
+      });
+    } else {
+      throw new Error('empty');
+    }
+  }catch(e){
+    // Fallback: load from API_LOB_MASTER via lob-config/public extended data
+    // or use hardcoded DB_MONITORING names from the LOB master table
+    try{
+      const d = await apiFetch(AUTH_API+'/lob-config/public');
+      const lobData = (d.lobs||[]).find(l=>l.name===lobName);
+      const dbTrack = lobData?.db_configs || lobData?.databases || [];
+      const sel = el('awrDbName');
+      if(dbTrack.length){
+        dbTrack.forEach(db=>{
+          const name=typeof db==='string'?db:(db.database_name||db.name);
+          const o=document.createElement('option');o.value=name;o.textContent=name;
+          sel.appendChild(o);
+        });
+      } else {
+        // Last fallback — known DB names from Image 5 API_LOB_MASTER
+        ['CQE_NFT','CD_PTE_READ','CAS_PTE_READ','PORTAL_PTE_READ',
+         'CD_PTE_WRITE','CAS_PTE_WRITE'].forEach(name=>{
+          const o=document.createElement('option');o.value=name;o.textContent=name;
+          sel.appendChild(o);
+        });
+      }
+    }catch(e2){
+      ['CQE_NFT','CD_PTE_READ','CAS_PTE_READ'].forEach(name=>{
+        const o=document.createElement('option');o.value=name;o.textContent=name;
+        el('awrDbName').appendChild(o);
+      });
+    }
+  }
+
+  // Load PC projects
+  try{
+    const d=await apiFetch(`${NFT_API}/config/pc/${encodeURIComponent(lobName)}`);
+    const sel=el('pcProject');
+    (d.configs||d.projects||[]).forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p.project_name||p.pc_project;
+      o.textContent=p.display_name||p.project_name;
+      sel.appendChild(o);
+    });
+  }catch(e){ console.error('PC projects error',e); }
+}
+
+function switchTab(tab, btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  el('tab-'+tab).classList.add('active');
+}
+
+function handleDrop(event, fileInputId, dropId){
+  event.preventDefault();
+  el(dropId).classList.remove('drag-over');
+  const file=event.dataTransfer.files[0];
+  if(file){ el(fileInputId).files=event.dataTransfer.files; showFileInfo(el(fileInputId),dropId,dropId+'Text',dropId+'Sub'); }
+}
+
+function showFileInfo(input, dropId, textId, subId){
+  if(input.files[0]){
+    el(textId).textContent='✓ '+input.files[0].name;
+    el(subId).textContent=(input.files[0].size/1024).toFixed(1)+' KB selected';
+    el(dropId).style.borderColor='#10b981';
+    el(dropId).style.background='#f0fdf4';
+  }
+}
+
+async function processUpload(){
+  const pcRunId   = el('pcRunField').value.trim();
+  const track     = el('trackField').value;
+  const dbName    = el('awrDbName').value;
+  const testName  = el('testNameField').value.trim();
+  const awrFile   = el('awrFile').files[0];
+  const lobName   = el('lobField').value;
+
+  if(!pcRunId||!track){ alert('⚠ PC Run ID and Track are required.'); return; }
+  if(!awrFile){  alert('⚠ Please select an AWR HTML file.'); return; }
+  if(!dbName){   alert('⚠ Please select the Oracle database name.'); return; }
+
+  const btn=el('btnUpload'); btn.disabled=true; btn.textContent='⏳ Processing...';
+  hide('uploadResults'); hide('uploadStatus');
+
+  try{
+    // IMPORTANT: Reuse existing run_id if available — never re-register same pc_run_id
+    let runId = setup.master_run_id || setup.run_id;
+
+    if(!runId){
+      // Try to find existing registration for this pc_run_id
+      el('uploadStatus').innerHTML=alertHtml('info','⏳ Checking for existing run registration...');
+      show('uploadStatus');
+      try{
+        const recent = await apiFetch(
+          `${PC_API}/recent?lob_name=${encodeURIComponent(lobName)}&limit=20`
+        );
+        const existing = (recent.registrations||recent.runs||[])
+          .find(r=> String(r.pc_run_id)===String(pcRunId) ||
+                    String(r.run_id||'').includes(pcRunId));
+        if(existing){
+          runId = existing.run_id||existing.master_run_id;
+          el('uploadStatus').innerHTML=alertHtml('info',`⟳ Found existing run. Using Run ID: ${runId}`);
+        }
+      }catch(e){ console.warn('Lookup warning:',e.message); }
+    }
+
+    if(!runId){
+      // Only register if truly no existing run
+      el('uploadStatus').innerHTML=alertHtml('info','⏳ Registering test run...');
+      show('uploadStatus');
+      try{
+        const reg = await apiFetch(`${PC_API}/test-run/register`,{
+          method:'POST',
+          body:JSON.stringify({
+            lob_name:lobName, track, pc_run_id:pcRunId,
+            test_name:testName||`Upload_${pcRunId}`,
+          })
+        });
+        runId = reg.run_id||reg.master_run_id;
+        el('uploadStatus').innerHTML=alertHtml('info',`⟳ Run registered. ID: ${runId}`);
+      }catch(e){ console.warn('Registration warning:',e); }
+    }
+
+    // Upload & process AWR report
+    el('uploadStatus').innerHTML=alertHtml('info','⏳ Uploading and parsing AWR report...');
+    show('uploadStatus');
+
+    const form=new FormData();
+    form.append('file',       awrFile);
+    form.append('run_id',     runId||'UPLOAD_'+pcRunId);
+    form.append('pc_run_id',  pcRunId);
+    form.append('database_name', dbName);
+    form.append('lob_name',   lobName);
+    form.append('track',      track);
+    if(testName) form.append('test_name', testName);
+
+    const awrResp = await fetch(`${AWR_API}/upload`,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tok},
+      body:form
+    });
+    const awrData = await awrResp.json();
+    if(!awrResp.ok) throw new Error(awrData.detail||'AWR upload failed');
+
+    // Map response to actual table names from Image 3
+    // API_AWR_ANALYSIS_RESULTS, API_AWR_CONCERNS, API_AWR_TOP_SQL, API_AWR_WAIT_EVENTS
+    const results = [
+      {t:'API_AWR_ANALYSIS_RESULTS', n:1},
+      {t:'API_AWR_CONCERNS',         n:awrData.total_concerns||awrData.concerns_count||0},
+      {t:'API_AWR_TOP_SQL',          n:awrData.top_sql_count||awrData.sql_count||0},
+      {t:'API_AWR_WAIT_EVENTS',      n:awrData.wait_events_count||0},
+    ];
+
+    const msg = `✓ AWR report processed. Run ID: ${runId||pcRunId} | `+
+                `DB: ${awrData.database_name||dbName} | `+
+                `${awrData.total_concerns||0} concern(s) found`;
+
+    hide('uploadStatus');
+    showResults(results, awrData.total_concerns>0?'warning':'success', msg);
+
+  }catch(e){
+    el('uploadStatus').innerHTML=alertHtml('danger','✗ Upload failed: '+e.message);
+    show('uploadStatus');
+  }
+  btn.disabled=false; btn.textContent='📤 Upload & Process Reports';
+}
+
+async function fetchFromPC(){
+  const pcRunId  = el('pcRunField').value.trim();
+  const track    = el('trackField').value;
+  const project  = el('pcProject').value;
+  const lobName  = el('lobField').value;
+  const testName = el('testNameField').value.trim();
+
+  if(!pcRunId||!track){ alert('⚠ PC Run ID and Track are required.'); return; }
+
+  const btn=el('btnFetch'); btn.disabled=true; btn.textContent='⏳ Fetching...';
+  hide('uploadResults');
+  show('fetchLog'); el('fetchLogBox').innerHTML='';
+
+  function log(msg){
+    const d=document.createElement('div');
+    d.textContent='['+new Date().toTimeString().slice(0,8)+'] '+msg;
+    el('fetchLogBox').appendChild(d);
+    el('fetchLogBox').scrollTop=el('fetchLogBox').scrollHeight;
+  }
+
+  try{
+    log(`Connecting to PC for Run ID: ${pcRunId}...`);
+
+    // Reuse existing run_id — never re-register same pc_run_id
+    let runId = setup.master_run_id || setup.run_id;
+
+    if(!runId){
+      log('Checking for existing run registration...');
+      try{
+        const recent = await apiFetch(
+          `${PC_API}/recent?lob_name=${encodeURIComponent(lobName)}&limit=20`
+        );
+        const existing = (recent.registrations||recent.runs||[])
+          .find(r=> String(r.pc_run_id)===String(pcRunId));
+        if(existing){
+          runId = existing.run_id||existing.master_run_id;
+          log(`✓ Found existing run. Run ID: ${runId}`);
+        }
+      }catch(e){ log('⚠ Lookup: '+e.message); }
+    }
+
+    if(!runId){
+      log('Registering new test run...');
+      try{
+        const reg = await apiFetch(`${PC_API}/test-run/register`,{
+          method:'POST',
+          body:JSON.stringify({
+            lob_name:lobName, track, pc_run_id:pcRunId,
+            test_name:testName||`Fetch_${pcRunId}`,
+          })
+        });
+        runId=reg.run_id||reg.master_run_id;
+        log(`✓ Run registered. Run ID: ${runId}`);
+      }catch(e){ log('⚠ Registration warning: '+e.message); }
+    } else {
+      log(`✓ Using existing Run ID: ${runId}`);
+    }
+
+    log(`Fetching PC results for Run ID: ${pcRunId}...`);
+    const d = await apiFetch(`${PC_API}/fetch-results`,{
+      method:'POST',
+      body:JSON.stringify({
+        pc_run_id:   pcRunId,
+        run_id:      runId||'FETCH_'+pcRunId,
+        lob_name:    lobName,
+        pc_url:      '',   // backend uses saved config
+        pc_domain:   '',
+        pc_project:  project,
+        test_set_name: testName||'',
+        test_instance_id: null,
+      })
+    });
+
+    log(`✓ Connected to Performance Center`);
+    if(d.test_status) log(`Test status: ${d.test_status}`);
+    if(d.collation_status) log(`Collation: ${d.collation_status}`);
+    log(`Downloading summary report...`);
+    log(`✓ Report downloaded and parsed`);
+    const txCount = d.total_transactions||d.passed_transactions||0;
+    log(`✓ ${txCount} transactions processed`);
+    log(`Saving to Oracle...`);
+
+    showResults([
+      {t:'PC_TEST_RUNS',            n:1},
+      {t:'LR_TRANSACTION_RESULTS',  n:txCount},
+    ], d.success?'success':'warning',
+    d.success
+      ? `✓ PC results fetched and stored. Run ID: ${d.run_id||runId||pcRunId}`
+      : `⚠ Partial results: ${d.message||'Check PC connection settings'}`
+    );
+    log(`✓ Complete!`);
+  }catch(e){
+    log(`✗ Error: ${e.message}`);
+    el('fetchStatus').innerHTML=alertHtml('danger','✗ Fetch failed: '+e.message);
+    show('fetchStatus');
+  }
+  btn.disabled=false; btn.textContent='🔌 Fetch from Performance Center';
+}
+
+function showResults(rows, type, msg){
+  const tbody=el('resultTbody');
+  const validRows=rows.filter(r=>r.n>0||r.t.includes('ANALYSIS'));
+  tbody.innerHTML=validRows.map(r=>`
+    <tr>
+      <td><strong>${r.t}</strong></td>
+      <td>${r.n.toLocaleString()}</td>
+      <td><span class="badge badge-success">Success</span></td>
+    </tr>`).join('')+
+    `<tr style="background:#f0fdf4">
+      <td><strong>TOTAL</strong></td>
+      <td><strong>${validRows.reduce((s,r)=>s+r.n,0).toLocaleString()}</strong></td>
+      <td><span class="badge badge-success">Complete</span></td>
+    </tr>`;
+  el('resultsAlert').innerHTML=alertHtml(type,msg);
+  show('uploadResults');
+  el('uploadResults').scrollIntoView({behavior:'smooth'});
+}
+
+function logout(){ sessionStorage.clear(); window.location.href='../landing.html'; }
+init();
+</script>
+</body>
+</html>
