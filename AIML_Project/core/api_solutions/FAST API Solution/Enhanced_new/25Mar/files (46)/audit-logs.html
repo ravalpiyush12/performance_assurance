@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Audit Logs — CQE NFT Monitoring</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+:root{
+  --primary:#2563eb;--primary-dark:#1d4ed8;
+  --success:#10b981;--danger:#ef4444;--warning:#f59e0b;--info:#6366f1;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
+  --gray-400:#9ca3af;--gray-600:#4b5563;--gray-800:#1f2937;
+  --radius:10px;--shadow:0 2px 8px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:var(--gray-800);min-height:100vh}
+
+/* NAV — self-contained so it works regardless of global.css */
+.top-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;
+  display:flex;align-items:center;gap:8px;padding:0 20px;height:54px;
+  box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.nav-brand{color:#fff;font-weight:700;font-size:15px;margin-right:auto}
+.nav-link{color:rgba(255,255,255,.85)!important;text-decoration:none;font-size:13px;
+  padding:6px 12px;border-radius:6px;transition:all .2s}
+.nav-link:hover{background:rgba(255,255,255,.15)!important;color:#fff!important}
+
+/* PAGE */
+.page{padding:72px 24px 40px;max-width:1500px;margin:0 auto}
+.page-hdr{margin-bottom:20px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.page-hdr h1{font-size:22px;font-weight:700}
+.page-hdr p{font-size:13px;color:var(--gray-600);margin-top:3px}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px}
+.scard{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px 16px;border-left:4px solid var(--gray-200)}
+.scard.total  {border-color:var(--primary)}
+.scard.ok     {border-color:var(--success)}
+.scard.fail   {border-color:var(--danger)}
+.scard.auth   {border-color:var(--info)}
+.scard.sys    {border-color:var(--warning)}
+.scard.perf   {border-color:#14b8a6}
+.sv{font-size:24px;font-weight:800;color:var(--gray-800)}
+.scard.total .sv{color:var(--primary)}
+.scard.ok    .sv{color:var(--success)}
+.scard.fail  .sv{color:var(--danger)}
+.scard.auth  .sv{color:var(--info)}
+.scard.sys   .sv{color:var(--warning)}
+.scard.perf  .sv{color:#14b8a6;font-size:18px}
+.sl{font-size:11px;color:var(--gray-400);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+
+/* FILTER CARD */
+.fcard{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;margin-bottom:16px}
+.frow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:11px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.4px}
+.fg select,.fg input[type=text],.fg input[type=date],.fg input[type=datetime-local]{
+  padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:7px;
+  font-size:13px;color:var(--gray-800);background:#fff;min-width:130px}
+.fg select:focus,.fg input:focus{outline:none;border-color:var(--primary)}
+.btn{padding:8px 16px;border:none;border-radius:7px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{background:transparent;color:var(--gray-600);border:1.5px solid var(--gray-200)}
+.btn-ghost:hover{background:var(--gray-100)}
+.btn-export{background:#059669;color:#fff}
+.btn-export:hover{background:#047857}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* TABLE CARD */
+.tcard{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.ttoolbar{padding:12px 16px;border-bottom:1px solid var(--gray-100);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ttitle{font-size:14px;font-weight:700;margin-right:auto}
+.rcnt{font-size:12px;color:var(--gray-400);background:var(--gray-100);
+  padding:3px 10px;border-radius:12px;white-space:nowrap}
+.swrap{position:relative}
+.swrap input{padding:7px 10px 7px 30px;border:1.5px solid var(--gray-200);
+  border-radius:7px;font-size:13px;width:220px}
+.swrap::before{content:'🔍';position:absolute;left:8px;top:50%;
+  transform:translateY(-50%);font-size:12px;pointer-events:none}
+
+/* TABLE */
+.tscroll{overflow-x:auto;max-height:600px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{background:var(--gray-50);position:sticky;top:0;z-index:2}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:700;
+  color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;
+  border-bottom:2px solid var(--gray-200);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--gray-100);vertical-align:top;max-width:260px;word-break:break-word}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc;cursor:pointer}
+
+/* BADGES */
+.src-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase}
+.src-auth  {background:#ede9fe;color:#5b21b6}
+.src-system{background:#fef3c7;color:#92400e}
+
+.status-dot{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600}
+.status-dot::before{content:'';width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sd-success::before{background:var(--success)}.sd-success{color:#065f46}
+.sd-failed ::before{background:var(--danger)} .sd-failed {color:#991b1b}
+
+.evtag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600}
+.ev-login  {background:#dbeafe;color:#1e40af}
+.ev-logout {background:#f1f5f9;color:#374151}
+.ev-query  {background:#d1fae5;color:#065f46}
+.ev-sql    {background:#fef3c7;color:#92400e}
+.ev-error  {background:#fee2e2;color:#991b1b}
+.ev-config {background:#ede9fe;color:#5b21b6}
+.ev-default{background:var(--gray-100);color:var(--gray-600)}
+
+.sqlpre{font-family:'Consolas','Courier New',monospace;font-size:10px;color:var(--gray-600);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;display:block}
+
+/* PAGINATION */
+.pgbar{display:flex;align-items:center;justify-content:space-between;
+  padding:11px 16px;border-top:1px solid var(--gray-100);flex-wrap:wrap;gap:8px}
+.pginfo{font-size:12px;color:var(--gray-600)}
+.pgbtns{display:flex;gap:4px}
+.pgb{padding:5px 11px;border:1.5px solid var(--gray-200);border-radius:6px;
+  background:#fff;font-size:12px;cursor:pointer;transition:all .2s}
+.pgb:hover:not(:disabled){background:var(--primary);color:#fff;border-color:var(--primary)}
+.pgb.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.pgb:disabled{opacity:.4;cursor:not-allowed}
+
+/* EMPTY / LOADING */
+.empty{padding:60px 20px;text-align:center;color:var(--gray-400)}
+.spin{display:inline-block;width:28px;height:28px;border:3px solid var(--gray-200);
+  border-top-color:var(--primary);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* DETAIL MODAL */
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;
+  align-items:flex-start;justify-content:center;padding-top:60px;overflow-y:auto}
+.mbg.open{display:flex}
+.mbox{background:#fff;border-radius:14px;padding:24px;max-width:700px;width:94%;
+  margin-bottom:40px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.mhdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.mhdr h3{font-size:15px;font-weight:700}
+.mclose{background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray-400)}
+.mclose:hover{color:var(--gray-800)}
+.dgrid{display:grid;grid-template-columns:130px 1fr}
+.dk{padding:8px 0;font-size:12px;font-weight:600;color:var(--gray-600);
+  border-bottom:1px solid var(--gray-100)}
+.dv{padding:8px 0 8px 12px;font-size:13px;color:var(--gray-800);
+  border-bottom:1px solid var(--gray-100);word-break:break-word}
+.sqlblk{font-family:'Consolas','Courier New',monospace;font-size:11px;
+  background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;
+  padding:10px;white-space:pre-wrap;word-break:break-all;max-height:200px;
+  overflow-y:auto;line-height:1.5;margin-top:4px}
+
+/* ALERT */
+.alert{padding:12px 16px;border-radius:8px;font-size:13px;margin-bottom:14px}
+.alert-danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <span class="nav-brand">⚡ CQE NFT Monitoring</span>
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="dashboard.html" class="nav-link" id="backLink">← Admin Dashboard</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="page">
+
+  <div class="page-hdr">
+    <div>
+      <h1>📋 System Audit Logs</h1>
+      <p>Combined authentication &amp; system audit — <span id="timeRange">last 24 hours</span></p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-export btn-sm" onclick="exportCsv()">📥 Export CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportJson()">⬇ Export JSON</button>
+      <button class="btn btn-primary btn-sm" onclick="loadLogs()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <div id="errorBanner" style="display:none"></div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="scard total"><div class="sv" id="stTotal">—</div><div class="sl">Total Events</div></div>
+    <div class="scard ok">  <div class="sv" id="stOk">—</div>   <div class="sl">Successful</div></div>
+    <div class="scard fail"><div class="sv" id="stFail">—</div>  <div class="sl">Failed</div></div>
+    <div class="scard auth"><div class="sv" id="stAuth">—</div>  <div class="sl">Auth Events</div></div>
+    <div class="scard sys"> <div class="sv" id="stSys">—</div>   <div class="sl">System Events</div></div>
+    <div class="scard perf"><div class="sv" id="stAvg">—</div>   <div class="sl">Avg Exec Time</div></div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="fcard">
+    <div class="frow">
+      <div class="fg">
+        <label>Source</label>
+        <select id="fSource" onchange="applyFilter()">
+          <option value="">All Sources</option>
+          <option value="auth">🔐 Authentication</option>
+          <option value="system">⚙️ System</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Status</label>
+        <select id="fStatus" onchange="applyFilter()">
+          <option value="">All</option>
+          <option value="success">✅ Success</option>
+          <option value="failed">❌ Failed</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Event Type</label>
+        <select id="fEventType" onchange="applyFilter()">
+          <option value="">All Types</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Database</label>
+        <select id="fDatabase" onchange="applyFilter()">
+          <option value="">All Databases</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>User</label>
+        <input type="text" id="fUser" placeholder="Search username…" oninput="applyFilter()">
+      </div>
+      <div class="fg">
+        <label>From</label>
+        <input type="date" id="fDateFrom">
+      </div>
+      <div class="fg">
+        <label>To</label>
+        <input type="date" id="fDateTo">
+      </div>
+      <div class="fg">
+        <label>Limit</label>
+        <select id="fLimit">
+          <option value="200">200</option>
+          <option value="500">500</option>
+          <option value="1000">1000</option>
+        </select>
+      </div>
+      <div class="fg" style="min-width:auto">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" onclick="loadLogs()">🔍 Apply</button>
+      </div>
+      <div class="fg" style="min-width:auto">
+        <label>&nbsp;</label>
+        <button class="btn btn-ghost" onclick="clearAll()">✕ Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="tcard">
+    <div class="ttoolbar">
+      <span class="ttitle">Audit Log Entries</span>
+      <span class="rcnt" id="rcnt">—</span>
+      <div class="swrap">
+        <input type="text" id="fSearch" placeholder="Search all fields…" oninput="applyFilter()">
+      </div>
+    </div>
+    <div id="tbody">
+      <div class="empty"><div class="spin"></div><p style="margin-top:12px">Loading audit logs…</p></div>
+    </div>
+    <div class="pgbar" id="pgbar" style="display:none">
+      <span class="pginfo" id="pginfo"></span>
+      <div class="pgbtns">
+        <button class="pgb" id="bPrev" onclick="changePage(-1)">‹ Prev</button>
+        <span id="pgNums" style="display:flex;gap:4px"></span>
+        <button class="pgb" id="bNext" onclick="changePage(1)">Next ›</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="mbg" id="modal">
+  <div class="mbox">
+    <div class="mhdr">
+      <h3 id="mTitle">Log Detail</h3>
+      <button class="mclose" onclick="closeModal()">×</button>
+    </div>
+    <div class="dgrid" id="mBody"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────────────────────
+const API      = 'http://localhost:8000/api/v1';
+const PAGE_SZ  = 50;
+
+const el   = id => document.getElementById(id);
+const sess = JSON.parse(sessionStorage.getItem('userSession') || '{}');
+const tok  = sess.session_token || localStorage.getItem('session_token') || '';
+
+let allLogs    = [];
+let filtered   = [];
+let curPage    = 1;
+
+// ── AUTH / NAV ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (!sess.username) {
+    window.location.href = '../../pages/monitoring/pre-login.html';
+    return;
+  }
+  const navFrom = sessionStorage.getItem('navFrom');
+  if (navFrom === 'pe') {
+    sessionStorage.removeItem('navFrom');
+    el('backLink').href = '../monitoring/start-monitoring.html';
+    el('backLink').textContent = '← Back to Monitoring';
+  }
+  loadLogs();
+});
+
+function logout() { sessionStorage.clear(); localStorage.removeItem('session_token'); window.location.href = '../../pages/landing.html'; }
+
+// ── API FETCH ──────────────────────────────────────────────────────────────
+async function apiFetch(url) {
+  const r = await fetch(url, { headers: tok ? { 'Authorization': 'Bearer ' + tok } : {} });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+  return d;
+}
+
+// ── LOAD LOGS ──────────────────────────────────────────────────────────────
+async function loadLogs() {
+  el('tbody').innerHTML = '<div class="empty"><div class="spin"></div><p style="margin-top:12px">Loading…</p></div>';
+  el('pgbar').style.display = 'none';
+  el('errorBanner').style.display = 'none';
+
+  const params = new URLSearchParams({ limit: el('fLimit').value });
+  const df = el('fDateFrom').value, dt = el('fDateTo').value;
+  if (df) params.set('start_date', new Date(df + 'T00:00:00').toISOString());
+  if (dt) params.set('end_date',   new Date(dt + 'T23:59:59').toISOString());
+
+  // Update subtitle
+  if (df || dt) el('timeRange').textContent = `${df||'start'} → ${dt||'now'}`;
+  else el('timeRange').textContent = 'last 24 hours';
+
+  try {
+    const data = await apiFetch(`${API}/audit/combined?${params}`);
+    allLogs = data.records || [];
+    updateStats(data.statistics || {});
+    buildFilters(allLogs);
+    applyFilter();
+  } catch (err) {
+    console.error('loadLogs:', err);
+    el('errorBanner').innerHTML = `<div class="alert alert-danger">⚠ ${err.message} — Ensure backend is running and you are logged in.</div>`;
+    el('errorBanner').style.display = 'block';
+    el('tbody').innerHTML = '<div class="empty"><p>No data available</p></div>';
+  }
+}
+
+// ── STATS ──────────────────────────────────────────────────────────────────
+function updateStats(s) {
+  el('stTotal').textContent = s.total_events      || allLogs.length || '—';
+  el('stOk').textContent    = s.successful_events || '—';
+  el('stFail').textContent  = s.failed_events     || '—';
+  el('stAuth').textContent  = s.auth_events       || '—';
+  el('stSys').textContent   = s.system_events     || '—';
+  el('stAvg').textContent   = s.avg_execution_ms != null ? s.avg_execution_ms + ' ms' : '—';
+}
+
+// ── DYNAMIC FILTER OPTIONS ─────────────────────────────────────────────────
+function buildFilters(records) {
+  const types = [...new Set(records.map(r => r.event_type || r.action).filter(Boolean))].sort();
+  const dbs   = [...new Set(records.map(r => r.database_name).filter(Boolean))].sort();
+
+  const saved_et = el('fEventType').value;
+  const saved_db = el('fDatabase').value;
+
+  el('fEventType').innerHTML = '<option value="">All Types</option>' +
+    types.map(t => `<option value="${t}"${t===saved_et?' selected':''}>${t}</option>`).join('');
+  el('fDatabase').innerHTML = '<option value="">All Databases</option>' +
+    dbs.map(d => `<option value="${d}"${d===saved_db?' selected':''}>${d}</option>`).join('');
+}
+
+// ── CLIENT FILTER ──────────────────────────────────────────────────────────
+function applyFilter() {
+  const src  = el('fSource').value.toLowerCase();
+  const stat = el('fStatus').value.toLowerCase();
+  const et   = el('fEventType').value.toLowerCase();
+  const db   = el('fDatabase').value.toLowerCase();
+  const usr  = el('fUser').value.trim().toLowerCase();
+  const q    = el('fSearch').value.trim().toLowerCase();
+
+  filtered = allLogs.filter(r => {
+    if (src  && (r.source||'').toLowerCase() !== src)          return false;
+    if (stat && (r.status||'').toLowerCase() !== stat)         return false;
+    if (et   && (r.event_type||r.action||'').toLowerCase() !== et) return false;
+    if (db   && (r.database_name||'').toLowerCase() !== db)    return false;
+    if (usr  && !(r.username||'').toLowerCase().includes(usr)) return false;
+    if (q) {
+      const hay = [r.event_type,r.action,r.username,r.database_name,
+                   r.sql_statement,r.details,r.client_ip,r.failure_reason,
+                   r.resource_name,r.status].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  el('rcnt').textContent = `${filtered.length} of ${allLogs.length}`;
+  curPage = 1;
+  renderTable();
+}
+
+function clearAll() {
+  ['fSource','fStatus','fEventType','fDatabase','fLimit'].forEach(id => el(id).value = id==='fLimit'?'200':'');
+  ['fUser','fSearch','fDateFrom','fDateTo'].forEach(id => el(id).value = '');
+  loadLogs();
+}
+
+// ── RENDER TABLE ───────────────────────────────────────────────────────────
+function renderTable() {
+  if (!filtered.length) {
+    el('tbody').innerHTML = '<div class="empty"><p>No log entries match your filters.</p></div>';
+    el('pgbar').style.display = 'none';
+    return;
+  }
+
+  const start = (curPage-1)*PAGE_SZ;
+  const rows  = filtered.slice(start, start+PAGE_SZ);
+  const pages = Math.ceil(filtered.length/PAGE_SZ);
+
+  el('tbody').innerHTML = `
+    <div class="tscroll">
+    <table>
+      <thead><tr>
+        <th>Timestamp</th>
+        <th>Source</th>
+        <th>Event / Action</th>
+        <th>Database / Resource</th>
+        <th>SQL / Details</th>
+        <th>User</th>
+        <th>Status</th>
+        <th>Client IP</th>
+        <th>Exec (ms)</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map((r,i) => rowHtml(r, start+i)).join('')}
+      </tbody>
+    </table>
+    </div>`;
+
+  // Pagination
+  el('pginfo').textContent = `${start+1}–${Math.min(start+PAGE_SZ,filtered.length)} of ${filtered.length}`;
+  const n = el('pgNums'); n.innerHTML = '';
+  pgRange(curPage,pages).forEach(p => {
+    if (p==='…') { const s=document.createElement('span'); s.textContent='…'; s.style.padding='5px 4px'; n.appendChild(s); }
+    else {
+      const b=document.createElement('button');
+      b.className='pgb'+(p===curPage?' active':'');
+      b.textContent=p; b.onclick=()=>{curPage=p;renderTable();};
+      n.appendChild(b);
+    }
+  });
+  el('bPrev').disabled = curPage===1;
+  el('bNext').disabled = curPage===pages;
+  el('pgbar').style.display='flex';
+}
+
+function pgRange(c,t){
+  if(t<=7) return Array.from({length:t},(_,i)=>i+1);
+  if(c<=4) return [1,2,3,4,5,'…',t];
+  if(c>=t-3) return [1,'…',t-4,t-3,t-2,t-1,t];
+  return [1,'…',c-1,c,c+1,'…',t];
+}
+function changePage(d){const t=Math.ceil(filtered.length/PAGE_SZ);curPage=Math.max(1,Math.min(t,curPage+d));renderTable();}
+
+// ── ROW HTML ───────────────────────────────────────────────────────────────
+function rowHtml(r, idx) {
+  const ts      = fmtTs(r.event_timestamp);
+  const src     = r.source || 'system';
+  const srcCls  = src==='auth' ? 'src-auth' : 'src-system';
+  const srcLbl  = src==='auth' ? '🔐 AUTH' : '⚙️ SYS';
+
+  const evType  = r.event_type || r.action || '—';
+  const evCls   = evClass(evType);
+
+  // DB / Resource column
+  const dbRes   = r.database_name || r.resource_name || '—';
+
+  // SQL / Details column
+  const sqlOrDetail = r.sql_statement || r.details || r.failure_reason || '';
+  const sqlPreview  = sqlOrDetail
+    ? `<span class="sqlpre" title="${esc(sqlOrDetail)}">${esc(sqlOrDetail.substring(0,60))}${sqlOrDetail.length>60?'…':''}</span>`
+    : '<span style="color:var(--gray-400)">—</span>';
+
+  const user    = r.username || '—';
+  const status  = (r.status||'').toLowerCase();
+  const stCls   = status==='success' ? 'sd-success' : 'sd-failed';
+  const stLbl   = status==='success' ? 'success' : status||'—';
+
+  const ip      = r.client_ip || r.ip_address || '—';
+  const execMs  = r.execution_time_ms != null ? parseFloat(r.execution_time_ms).toFixed(0) : '—';
+
+  return `<tr onclick="showDetail(${idx})" title="Click for details">
+    <td style="font-size:11px;white-space:nowrap;color:var(--gray-600)">${ts}</td>
+    <td><span class="src-badge ${srcCls}">${srcLbl}</span></td>
+    <td><span class="evtag ${evCls}">${esc(evType)}</span></td>
+    <td style="font-size:11px;max-width:140px">${esc(dbRes)}</td>
+    <td>${sqlPreview}</td>
+    <td style="font-size:12px;font-weight:600">${esc(user)}</td>
+    <td><span class="status-dot ${stCls}">${stLbl}</span></td>
+    <td style="font-size:11px;color:var(--gray-600)">${esc(ip)}</td>
+    <td style="text-align:right;font-size:11px">${execMs}</td>
+  </tr>`;
+}
+
+function evClass(t) {
+  const u = (t||'').toUpperCase();
+  if (u.includes('LOGIN'))  return 'ev-login';
+  if (u.includes('LOGOUT')) return 'ev-logout';
+  if (u.includes('SELECT')||u.includes('QUERY')) return 'ev-query';
+  if (u.includes('INSERT')||u.includes('UPDATE')||u.includes('DELETE')||u.includes('SQL')) return 'ev-sql';
+  if (u.includes('ERROR')||u.includes('FAIL'))   return 'ev-error';
+  if (u.includes('CONFIG')||u.includes('ADMIN')||u.includes('CREATE')||u.includes('DROP')) return 'ev-config';
+  return 'ev-default';
+}
+
+function fmtTs(ts) {
+  if (!ts) return '—';
+  try { return new Date(ts).toISOString().replace('T',' ').substring(0,19); }
+  catch { return String(ts); }
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── DETAIL MODAL ───────────────────────────────────────────────────────────
+function showDetail(idx) {
+  const r = filtered[idx]; if (!r) return;
+  el('mTitle').textContent = `${r.event_type||r.action||'Log Entry'} — ${r.username||''}`;
+
+  const fields = [
+    ['Timestamp',     fmtTs(r.event_timestamp)],
+    ['Source',        r.source === 'auth' ? '🔐 Authentication' : '⚙️ System'],
+    ['Event / Action',r.event_type || r.action],
+    ['Status',        r.status],
+    ['Username',      r.username],
+    ['User ID',       r.user_id],
+    ['Client IP',     r.client_ip || r.ip_address],
+    ['User Agent',    r.user_agent],
+    ['Database',      r.database_name],
+    ['Resource',      r.resource_name],
+    ['Rows Affected', r.rows_affected],
+    ['Exec Time',     r.execution_time_ms != null ? r.execution_time_ms + ' ms' : null],
+    ['Environment',   r.environment],
+    ['Failure',       r.failure_reason || r.error_message],
+    ['Details',       r.details],
+  ].filter(([,v]) => v != null && v !== '' && v !== '—');
+
+  const sqlRow = (r.sql_statement)
+    ? `<div class="dk">SQL Statement</div><div class="dv"><div class="sqlblk">${esc(r.sql_statement)}</div></div>`
+    : '';
+
+  el('mBody').innerHTML = fields.map(([k,v]) =>
+    `<div class="dk">${k}</div><div class="dv">${esc(String(v))}</div>`
+  ).join('') + sqlRow;
+
+  el('modal').classList.add('open');
+}
+
+function closeModal() { el('modal').classList.remove('open'); }
+el('modal').addEventListener('click', e => { if(e.target===el('modal')) closeModal(); });
+
+// ── EXPORT ─────────────────────────────────────────────────────────────────
+function exportJson() {
+  const data = filtered.length ? filtered : allLogs;
+  if (!data.length) { alert('No data to export.'); return; }
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+}
+
+function exportCsv() {
+  const data = filtered.length ? filtered : allLogs;
+  if (!data.length) { alert('No data to export.'); return; }
+  const cols = ['event_timestamp','source','event_type','database_name','username',
+                'status','client_ip','execution_time_ms','details','failure_reason'];
+  const rows = [cols.join(',')];
+  data.forEach(r => {
+    rows.push(cols.map(c => {
+      const v = r[c] != null ? String(r[c]).replace(/"/g,'""') : '';
+      return `"${v}"`;
+    }).join(','));
+  });
+  const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>
