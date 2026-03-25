@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Select Test Run — CQE NFT</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+:root{
+  --primary:#2563eb;--primary-dark:#1d4ed8;--primary-light:#eff6ff;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
+  --gray-400:#9ca3af;--gray-600:#4b5563;--gray-800:#1f2937;
+  --radius:10px;--shadow:0 2px 8px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:var(--gray-800);min-height:100vh}
+
+/* NAV */
+.top-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;
+  display:flex;align-items:center;gap:8px;padding:0 20px;height:54px;
+  box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.nav-brand{color:#fff;font-weight:700;font-size:15px;margin-right:auto}
+.nav-link{color:rgba(255,255,255,.75);text-decoration:none;font-size:13px;
+  padding:6px 12px;border-radius:6px;transition:all .2s}
+.nav-link:hover{background:rgba(255,255,255,.12);color:#fff}
+
+/* LAYOUT */
+.page{padding:72px 24px 40px;max-width:1200px;margin:0 auto}
+.page-header{margin-bottom:24px}
+.page-header h1{font-size:22px;font-weight:700;color:var(--gray-800)}
+.page-header p{color:var(--gray-600);font-size:14px;margin-top:4px}
+
+/* FILTER BAR */
+.filter-bar{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px 18px;margin-bottom:18px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:4px;min-width:150px}
+.filter-group label{font-size:11px;font-weight:600;color:var(--gray-600);
+  text-transform:uppercase;letter-spacing:.5px}
+.filter-group select,.filter-group input{padding:8px 10px;border:1.5px solid var(--gray-200);
+  border-radius:7px;font-size:13px;color:var(--gray-800);background:#fff;transition:border .2s}
+.filter-group select:focus,.filter-group input:focus{outline:none;border-color:var(--primary)}
+.btn{padding:8px 16px;border:none;border-radius:7px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{background:transparent;color:var(--gray-600);border:1.5px solid var(--gray-200)}
+.btn-ghost:hover{background:var(--gray-100)}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.stat-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px 16px;border-left:4px solid var(--gray-200)}
+.stat-card.blue{border-color:var(--primary)}
+.stat-card.green{border-color:var(--success)}
+.stat-card.amber{border-color:var(--warning)}
+.stat-card.red{border-color:var(--danger)}
+.stat-value{font-size:24px;font-weight:700;color:var(--gray-800)}
+.stat-card.blue .stat-value{color:var(--primary)}
+.stat-card.green .stat-value{color:var(--success)}
+.stat-card.amber .stat-value{color:var(--warning)}
+.stat-card.red .stat-value{color:var(--danger)}
+.stat-label{font-size:12px;color:var(--gray-400);margin-top:2px}
+
+/* TABLE */
+.table-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.table-toolbar{padding:12px 16px;border-bottom:1px solid var(--gray-100);
+  display:flex;align-items:center;gap:10px}
+.table-title{font-size:14px;font-weight:700;color:var(--gray-800);margin-right:auto}
+.search-wrap{position:relative}
+.search-wrap input{padding:7px 10px 7px 30px;border:1.5px solid var(--gray-200);
+  border-radius:7px;font-size:13px;width:220px}
+.search-wrap::before{content:'🔍';position:absolute;left:8px;top:50%;
+  transform:translateY(-50%);font-size:12px}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--gray-50)}
+th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--gray-600);
+  text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--gray-200)}
+td{padding:11px 12px;font-size:13px;border-bottom:1px solid var(--gray-100);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--gray-50)}
+
+/* BADGES */
+.badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-success{background:#d1fae5;color:#065f46}
+.badge-warning{background:#fef3c7;color:#92400e}
+.badge-info{background:#dbeafe;color:#1e40af}
+.badge-gray{background:var(--gray-100);color:var(--gray-600)}
+.badge-danger{background:#fee2e2;color:#991b1b}
+
+/* ACTION BUTTONS */
+.action-btns{display:flex;gap:6px;flex-wrap:nowrap}
+.btn-sm{padding:5px 11px;font-size:12px;border-radius:6px;border:none;
+  cursor:pointer;font-weight:600;transition:all .2s;white-space:nowrap}
+.btn-report{background:#dbeafe;color:#1e40af}
+.btn-report:hover{background:#bfdbfe}
+.btn-awr{background:#d1fae5;color:#065f46}
+.btn-awr:hover{background:#a7f3d0}
+.btn-upload{background:var(--gray-100);color:var(--gray-600)}
+.btn-upload:hover{background:var(--gray-200)}
+
+/* EMPTY / LOADING */
+.empty-state,.loading-state{padding:60px 20px;text-align:center;color:var(--gray-400)}
+.spinner{display:inline-block;width:32px;height:32px;border:3px solid var(--gray-200);
+  border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;justify-content:space-between;
+  padding:11px 16px;border-top:1px solid var(--gray-100);flex-wrap:wrap;gap:8px}
+.page-info{font-size:13px;color:var(--gray-600)}
+.page-btns{display:flex;gap:4px}
+.page-btn{padding:5px 11px;border:1.5px solid var(--gray-200);border-radius:6px;
+  background:#fff;font-size:13px;cursor:pointer;transition:all .2s}
+.page-btn:hover:not(:disabled){background:var(--primary);color:#fff;border-color:var(--primary)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+.page-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* RUN ID CODE */
+.run-id-code{font-size:10px;font-family:'Consolas','Courier New',monospace;
+  color:var(--gray-600);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <span class="nav-brand">⚡ CQE NFT Monitoring</span>
+  <!-- Upload Reports: from pages/analysis/ go up to pages/monitoring/ -->
+  <a href="../monitoring/upload-reports.html" class="nav-link">← Upload Reports</a>
+  <a href="pc_report.html" class="nav-link" id="awrAnalysisLink">AWR Analysis</a>
+  <a href="pc_report.html" class="nav-link" id="pcResultsLink">PC Results</a>
+  <a href="../landing.html" class="nav-link">🏠 Home</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="page">
+  <div class="page-header">
+    <h1>📋 Select Test Run</h1>
+    <p>Choose a registered test run to view its full report</p>
+  </div>
+
+  <div id="errorBanner" style="display:none;margin-bottom:16px"></div>
+
+  <!-- FILTERS -->
+  <div class="filter-bar">
+    <div class="filter-group" style="min-width:180px">
+      <label>LOB</label>
+      <select id="lobFilter" onchange="onLobChange()">
+        <option value="">All LOBs</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Track</label>
+      <select id="filterTrack" onchange="applyFilters()">
+        <option value="">All Tracks</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Status</label>
+      <select id="filterStatus" onchange="applyFilters()">
+        <option value="">All</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="IN_PROGRESS">In Progress</option>
+        <option value="INITIATED">Initiated</option>
+        <option value="FAILED">Failed</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Date From</label>
+      <input type="date" id="filterDateFrom" onchange="applyFilters()">
+    </div>
+    <div class="filter-group">
+      <label>Date To</label>
+      <input type="date" id="filterDateTo" onchange="applyFilters()">
+    </div>
+    <div class="filter-group" style="min-width:auto">
+      <label>&nbsp;</label>
+      <button class="btn btn-ghost" onclick="clearFilters()">✕ Clear</button>
+    </div>
+    <div class="filter-group" style="min-width:auto;margin-left:auto">
+      <label>&nbsp;</label>
+      <button class="btn btn-primary" onclick="loadRuns()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card blue"><div class="stat-value" id="statTotal">—</div><div class="stat-label">Total Runs</div></div>
+    <div class="stat-card green"><div class="stat-value" id="statCompleted">—</div><div class="stat-label">Completed</div></div>
+    <div class="stat-card amber"><div class="stat-value" id="statInProgress">—</div><div class="stat-label">In Progress</div></div>
+    <div class="stat-card red"><div class="stat-value" id="statFailed">—</div><div class="stat-label">Failed</div></div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-toolbar">
+      <span class="table-title">Registered Test Runs</span>
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="Search Run ID, name…" oninput="applyFilters()">
+      </div>
+    </div>
+    <div id="tableBody">
+      <div class="loading-state"><div class="spinner"></div><p style="margin-top:12px">Loading runs…</p></div>
+    </div>
+    <div class="pagination" id="paginationBar" style="display:none">
+      <span class="page-info" id="pageInfo"></span>
+      <div class="page-btns">
+        <button class="page-btn" id="btnPrev" onclick="changePage(-1)">‹ Prev</button>
+        <span id="pageNums" style="display:flex;gap:4px"></span>
+        <button class="page-btn" id="btnNext" onclick="changePage(1)">Next ›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API      = 'http://localhost:8000/api/v1';
+const AUTH_API = API + '/auth';
+const PC_API   = API + '/monitoring/pc';
+const PAGE_SIZE = 15;
+
+const el   = id => document.getElementById(id);
+const sess = JSON.parse(sessionStorage.getItem('userSession') || '{}');
+const tok  = sess.session_token || localStorage.getItem('session_token') || '';
+
+let allRuns     = [];
+let filtered    = [];
+let currentPage = 1;
+let lobList     = [];  // [{name, lob_name}]
+
+function logout() {
+  sessionStorage.clear();
+  localStorage.removeItem('session_token');
+  window.location.href = '../landing.html';
+}
+
+async function apiFetch(url) {
+  const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + tok } });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`); }
+  return r.json();
+}
+
+function showError(msg) {
+  el('errorBanner').innerHTML = `<div class="alert alert-danger" style="padding:12px 16px;background:#fee2e2;color:#991b1b;border-radius:8px;font-size:13px">⚠ ${msg}</div>`;
+  el('errorBanner').style.display = 'block';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  await loadLobs();
+  await loadRuns();
+}
+
+// ── LOAD LOBs FOR DROPDOWN ────────────────────────────────────────────────────
+async function loadLobs() {
+  try {
+    const d = await apiFetch(`${AUTH_API}/lob-config/public`);
+    lobList = d.lobs || [];
+    const sel = el('lobFilter');
+    sel.innerHTML = '<option value="">All LOBs</option>';
+    lobList.forEach(l => {
+      const name = l.name || l.lob_name || l;
+      const o = document.createElement('option');
+      o.value = name; o.textContent = name;
+      sel.appendChild(o);
+    });
+
+    // Auto-select from session
+    const savedLob = JSON.parse(sessionStorage.getItem('selectedLob') || '{}');
+    const savedName = savedLob.name || savedLob.lob_name || '';
+    if (savedName) sel.value = savedName;
+
+  } catch (e) {
+    console.error('LOB load error:', e);
+  }
+}
+
+function onLobChange() {
+  // Update track filter when LOB changes
+  const lobName = el('lobFilter').value;
+  const lob = lobList.find(l => (l.name||l.lob_name||l) === lobName);
+  const tracks = lob?.tracks || [];
+  const trackSel = el('filterTrack');
+  trackSel.innerHTML = '<option value="">All Tracks</option>';
+  tracks.forEach(t => {
+    const name = t.name || t;
+    const o = document.createElement('option'); o.value = name; o.textContent = name;
+    trackSel.appendChild(o);
+  });
+  applyFilters();
+}
+
+// ── LOAD RUNS ─────────────────────────────────────────────────────────────────
+async function loadRuns() {
+  el('tableBody').innerHTML = '<div class="loading-state"><div class="spinner"></div><p style="margin-top:12px">Loading runs…</p></div>';
+  el('paginationBar').style.display = 'none';
+  el('errorBanner').style.display   = 'none';
+
+  try {
+    const lobName = el('lobFilter').value;
+    const query   = lobName
+      ? `?lob_name=${encodeURIComponent(lobName)}&limit=200`
+      : '?limit=200';
+    const data = await apiFetch(`${PC_API}/test-run/recent${query}`);
+
+    // Robust key resolution
+    let runs = null;
+    if (Array.isArray(data.test_runs))    runs = data.test_runs;
+    else if (Array.isArray(data.runs))    runs = data.runs;
+    else if (Array.isArray(data.data))    runs = data.data;
+    else if (Array.isArray(data.results)) runs = data.results;
+    else { for (const v of Object.values(data)) { if (Array.isArray(v)) { runs = v; break; } } }
+
+    allRuns = runs || [];
+
+    // Populate track filter from loaded runs (if not already from LOB config)
+    const trackSel = el('filterTrack');
+    if (trackSel.options.length <= 1) {
+      const tracks = [...new Set(allRuns.map(r => r.track).filter(Boolean))].sort();
+      tracks.forEach(t => {
+        const o = document.createElement('option'); o.value = t; o.textContent = t;
+        trackSel.appendChild(o);
+      });
+    }
+
+    updateStats(allRuns);
+    applyFilters();
+
+  } catch (err) {
+    console.error('loadRuns error:', err);
+    showError('Failed to load test runs: ' + err.message);
+    el('tableBody').innerHTML = '<div class="empty-state"><p>⚠ Could not load runs. Check connection and try again.</p></div>';
+  }
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function updateStats(runs) {
+  el('statTotal').textContent      = runs.length;
+  el('statCompleted').textContent  = runs.filter(r => (r.status||'').toUpperCase() === 'COMPLETED').length;
+  el('statInProgress').textContent = runs.filter(r => ['IN_PROGRESS','RUNNING','MONITORING'].includes((r.status||'').toUpperCase())).length;
+  el('statFailed').textContent     = runs.filter(r => (r.status||'').toUpperCase() === 'FAILED').length;
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const lobFilter  = el('lobFilter').value;
+  const track      = el('filterTrack').value;
+  const status     = el('filterStatus').value;
+  const dateFrom   = el('filterDateFrom').value;
+  const dateTo     = el('filterDateTo').value;
+  const search     = el('searchInput').value.trim().toLowerCase();
+
+  filtered = allRuns.filter(r => {
+    if (lobFilter && (r.lob_name||'') !== lobFilter) return false;
+    if (track     && (r.track||'')    !== track)     return false;
+    if (status    && (r.status||'').toUpperCase() !== status) return false;
+    if (dateFrom  && r.created_date && r.created_date < dateFrom) return false;
+    if (dateTo    && r.created_date && r.created_date > dateTo)   return false;
+    if (search) {
+      const hay = `${r.run_id} ${r.pc_run_id} ${r.test_name} ${r.track} ${r.lob_name}`.toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  currentPage = 1;
+  renderTable();
+}
+
+function clearFilters() {
+  el('filterTrack').value   = '';
+  el('filterStatus').value  = '';
+  el('filterDateFrom').value = '';
+  el('filterDateTo').value   = '';
+  el('searchInput').value    = '';
+  // Keep LOB filter as-is
+  applyFilters();
+}
+
+// ── RENDER TABLE ──────────────────────────────────────────────────────────────
+function renderTable() {
+  if (!filtered.length) {
+    el('tableBody').innerHTML = '<div class="empty-state"><p>🔍 No runs match your filters.</p></div>';
+    el('paginationBar').style.display = 'none';
+    return;
+  }
+
+  const start     = (currentPage - 1) * PAGE_SIZE;
+  const pageRuns  = filtered.slice(start, start + PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+
+  el('tableBody').innerHTML = `
+    <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>PC Run ID</th>
+          <th>Master Run ID</th>
+          <th>Test Name</th>
+          <th>Track</th>
+          <th>LOB</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${pageRuns.map(r => rowHtml(r)).join('')}
+      </tbody>
+    </table>
+    </div>`;
+
+  // Pagination
+  el('pageInfo').textContent = `Showing ${start+1}–${Math.min(start+PAGE_SIZE, filtered.length)} of ${filtered.length}`;
+  const nums = el('pageNums'); nums.innerHTML = '';
+  pageRange(currentPage, totalPages).forEach(p => {
+    if (p === '…') {
+      const s = document.createElement('span');
+      s.textContent = '…'; s.style.padding = '5px 4px'; nums.appendChild(s);
+    } else {
+      const b = document.createElement('button');
+      b.className = 'page-btn' + (p === currentPage ? ' active' : '');
+      b.textContent = p;
+      b.onclick = () => { currentPage = p; renderTable(); };
+      nums.appendChild(b);
+    }
+  });
+  el('btnPrev').disabled = currentPage === 1;
+  el('btnNext').disabled = currentPage === totalPages;
+  el('paginationBar').style.display = 'flex';
+}
+
+function pageRange(cur, total) {
+  if (total <= 7) return Array.from({length: total}, (_, i) => i + 1);
+  if (cur <= 4)   return [1,2,3,4,5,'…',total];
+  if (cur >= total-3) return [1,'…',total-4,total-3,total-2,total-1,total];
+  return [1,'…',cur-1,cur,cur+1,'…',total];
+}
+
+function changePage(dir) {
+  const total = Math.ceil(filtered.length / PAGE_SIZE);
+  currentPage = Math.max(1, Math.min(total, currentPage + dir));
+  renderTable();
+}
+
+function rowHtml(r) {
+  const status    = (r.status || 'INITIATED').toUpperCase();
+  const badgeCls  = status === 'COMPLETED' ? 'badge-success'
+    : ['IN_PROGRESS','RUNNING','MONITORING'].includes(status) ? 'badge-info'
+    : status === 'FAILED' ? 'badge-danger' : 'badge-gray';
+  const dateStr   = (r.created_date||'').substring(0,10) || '—';
+  const runId     = encodeURIComponent(r.run_id || '');
+  const pcRunId   = encodeURIComponent(r.pc_run_id || '');
+
+  // Both AWR and PC route to pc_report.html (unified report in same folder)
+  const reportUrl = `pc_report.html?run_id=${runId}&pc_run_id=${pcRunId}`;
+
+  return `<tr>
+    <td><strong>${r.pc_run_id || '—'}</strong></td>
+    <td><span class="run-id-code" title="${r.run_id||''}">${r.run_id || '—'}</span></td>
+    <td>${r.test_name || '—'}</td>
+    <td>${r.track || '—'}</td>
+    <td>${r.lob_name || '—'}</td>
+    <td><span class="badge ${badgeCls}">${status}</span></td>
+    <td>${dateStr}</td>
+    <td>
+      <div class="action-btns">
+        <button class="btn-sm btn-report" onclick="openReport('${runId}','${pcRunId}')">
+          📋 View Report
+        </button>
+        <button class="btn-sm btn-awr"
+          onclick="window.location.href='pc_report.html?run_id=${runId}&pc_run_id=${pcRunId}&tab=awr'">
+          📊 AWR
+        </button>
+        <button class="btn-sm btn-upload"
+          onclick="window.location.href='../monitoring/upload-reports.html'">
+          📤 Upload
+        </button>
+      </div>
+    </td>
+  </tr>`;
+}
+
+function openReport(runId, pcRunId) {
+  // pc_report.html lives in same folder: pages/analysis/
+  window.location.href = `pc_report.html?run_id=${runId}&pc_run_id=${pcRunId}`;
+}
+
+init();
+</script>
+</body>
+</html>
