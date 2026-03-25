@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Audit Logs — CQE NFT Monitoring</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+:root{
+  --primary:#2563eb;--primary-dark:#1d4ed8;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;--info:#6366f1;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;
+  --gray-400:#9ca3af;--gray-600:#4b5563;--gray-800:#1f2937;
+  --radius:10px;--shadow:0 2px 8px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:var(--gray-800);min-height:100vh}
+
+/* NAV */
+.top-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;
+  display:flex;align-items:center;gap:8px;padding:0 20px;height:54px;
+  box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.nav-brand{color:#fff;font-weight:700;font-size:15px;margin-right:auto}
+.nav-link{color:rgba(255,255,255,.85);text-decoration:none;font-size:13px;
+  padding:6px 12px;border-radius:6px;transition:all .2s}
+.nav-link:hover{background:rgba(255,255,255,.15);color:#fff}
+
+/* PAGE */
+.page{padding:72px 24px 40px;max-width:1400px;margin:0 auto}
+.page-header{margin-bottom:22px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.page-header h1{font-size:22px;font-weight:700;color:var(--gray-800)}
+.page-header p{color:var(--gray-600);font-size:13px;margin-top:3px}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:18px}
+.stat-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px 16px;border-left:4px solid var(--gray-200);cursor:default}
+.stat-card.total{border-color:var(--primary)}
+.stat-card.success{border-color:var(--success)}
+.stat-card.failed{border-color:var(--danger)}
+.stat-card.auth{border-color:var(--info)}
+.stat-card.system{border-color:var(--warning)}
+.stat-val{font-size:24px;font-weight:800;color:var(--gray-800)}
+.stat-card.total .stat-val{color:var(--primary)}
+.stat-card.success .stat-val{color:var(--success)}
+.stat-card.failed .stat-val{color:var(--danger)}
+.stat-card.auth .stat-val{color:var(--info)}
+.stat-card.system .stat-val{color:var(--warning)}
+.stat-lbl{font-size:11px;color:var(--gray-400);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+.stat-sub{font-size:11px;color:var(--gray-600);margin-top:4px;font-weight:500}
+
+/* FILTERS */
+.filter-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:16px 18px;margin-bottom:18px}
+.filter-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:11px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.4px}
+.fg select,.fg input{padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:7px;
+  font-size:13px;color:var(--gray-800);background:#fff;min-width:140px}
+.fg select:focus,.fg input:focus{outline:none;border-color:var(--primary)}
+.btn{padding:8px 16px;border:none;border-radius:7px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-ghost{background:transparent;color:var(--gray-600);border:1.5px solid var(--gray-200)}
+.btn-ghost:hover{background:var(--gray-100)}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{background:#059669}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* TABLE CARD */
+.table-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.table-toolbar{padding:12px 16px;border-bottom:1px solid var(--gray-100);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.table-title{font-size:14px;font-weight:700;color:var(--gray-800);margin-right:auto}
+.record-count{font-size:12px;color:var(--gray-400);background:var(--gray-100);
+  padding:3px 10px;border-radius:12px}
+.search-wrap{position:relative}
+.search-wrap input{padding:7px 10px 7px 30px;border:1.5px solid var(--gray-200);
+  border-radius:7px;font-size:13px;width:220px}
+.search-wrap::before{content:'🔍';position:absolute;left:8px;top:50%;
+  transform:translateY(-50%);font-size:12px;pointer-events:none}
+
+/* TABLE */
+.table-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{background:var(--gray-50);position:sticky;top:0;z-index:1}
+th{padding:10px 12px;text-align:left;font-size:10px;font-weight:700;
+  color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;
+  border-bottom:2px solid var(--gray-200);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--gray-100);vertical-align:top;
+  max-width:280px;word-break:break-word}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--gray-50)}
+
+/* SOURCE BADGES */
+.src-badge{display:inline-block;padding:2px 8px;border-radius:4px;
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.src-auth{background:#ede9fe;color:#5b21b6}
+.src-system{background:#fef3c7;color:#92400e}
+
+/* STATUS */
+.status-dot{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600}
+.status-dot::before{content:'';width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.status-success::before{background:var(--success)}
+.status-success{color:#065f46}
+.status-failed::before{background:var(--danger)}
+.status-failed{color:#991b1b}
+.status-warn::before{background:var(--warning)}
+.status-warn{color:#92400e}
+
+/* EVENT TYPE */
+.event-tag{display:inline-block;padding:2px 7px;border-radius:4px;
+  font-size:10px;font-weight:600;background:var(--gray-100);color:var(--gray-600)}
+.event-login{background:#dbeafe;color:#1e40af}
+.event-logout{background:#f3f4f6;color:#374151}
+.event-query{background:#d1fae5;color:#065f46}
+.event-sql{background:#fef3c7;color:#92400e}
+.event-error{background:#fee2e2;color:#991b1b}
+.event-config{background:#ede9fe;color:#5b21b6}
+
+/* SQL PREVIEW */
+.sql-preview{font-family:'Consolas','Courier New',monospace;font-size:10px;
+  color:var(--gray-600);max-width:240px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;display:block;cursor:help}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;border-top:1px solid var(--gray-100);flex-wrap:wrap;gap:8px}
+.page-info{font-size:12px;color:var(--gray-600)}
+.page-btns{display:flex;gap:4px}
+.page-btn{padding:5px 11px;border:1.5px solid var(--gray-200);border-radius:6px;
+  background:#fff;font-size:12px;cursor:pointer;transition:all .2s}
+.page-btn:hover:not(:disabled){background:var(--primary);color:#fff;border-color:var(--primary)}
+.page-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* EMPTY / LOADING */
+.empty-state{padding:60px 20px;text-align:center;color:var(--gray-400)}
+.spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--gray-200);
+  border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* DETAIL MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
+  align-items:flex-start;justify-content:center;padding-top:60px;overflow-y:auto}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:14px;padding:24px;max-width:680px;width:94%;margin-bottom:40px;
+  box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.modal-header h3{font-size:16px;font-weight:700;color:var(--gray-800)}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray-400);line-height:1}
+.modal-close:hover{color:var(--gray-800)}
+.detail-grid{display:grid;grid-template-columns:120px 1fr;gap:0}
+.detail-row{display:contents}
+.detail-key{padding:8px 0;font-size:12px;font-weight:600;color:var(--gray-600);border-bottom:1px solid var(--gray-100)}
+.detail-val{padding:8px 0 8px 12px;font-size:13px;color:var(--gray-800);border-bottom:1px solid var(--gray-100);word-break:break-word}
+.sql-block{font-family:'Consolas','Courier New',monospace;font-size:11px;
+  background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;
+  padding:10px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;
+  color:var(--gray-800);line-height:1.5;margin-top:4px}
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <span class="nav-brand">⚡ CQE NFT Monitoring</span>
+  <a href="../landing.html" class="nav-link">🏠 Home</a>
+  <a href="../analysis/test-selection.html" class="nav-link">📋 Test Runs</a>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <h1>📋 Audit Logs</h1>
+      <p>Combined authentication &amp; system audit logs — last 24 hours</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-success btn-sm" onclick="exportLogs()">⬇ Export JSON</button>
+      <button class="btn btn-primary btn-sm" onclick="loadLogs()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card total"><div class="stat-val" id="statTotal">—</div><div class="stat-lbl">Total Events</div></div>
+    <div class="stat-card success"><div class="stat-val" id="statSuccess">—</div><div class="stat-lbl">Successful</div></div>
+    <div class="stat-card failed"><div class="stat-val" id="statFailed">—</div><div class="stat-lbl">Failed</div></div>
+    <div class="stat-card auth"><div class="stat-val" id="statAuth">—</div><div class="stat-lbl">Auth Events</div><div class="stat-sub" id="statAuthSub"></div></div>
+    <div class="stat-card system"><div class="stat-val" id="statSystem">—</div><div class="stat-lbl">System Events</div></div>
+    <div class="stat-card" style="border-color:#10b981"><div class="stat-val" id="statAvgMs" style="color:#374151;font-size:18px">—</div><div class="stat-lbl">Avg Exec Time</div></div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filter-card">
+    <div class="filter-row">
+      <div class="fg">
+        <label>Source</label>
+        <select id="filterSource" onchange="applyClientFilter()">
+          <option value="">All Sources</option>
+          <option value="auth">Authentication</option>
+          <option value="system">System</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Status</label>
+        <select id="filterStatus" onchange="applyClientFilter()">
+          <option value="">All Statuses</option>
+          <option value="success">Success</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Event Type</label>
+        <select id="filterEventType" onchange="applyClientFilter()">
+          <option value="">All Types</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Database</label>
+        <select id="filterDatabase" onchange="applyClientFilter()">
+          <option value="">All Databases</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Date From</label>
+        <input type="datetime-local" id="filterDateFrom">
+      </div>
+      <div class="fg">
+        <label>Date To</label>
+        <input type="datetime-local" id="filterDateTo">
+      </div>
+      <div class="fg">
+        <label>Limit</label>
+        <select id="filterLimit">
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="500">500</option>
+          <option value="1000">1000</option>
+        </select>
+      </div>
+      <div class="fg" style="min-width:auto">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" onclick="loadLogs()">🔍 Search</button>
+      </div>
+      <div class="fg" style="min-width:auto">
+        <label>&nbsp;</label>
+        <button class="btn btn-ghost" onclick="clearFilters()">✕ Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-toolbar">
+      <span class="table-title">Audit Log Entries</span>
+      <span class="record-count" id="recordCount">—</span>
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="Search user, action, IP…" oninput="applyClientFilter()">
+      </div>
+    </div>
+
+    <div id="tableBody">
+      <div class="empty-state"><div class="spinner"></div><p style="margin-top:12px">Loading audit logs…</p></div>
+    </div>
+
+    <div class="pagination" id="paginationBar" style="display:none">
+      <span class="page-info" id="pageInfo"></span>
+      <div class="page-btns">
+        <button class="page-btn" id="btnPrev" onclick="changePage(-1)">‹ Prev</button>
+        <span id="pageNums" style="display:flex;gap:4px"></span>
+        <button class="page-btn" id="btnNext" onclick="changePage(1)">Next ›</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- DETAIL MODAL -->
+<div class="modal-bg" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Log Entry Detail</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="detail-grid" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const API   = 'http://localhost:8000/api/v1';
+const PAGE_SIZE = 50;
+
+const el  = id => document.getElementById(id);
+const sess = JSON.parse(sessionStorage.getItem('userSession') || '{}');
+const tok  = sess.session_token || localStorage.getItem('session_token') || '';
+
+let allLogs    = [];   // all fetched from API
+let filtered   = [];   // after client-side filters
+let currentPage = 1;
+let exportData  = [];  // for JSON export
+
+function logout() { sessionStorage.clear(); localStorage.removeItem('session_token'); window.location.href = '../landing.html'; }
+
+// ── API FETCH ─────────────────────────────────────────────────────────────────
+async function apiFetch(url) {
+  const r = await fetch(url, {
+    headers: tok ? { 'Authorization': 'Bearer ' + tok } : {}
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+  return d;
+}
+
+// ── LOAD LOGS ─────────────────────────────────────────────────────────────────
+async function loadLogs() {
+  el('tableBody').innerHTML = '<div class="empty-state"><div class="spinner"></div><p style="margin-top:12px">Loading…</p></div>';
+  el('paginationBar').style.display = 'none';
+
+  const params = new URLSearchParams();
+  const dateFrom = el('filterDateFrom').value;
+  const dateTo   = el('filterDateTo').value;
+  const limit    = el('filterLimit').value;
+
+  if (dateFrom) params.set('start_date', new Date(dateFrom).toISOString());
+  if (dateTo)   params.set('end_date',   new Date(dateTo).toISOString());
+  params.set('limit', limit);
+
+  try {
+    const data = await apiFetch(`${API}/audit/logs?${params}`);
+
+    // Response: { total_records, filters, records }
+    const records = data.records || data.logs || data.data || [];
+    allLogs = records;
+    exportData = records;
+
+    buildDynamicFilters(records);
+    updateStats(records);
+    applyClientFilter();
+
+  } catch (err) {
+    console.error('loadLogs error:', err);
+    el('tableBody').innerHTML = `<div class="empty-state">
+      <p style="color:#ef4444">⚠ Failed to load audit logs: ${err.message}</p>
+      <p style="margin-top:8px;font-size:12px">Check that you are logged in and the backend is running.</p>
+    </div>`;
+  }
+}
+
+// ── DYNAMIC FILTER OPTIONS ───────────────────────────────────────────────────
+function buildDynamicFilters(records) {
+  const eventTypes = [...new Set(records.map(r => r.event_type || r.action_type).filter(Boolean))].sort();
+  const databases  = [...new Set(records.map(r => r.database_name || r.database).filter(Boolean))].sort();
+
+  const etSel = el('filterEventType');
+  const saved = etSel.value;
+  etSel.innerHTML = '<option value="">All Types</option>' +
+    eventTypes.map(e => `<option value="${e}">${e}</option>`).join('');
+  if (saved) etSel.value = saved;
+
+  const dbSel = el('filterDatabase');
+  const savedDb = dbSel.value;
+  dbSel.innerHTML = '<option value="">All Databases</option>' +
+    databases.map(d => `<option value="${d}">${d}</option>`).join('');
+  if (savedDb) dbSel.value = savedDb;
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function updateStats(records) {
+  const total    = records.length;
+  const success  = records.filter(r => (r.status||'').toLowerCase() === 'success').length;
+  const failed   = total - success;
+  const authLogs = records.filter(r => (r.source||'').toLowerCase() === 'auth' || r.auth_id || r.session_id).length;
+  const sysLogs  = total - authLogs;
+
+  // Avg execution time (system logs have execution_time_ms)
+  const withTime = records.filter(r => r.execution_time_ms != null);
+  const avgMs = withTime.length
+    ? Math.round(withTime.reduce((s,r) => s + parseFloat(r.execution_time_ms||0), 0) / withTime.length)
+    : null;
+
+  el('statTotal').textContent   = total;
+  el('statSuccess').textContent = success;
+  el('statFailed').textContent  = failed;
+  el('statAuth').textContent    = authLogs;
+  el('statSystem').textContent  = sysLogs;
+  el('statAvgMs').textContent   = avgMs != null ? avgMs + ' ms' : '—';
+}
+
+// ── CLIENT FILTER ─────────────────────────────────────────────────────────────
+function applyClientFilter() {
+  const source    = el('filterSource').value.toLowerCase();
+  const status    = el('filterStatus').value.toLowerCase();
+  const eventType = el('filterEventType').value.toLowerCase();
+  const database  = el('filterDatabase').value.toLowerCase();
+  const search    = el('searchInput').value.trim().toLowerCase();
+
+  filtered = allLogs.filter(r => {
+    const rSource = (r.source || (r.auth_id ? 'auth' : 'system')).toLowerCase();
+    const rStatus = (r.status || '').toLowerCase();
+    const rEvent  = (r.event_type || r.action_type || '').toLowerCase();
+    const rDb     = (r.database_name || r.database || '').toLowerCase();
+
+    if (source    && rSource  !== source)    return false;
+    if (status    && rStatus  !== status)    return false;
+    if (eventType && rEvent   !== eventType) return false;
+    if (database  && rDb      !== database)  return false;
+    if (search) {
+      const hay = JSON.stringify(r).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  el('recordCount').textContent = `${filtered.length} of ${allLogs.length}`;
+  currentPage = 1;
+  renderTable();
+}
+
+function clearFilters() {
+  el('filterSource').value    = '';
+  el('filterStatus').value    = '';
+  el('filterEventType').value = '';
+  el('filterDatabase').value  = '';
+  el('filterDateFrom').value  = '';
+  el('filterDateTo').value    = '';
+  el('searchInput').value     = '';
+  el('filterLimit').value     = '100';
+  applyClientFilter();
+}
+
+// ── RENDER TABLE ──────────────────────────────────────────────────────────────
+function renderTable() {
+  if (!filtered.length) {
+    el('tableBody').innerHTML = '<div class="empty-state"><p>No log entries match your filters.</p></div>';
+    el('paginationBar').style.display = 'none';
+    return;
+  }
+
+  const start    = (currentPage - 1) * PAGE_SIZE;
+  const pageRows = filtered.slice(start, start + PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+
+  el('tableBody').innerHTML = `
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Source</th>
+          <th>Event Type</th>
+          <th>Database / System</th>
+          <th>Action / SQL</th>
+          <th>User</th>
+          <th>Status</th>
+          <th>Client IP</th>
+          <th>Exec (ms)</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${pageRows.map((r, i) => rowHtml(r, start + i)).join('')}
+      </tbody>
+    </table>
+    </div>`;
+
+  // Pagination
+  el('pageInfo').textContent = `${start+1}–${Math.min(start+PAGE_SIZE,filtered.length)} of ${filtered.length}`;
+  const nums = el('pageNums');
+  nums.innerHTML = '';
+  pageRange(currentPage, totalPages).forEach(p => {
+    if (p === '…') { const s=document.createElement('span'); s.textContent='…'; s.style.padding='5px 4px'; nums.appendChild(s); }
+    else {
+      const b = document.createElement('button');
+      b.className = 'page-btn' + (p===currentPage?' active':'');
+      b.textContent = p;
+      b.onclick = () => { currentPage = p; renderTable(); };
+      nums.appendChild(b);
+    }
+  });
+  el('btnPrev').disabled = currentPage === 1;
+  el('btnNext').disabled = currentPage === totalPages;
+  el('paginationBar').style.display = 'flex';
+}
+
+function pageRange(cur, total) {
+  if (total <= 7) return Array.from({length:total},(_,i)=>i+1);
+  if (cur <= 4)   return [1,2,3,4,5,'…',total];
+  if (cur >= total-3) return [1,'…',total-4,total-3,total-2,total-1,total];
+  return [1,'…',cur-1,cur,cur+1,'…',total];
+}
+
+function changePage(dir) {
+  const total = Math.ceil(filtered.length / PAGE_SIZE);
+  currentPage = Math.max(1, Math.min(total, currentPage + dir));
+  renderTable();
+}
+
+// ── ROW HTML ──────────────────────────────────────────────────────────────────
+function rowHtml(r, idx) {
+  const ts      = formatTimestamp(r.event_timestamp || r.timestamp || r.created_date || r.since_time);
+  const source  = r.source || (r.auth_id ? 'auth' : 'system');
+  const srcCls  = source.toLowerCase() === 'auth' ? 'src-auth' : 'src-system';
+  const evType  = r.event_type || r.action_type || '—';
+  const evCls   = eventClass(evType);
+  const db      = r.database_name || r.database || '—';
+  const status  = (r.status || '—').toLowerCase();
+  const statusCls = status === 'success' ? 'status-success' : status === 'failed' ? 'status-failed' : 'status-warn';
+  const user    = r.username || r.user_id || '—';
+  const ip      = r.client_ip || r.ip_address || '—';
+  const execMs  = r.execution_time_ms != null ? parseFloat(r.execution_time_ms).toFixed(0) : '—';
+
+  // Action / SQL preview
+  const actionSql = r.sql_statement || r.action || r.action_sql || '';
+  const actionPreview = actionSql
+    ? `<span class="sql-preview" title="${escHtml(actionSql)}">${escHtml(actionSql.substring(0,60))}${actionSql.length>60?'…':''}</span>`
+    : (r.resource_name ? `<span style="font-size:11px">${r.resource_name}</span>` : '—');
+
+  const details = r.failure_reason || r.details || r.rows_affected != null ? `${r.rows_affected} rows` : '';
+
+  return `<tr style="cursor:pointer" onclick="showDetail(${idx})" title="Click for full details">
+    <td style="font-size:11px;white-space:nowrap;color:var(--gray-600)">${ts}</td>
+    <td><span class="src-badge ${srcCls}">${source.toUpperCase()}</span></td>
+    <td><span class="event-tag ${evCls}">${evType}</span></td>
+    <td style="font-size:11px;max-width:140px;word-break:break-word">${db}</td>
+    <td>${actionPreview}</td>
+    <td style="font-size:12px;font-weight:600">${user}</td>
+    <td><span class="status-dot ${statusCls}">${status}</span></td>
+    <td style="font-size:11px;color:var(--gray-600)">${ip}</td>
+    <td style="text-align:right;font-size:11px">${execMs}</td>
+    <td style="font-size:11px;color:var(--gray-600);max-width:160px">${escHtml((details||'').substring(0,60))}</td>
+  </tr>`;
+}
+
+function eventClass(type) {
+  const t = (type||'').toUpperCase();
+  if (t.includes('LOGIN'))   return 'event-login';
+  if (t.includes('LOGOUT'))  return 'event-logout';
+  if (t.includes('SELECT') || t.includes('QUERY')) return 'event-query';
+  if (t.includes('INSERT') || t.includes('UPDATE') || t.includes('DELETE') || t.includes('SQL')) return 'event-sql';
+  if (t.includes('ERROR') || t.includes('FAIL'))   return 'event-error';
+  if (t.includes('CONFIG') || t.includes('ADMIN'))  return 'event-config';
+  return '';
+}
+
+function formatTimestamp(ts) {
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts.replace ? ts.replace('T', ' ').replace('Z','') : ts);
+    if (isNaN(d)) return ts;
+    return d.toISOString().replace('T',' ').substring(0,19);
+  } catch { return String(ts); }
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── DETAIL MODAL ──────────────────────────────────────────────────────────────
+function showDetail(idx) {
+  const r = filtered[idx];
+  if (!r) return;
+
+  el('modalTitle').textContent = `${r.event_type || r.action_type || 'Log Entry'} — ${r.username || r.user_id || ''}`;
+
+  const fields = [
+    ['Timestamp',   formatTimestamp(r.event_timestamp || r.timestamp || r.created_date || r.since_time)],
+    ['Source',      r.source || (r.auth_id ? 'AUTH' : 'SYSTEM')],
+    ['Event Type',  r.event_type || r.action_type || '—'],
+    ['Status',      r.status || '—'],
+    ['Username',    r.username || r.user_id || '—'],
+    ['User Agent',  r.user_agent || '—'],
+    ['Client IP',   r.client_ip || r.ip_address || '—'],
+    ['Database',    r.database_name || r.database || '—'],
+    ['Resource',    r.resource_name || '—'],
+    ['Rows Affected', r.rows_affected != null ? r.rows_affected : '—'],
+    ['Exec Time',   r.execution_time_ms != null ? r.execution_time_ms + ' ms' : '—'],
+    ['Failure',     r.failure_reason || '—'],
+    ['Details',     r.details || '—'],
+  ].filter(([,v]) => v && v !== '—' && v !== 'null');
+
+  const sqlRow = r.sql_statement || r.action_sql
+    ? `<div class="detail-row">
+        <div class="detail-key">SQL / Action</div>
+        <div class="detail-val"><div class="sql-block">${escHtml(r.sql_statement || r.action_sql || '')}</div></div>
+       </div>`
+    : '';
+
+  el('modalBody').innerHTML = fields.map(([k,v]) => `
+    <div class="detail-row">
+      <div class="detail-key">${k}</div>
+      <div class="detail-val">${escHtml(String(v))}</div>
+    </div>`).join('') + sqlRow;
+
+  el('detailModal').classList.add('open');
+}
+
+function closeModal() { el('detailModal').classList.remove('open'); }
+el('detailModal').addEventListener('click', e => { if (e.target === el('detailModal')) closeModal(); });
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+function exportLogs() {
+  const data = filtered.length ? filtered : allLogs;
+  if (!data.length) { alert('No logs to export.'); return; }
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+loadLogs();
+</script>
+</body>
+</html>
