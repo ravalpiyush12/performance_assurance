@@ -1,0 +1,296 @@
+<!-- =============================================================
+     upload-reports.html — PC Results section changes
+     
+     Replace your existing "Fetch from PC" button area with this
+     two-tab layout:
+       Tab 1: Fetch from PC  (existing flow, unchanged)
+       Tab 2: Upload ZIP     (new flow)
+     ============================================================= -->
+
+
+<!-- ═══════════ CSS — add inside <style> ═══════════ -->
+<style>
+/* PC method tabs */
+.pc-method-tabs {
+  display: flex;
+  gap: 0;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.pc-method-tab {
+  flex: 1;
+  padding: 11px 16px;
+  border: none;
+  background: #fff;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.pc-method-tab.active {
+  background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+  color: #fff;
+}
+.pc-method-tab:hover:not(.active) { background: #f3f4f6; }
+.pc-method-pane { display: none; }
+.pc-method-pane.active { display: block; }
+
+/* ZIP drop zone */
+.zip-drop-zone {
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .25s;
+  background: #f9fafb;
+  position: relative;
+}
+.zip-drop-zone:hover,
+.zip-drop-zone.dragover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+.zip-drop-zone.has-file {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+.zip-drop-icon { font-size: 40px; margin-bottom: 10px; }
+.zip-drop-text { font-size: 14px; font-weight: 700; color: #374151; margin-bottom: 4px; }
+.zip-drop-sub  { font-size: 12px; color: #9ca3af; }
+.zip-drop-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+</style>
+
+
+<!-- ═══════════ HTML — replace your PC results area with this ═══════════ -->
+
+<!-- PC Project selector stays as-is above this block -->
+
+<!-- Two-tab switcher -->
+<div class="pc-method-tabs">
+  <button class="pc-method-tab active" id="tabFetchBtn"
+    onclick="switchPcMethod('fetch')">
+    🔌 Fetch from Performance Center
+  </button>
+  <button class="pc-method-tab" id="tabUploadBtn"
+    onclick="switchPcMethod('upload')">
+    📦 Upload Results ZIP
+  </button>
+</div>
+
+<!-- ── TAB 1: Fetch from PC (your existing content, no change needed) ── -->
+<div class="pc-method-pane active" id="pcMethodFetch">
+
+  <!-- Your existing fetch button + info banner + progress log stay here -->
+  <!-- Example (keep your existing markup): -->
+  <button class="btn btn-primary" id="btnFetch" onclick="fetchFromPC()"
+    style="width:100%;padding:14px">
+    🔌 Fetch from Performance Center
+  </button>
+  <div class="alert alert-info" style="margin-top:12px">
+    <span>ℹ</span>
+    <span>Connects to the configured PC instance and downloads reports for the specified Run ID.</span>
+  </div>
+  <div id="fetchLog" style="display:none;margin-top:12px">
+    <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px">Progress Log</div>
+    <div id="fetchLogBox"
+      style="background:#111;color:#10b981;font-family:monospace;font-size:12px;
+             padding:12px;border-radius:8px;max-height:180px;overflow-y:auto;line-height:1.7">
+    </div>
+  </div>
+  <div id="fetchStatus" style="display:none;margin-top:10px"></div>
+
+</div>
+
+<!-- ── TAB 2: Upload ZIP ── -->
+<div class="pc-method-pane" id="pcMethodUpload">
+
+  <div class="alert alert-info" style="margin-bottom:14px">
+    <span>ℹ</span>
+    <span>Download the results ZIP from Performance Center manually, then upload it here.
+    The ZIP must contain <strong>summary.html</strong>.</span>
+  </div>
+
+  <!-- ZIP drop zone -->
+  <div class="zip-drop-zone" id="zipDropZone"
+    ondragover="event.preventDefault();this.classList.add('dragover')"
+    ondragleave="this.classList.remove('dragover')"
+    ondrop="handleZipDrop(event)">
+    <input type="file" id="zipFileInput" accept=".zip"
+      onchange="handleZipSelect(this.files[0])">
+    <div class="zip-drop-icon">📦</div>
+    <div class="zip-drop-text" id="zipDropText">Drop PC Results ZIP here</div>
+    <div class="zip-drop-sub" id="zipDropSub">or click to browse — .zip files only</div>
+  </div>
+
+  <!-- Upload button -->
+  <button class="btn btn-primary" id="btnZipUpload"
+    onclick="uploadZipResults()"
+    style="width:100%;padding:14px;margin-top:14px" disabled>
+    📦 Process & Store ZIP Results
+  </button>
+
+  <!-- Progress log (same style as fetch tab) -->
+  <div id="zipLog" style="display:none;margin-top:12px">
+    <div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px">Progress Log</div>
+    <div id="zipLogBox"
+      style="background:#111;color:#10b981;font-family:monospace;font-size:12px;
+             padding:12px;border-radius:8px;max-height:180px;overflow-y:auto;line-height:1.7">
+    </div>
+  </div>
+  <div id="zipStatus" style="display:none;margin-top:10px"></div>
+
+</div>
+
+
+<!-- ═══════════ JS — add to your <script> block ═══════════ -->
+<script>
+
+// ── Tab switcher ──────────────────────────────────────────────────────────────
+function switchPcMethod(method) {
+  ['fetch','upload'].forEach(m => {
+    document.getElementById('pcMethod' + m.charAt(0).toUpperCase() + m.slice(1))
+      .classList.toggle('active', m === method);
+    document.getElementById('tab' + m.charAt(0).toUpperCase() + m.slice(1) + 'Btn')
+      .classList.toggle('active', m === method);
+  });
+}
+
+// ── ZIP file handling ─────────────────────────────────────────────────────────
+let selectedZipFile = null;
+
+function handleZipSelect(file) {
+  if (!file) return;
+  selectedZipFile = file;
+  const zone = document.getElementById('zipDropZone');
+  zone.classList.add('has-file');
+  document.getElementById('zipDropText').textContent = '✓ ' + file.name;
+  document.getElementById('zipDropSub').textContent  =
+    (file.size / 1024).toFixed(1) + ' KB — ready to upload';
+  document.getElementById('btnZipUpload').disabled = false;
+}
+
+function handleZipDrop(event) {
+  event.preventDefault();
+  document.getElementById('zipDropZone').classList.remove('dragover');
+  const file = event.dataTransfer.files[0];
+  if (file) {
+    document.getElementById('zipFileInput').files; // can't set directly
+    handleZipSelect(file);
+  }
+}
+
+// ── ZIP upload & process ──────────────────────────────────────────────────────
+async function uploadZipResults() {
+  if (!selectedZipFile) {
+    alert('⚠ Please select a ZIP file first.');
+    return;
+  }
+
+  // Read validated run details from the validate step
+  const pcRunId  = el('pcRunField').value.trim();
+  const runId    = el('pcRunField').dataset.runId || '';
+  const lobName  = el('lobField').value;
+  const track    = el('trackField').value;
+  const testName = el('testNameField')?.value?.trim() || '';
+
+  if (!pcRunId) {
+    alert('⚠ Enter and validate a PC Run ID before uploading.');
+    return;
+  }
+  if (!runId) {
+    alert('⚠ Run ID not registered yet. Validate the PC Run ID first.');
+    return;
+  }
+
+  const btn = document.getElementById('btnZipUpload');
+  btn.disabled = true;
+  btn.textContent = '⏳ Processing…';
+
+  document.getElementById('zipLog').style.display    = 'block';
+  document.getElementById('zipStatus').style.display = 'none';
+  document.getElementById('zipLogBox').innerHTML     = '';
+  hide('uploadResults');
+  hide('pcResultsPanel');
+
+  function log(msg) {
+    const d = document.createElement('div');
+    d.textContent = '[' + new Date().toTimeString().slice(0, 8) + '] ' + msg;
+    document.getElementById('zipLogBox').appendChild(d);
+    document.getElementById('zipLogBox').scrollTop = 9999;
+  }
+
+  try {
+    log(`Reading ZIP: ${selectedZipFile.name} (${(selectedZipFile.size/1024).toFixed(1)} KB)…`);
+
+    const formData = new FormData();
+    formData.append('file',             selectedZipFile);
+    formData.append('run_id',           runId);
+    formData.append('pc_run_id',        pcRunId);
+    formData.append('lob_name',         lobName);
+    formData.append('track',            track || '');
+    formData.append('test_name',        testName);
+    formData.append('test_set_name',    testName);
+
+    log('Uploading to server…');
+
+    const tok  = localStorage.getItem('session_token');
+    const resp = await fetch(`${API_BASE}/monitoring/pc/upload-results`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + tok },
+      // NOTE: do NOT set Content-Type here — browser sets multipart boundary automatically
+      body: formData,
+    });
+    const data = await resp.json().catch(() => ({}));
+
+    if (!resp.ok) {
+      const msg = data.detail
+        ? (Array.isArray(data.detail)
+            ? data.detail.map(e => `${(e.loc||[]).slice(-1)[0]}: ${e.msg}`).join(', ')
+            : String(data.detail))
+        : `HTTP ${resp.status}`;
+      throw new Error(msg);
+    }
+
+    log(`✓ ZIP extracted — found: ${data.summary_file}`);
+    log(`✓ Parsed ${data.total_transactions} transactions`);
+    log(`✓ Saved to Oracle`);
+    log(`✓ Run ID: ${data.run_id}`);
+
+    // Show same results table as fetch
+    showResults(
+      [
+        { t: 'PC_TEST_RUNS',           n: 1 },
+        { t: 'LR_TRANSACTION_RESULTS', n: data.total_transactions },
+      ],
+      data.success ? 'success' : 'warning',
+      data.success
+        ? `✓ ZIP processed and stored. Run ID: ${data.run_id}`
+        : `⚠ Partial: ${data.message}`
+    );
+
+    // Load inline PC results panel (same as fetch flow)
+    loadPcResults(data.run_id, data.pc_run_id);
+
+  } catch (err) {
+    log(`✗ Error: ${err.message}`);
+    document.getElementById('zipStatus').innerHTML =
+      alertHtml('danger', '✗ Upload failed: ' + err.message);
+    document.getElementById('zipStatus').style.display = 'block';
+    console.error('uploadZipResults error:', err);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '📦 Process & Store ZIP Results';
+}
+
+</script>
