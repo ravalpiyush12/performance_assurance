@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Report — CQE NFT</title>
+<link rel="stylesheet" href="../../css/global.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── REPORT HEADER ── */
+.report-header{background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:white;padding:30px 36px;border-radius:16px;margin-bottom:24px}
+.report-title{font-size:26px;font-weight:800;margin-bottom:8px}
+.report-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-top:18px}
+.meta-item{background:rgba(255,255,255,.12);padding:12px 16px;border-radius:10px}
+.meta-label{font-size:11px;opacity:.8;margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px}
+.meta-value{font-size:16px;font-weight:700}
+
+/* ── SECTIONS ── */
+.section{background:white;border-radius:14px;padding:26px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.section-title{font-size:20px;font-weight:800;margin-bottom:18px;display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:2px solid #f3f4f6}
+
+/* ── METRIC CARDS ── */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px}
+.metric-card{padding:16px;border-radius:10px;background:#f9fafb;border-left:4px solid var(--primary,#2563eb)}
+.metric-label{font-size:12px;color:#6b7280;margin-bottom:5px}
+.metric-value{font-size:24px;font-weight:800}
+.metric-unit{font-size:12px;color:#9ca3af;font-weight:500}
+
+/* ── CHARTS ── */
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin:18px 0}
+.chart-box{position:relative;height:280px}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-success{background:#d1fae5;color:#065f46}
+.badge-warning{background:#fef3c7;color:#92400e}
+.badge-error{background:#fee2e2;color:#991b1b}
+.badge-info{background:#dbeafe;color:#1e40af}
+
+/* ── RCA BOXES ── */
+.rca-box{border-radius:12px;padding:18px;margin-bottom:12px}
+.rca-critical{background:#fef2f2;border-left:5px solid #ef4444}
+.rca-high{background:#fffbeb;border-left:5px solid #f59e0b}
+.rca-medium{background:#eff6ff;border-left:5px solid #3b82f6}
+.rca-pass{background:#f0fdf4;border-left:5px solid #10b981}
+.rca-title{font-size:15px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.rca-body{font-size:13px;color:#374151;line-height:1.7}
+
+/* ── AI RCA ── */
+.ai-rca-box{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:2px solid #c4b5fd;border-radius:14px;padding:20px}
+.ai-rca-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.ai-badge{background:#7c3aed;color:white;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.ai-content{font-size:13px;color:#1f2937;line-height:1.8;white-space:pre-wrap}
+.ai-loading{display:flex;align-items:center;gap:12px;color:#7c3aed;font-weight:600}
+.ai-dot{width:8px;height:8px;background:#7c3aed;border-radius:50%;animation:blink 1s infinite}
+.ai-dot:nth-child(2){animation-delay:.2s}.ai-dot:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+
+/* ── MODALS ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;
+  align-items:flex-start;justify-content:center;padding-top:40px;overflow-y:auto}
+.modal-bg.open{display:flex}
+.modal{background:white;border-radius:16px;padding:28px;max-width:820px;width:94%;margin-bottom:40px}
+
+/* ── COMPARE DELTAS ── */
+.delta-worse{color:#ef4444;font-weight:700}
+.delta-better{color:#10b981;font-weight:700}
+.delta-same{color:#6b7280}
+
+/* ── MISC ── */
+.alert{padding:13px 16px;border-radius:8px;font-size:13px;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px}
+.alert-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.alert-warning{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.alert-danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{padding:10px 12px;text-align:left;background:#f9fafb;font-size:11px;font-weight:700;
+  color:#6b7280;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e5e7eb}
+.data-table td{padding:10px 12px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:#f9fafb}
+.section-placeholder{padding:40px;text-align:center;color:#9ca3af;font-size:13px;background:#f9fafb;border-radius:10px}
+.spinner-inline{display:inline-block;width:16px;height:16px;border:2px solid #e5e7eb;
+  border-top-color:#2563eb;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.nav-link{color:rgba(255,255,255,.85)!important;
+text-decoration:none;font-size:13px;padding:6px 12px;border-radius:6px;transition:all .2s}
+.nav-link:hover{background:rgba(255,255,255,.12)!important;color:#fff!important}
+
+/* Self-contained nav — works regardless of global.css */
+.top-nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:#1e3a5f;
+  display:flex;align-items:center;gap:6px;padding:0 16px;height:52px;
+  box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.top-nav .nav-link{color:rgba(255,255,255,.85)!important;text-decoration:none;
+  font-size:13px;padding:6px 12px;border-radius:6px;transition:all .2s;white-space:nowrap}
+.top-nav .nav-link:hover{background:rgba(255,255,255,.15)!important;color:#fff!important}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="top-nav" style="top:14px;background:#1e3a5f">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="test-selection.html" class="nav-link">← Back to Selection</a>
+  <a href="#" class="nav-link" onclick="openCompare()">🔄 Compare Runs</a>
+  <a href="#" class="nav-link" onclick="openSave()">💾 Save Report</a>
+  <a href="#" class="nav-link" onclick="window.print()">🖨️ Print</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+
+  <!-- REPORT HEADER -->
+  <div class="report-header">
+    <div class="report-title" id="reportTitle">⏳ Loading report…</div>
+    <div style="font-size:13px;opacity:.8" id="reportSubtitle"></div>
+    <div class="report-meta">
+      <div class="meta-item"><div class="meta-label">PC Run ID</div><div class="meta-value" id="mRunId">—</div></div>
+      <div class="meta-item"><div class="meta-label">LOB</div><div class="meta-value" id="mLob">—</div></div>
+      <div class="meta-item"><div class="meta-label">Track</div><div class="meta-value" id="mTrack">—</div></div>
+      <div class="meta-item"><div class="meta-label">Test Date</div><div class="meta-value" id="mDate">—</div></div>
+      <div class="meta-item"><div class="meta-label">Duration</div><div class="meta-value" id="mDuration">—</div></div>
+      <div class="meta-item"><div class="meta-label">Peak VUsers</div><div class="meta-value" id="mVusers">—</div></div>
+      <div class="meta-item"><div class="meta-label">Overall Status</div><div class="meta-value" id="mStatus">—</div></div>
+    </div>
+  </div>
+
+  <div id="globalError" style="display:none"></div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 1: PERFORMANCE CENTER
+  ═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><span>⚡</span>Performance Center Results</div>
+    <div id="pcLoading" style="padding:30px;text-align:center"><span class="spinner-inline"></span> Loading PC results…</div>
+    <div id="pcContent" style="display:none">
+      <div class="metrics-grid" id="pcMetrics"></div>
+      <div class="chart-grid">
+        <div><div style="font-weight:700;margin-bottom:10px;font-size:14px">Response Time Over Time (ms)</div><div class="chart-box"><canvas id="pcRtChart"></canvas></div></div>
+        <div><div style="font-weight:700;margin-bottom:10px;font-size:14px">Throughput (TPS)</div><div class="chart-box"><canvas id="pcTpsChart"></canvas></div></div>
+      </div>
+      <h4 style="font-weight:800;margin:20px 0 12px">Transaction Summary</h4>
+      <div style="overflow-x:auto"><table class="data-table" id="pcTxTable"></table></div>
+    </div>
+    <div id="pcError" style="display:none"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 2: APPDYNAMICS (populated if data available)
+  ═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><span>📊</span>AppDynamics Metrics</div>
+    <div id="appdLoading" style="padding:24px;text-align:center">
+      <span class="spinner-inline"></span> Loading AppD data…
+    </div>
+    <div id="appdContent" style="display:none">
+      <div class="metrics-grid" id="appdMetrics"></div>
+      <div class="metrics-grid" style="margin-top:0" id="appdMetrics2"></div>
+    </div>
+    <div id="appdError" style="display:none"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 3: AWR
+  ═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><span>🗄️</span>Oracle AWR Analysis</div>
+    <div id="awrLoading" style="padding:30px;text-align:center"><span class="spinner-inline"></span> Loading AWR results…</div>
+    <div id="awrContent" style="display:none">
+      <div id="awrDbTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px"></div>
+      <div class="metrics-grid" id="awrMetrics"></div>
+      <div class="chart-grid">
+        <div><div style="font-weight:700;margin-bottom:10px;font-size:14px">Wait Event % of DB Time</div><div class="chart-box"><canvas id="awrWaitChart"></canvas></div></div>
+        <div><div style="font-weight:700;margin-bottom:10px;font-size:14px">Top SQL Elapsed Time (s)</div><div class="chart-box"><canvas id="awrSqlChart"></canvas></div></div>
+      </div>
+      <h4 style="font-weight:700;margin:14px 0 10px">Top Wait Events</h4>
+      <div style="overflow-x:auto"><table class="data-table" id="awrWaitTable"></table></div>
+      <h4 style="font-weight:700;margin:18px 0 10px">Top SQL Statements</h4>
+      <div style="overflow-x:auto"><table class="data-table" id="awrSqlTable"></table></div>
+    </div>
+    <div id="awrError" style="display:none"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 4: KIBANA (placeholder)
+  ═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><span>📈</span>Kibana — API Performance</div>
+    <div class="section-placeholder">
+      Kibana analysis data will appear here when configured.<br>
+      <span style="font-size:11px;color:#d1d5db;margin-top:6px;display:block">Expected: GET /api/v1/monitoring/kibana/results/{run_id}</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 5: SPLUNK (placeholder)
+  ═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><span>🔍</span>Splunk — Error Analysis</div>
+    <div class="section-placeholder">
+      Splunk error analysis data will appear here when configured.<br>
+      <span style="font-size:11px;color:#d1d5db;margin-top:6px;display:block">Expected: GET /api/v1/monitoring/splunk/results/{run_id}</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 6: MANUAL RCA (auto-generated from PC data)
+  ═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><span>🔬</span>Root Cause Analysis</div>
+    <div id="rcaContent">
+      <div style="padding:30px;text-align:center;color:#9ca3af"><span class="spinner-inline"></span> Generating RCA from test results…</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       SECTION 7: AI RCA
+  ═══════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-title"><span>🤖</span>AI-Based RCA Analysis</div>
+    <div class="alert alert-info">
+      <span>ℹ️</span>
+      <span>Claude AI analyses all collected metrics — PC results, AWR wait events, AppDynamics data — and generates a comprehensive root cause analysis with prioritized recommendations.</span>
+    </div>
+    <button class="btn btn-primary" id="aiRcaBtn" onclick="generateAiRca()" style="margin-bottom:16px" disabled>
+      🤖 Generate AI Root Cause Analysis
+    </button>
+    <div id="aiRcaOutput" style="display:none">
+      <div class="ai-rca-box">
+        <div class="ai-rca-header">
+          <span class="ai-badge">Claude AI</span>
+          <span style="font-size:13px;color:#6b7280" id="aiTimestamp"></span>
+        </div>
+        <div id="aiLoadingState" class="ai-loading">
+          <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+          <span>Analysing performance data across all monitoring sources…</span>
+        </div>
+        <div id="aiContent" class="ai-content" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ══════════════════════════════════════════════════
+     COMPARE MODAL
+═══════════════════════════════════════════════════ -->
+<div class="modal-bg" id="compareModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h3 style="font-weight:800;margin:0">🔄 Compare Test Runs</h3>
+      <button style="background:none;border:none;font-size:22px;cursor:pointer" onclick="closeCompare()">×</button>
+    </div>
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group" style="margin-bottom:0">
+        <label>Baseline Run</label>
+        <select id="baseRun"><option value="">Loading runs…</option></select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Current Run</label>
+        <input type="text" id="currentRunDisplay" readonly style="background:#f9fafb">
+      </div>
+    </div>
+    <div id="compareTableWrap">
+      <div style="padding:24px;text-align:center;color:#9ca3af">Select a baseline run to compare</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-primary" onclick="runComparison()">Compare</button>
+      <button class="btn btn-success" id="exportCsvBtn" style="display:none" onclick="exportCompareCsv()">Export CSV</button>
+      <button class="btn btn-secondary" onclick="closeCompare()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SAVE MODAL
+═══════════════════════════════════════════════════ -->
+<div class="modal-bg" id="saveModal">
+  <div class="modal" style="max-width:480px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h3 style="font-weight:800;margin:0">💾 Save Report</h3>
+      <button style="background:none;border:none;font-size:22px;cursor:pointer" onclick="closeSave()">×</button>
+    </div>
+    <div class="alert alert-info">
+      <span>ℹ️</span>
+      <span>Final reports (LOAD, ENDURANCE, STRESS) saved to the Release table are retained for 12+ months.</span>
+    </div>
+    <div class="form-group">
+      <label>Save Format</label>
+      <select id="saveFormat" onchange="toggleBlobNote()">
+        <option value="html">Export as HTML file (download)</option>
+        <option value="blob">Save as BLOB in Release Table (Oracle)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Release Name</label>
+      <input type="text" id="saveRelease" placeholder="e.g. Release 2.5">
+    </div>
+    <div class="form-group">
+      <label>Test Type</label>
+      <select id="saveTestType">
+        <option>LOAD</option><option>STRESS</option><option>ENDURANCE</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="saveNotes" rows="3" placeholder="Optional notes…"></textarea>
+    </div>
+    <div id="blobNote" style="display:none;margin-bottom:14px;padding:12px;background:#f0fdf4;border-radius:8px;font-size:13px;color:#065f46">
+      <strong>Oracle BLOB Storage:</strong> Report HTML stored in <code>NFT_RELEASE_REPORTS</code> table as CLOB, linked to Release Name and Run ID. Retrievable via API for long-term viewing.
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeSave()">Cancel</button>
+      <button class="btn btn-success" style="flex:2" onclick="saveReport()">💾 Save Report</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
+const API_BASE = 'http://localhost:8000/api/v1';
+const el = id => document.getElementById(id);
+
+const Auth = {
+  getToken: () => localStorage.getItem('session_token'),
+  getLob:   () => { try { return JSON.parse(localStorage.getItem('selected_lob') || '{}'); } catch { return {}; } }
+};
+
+// Parse from URL
+const urlParams  = new URLSearchParams(location.search);
+const RUN_ID     = urlParams.get('run_id')    || '';
+const PC_RUN_ID  = urlParams.get('pc_run_id') || '';
+
+// Data stores (populated after API calls — used for AI RCA + compare)
+let pcResult  = null;
+let awrResult = null;
+let allTx     = [];        // transactions from PC
+let allRuns   = [];        // for compare modal
+let chartRefs = {};        // Chart.js instances keyed by canvas id
+
+function logout() { localStorage.removeItem('session_token'); window.location.href = '../../pages/landing.html'; }
+
+// ═══════════════════════════════════════════════════════════════
+// API HELPERS
+// ═══════════════════════════════════════════════════════════════
+async function apiFetch(url) {
+  const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + Auth.getToken() } });
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`); }
+  return r.json();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHART HELPER — destroys existing before creating
+// ═══════════════════════════════════════════════════════════════
+function mkChart(id, type, labels, datasets, extraOpts = {}) {
+  const canvas = el(id);
+  if (!canvas) return;
+  if (chartRefs[id]) { chartRefs[id].destroy(); }
+  const opts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom' } },
+    ...extraOpts
+  };
+  chartRefs[id] = new Chart(canvas, { type, data: { labels, datasets }, options: opts });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+async function init() {
+  if (!RUN_ID) {
+    el('globalError').innerHTML = `<div class="alert alert-danger">⚠ No run_id in URL. <a href="test-selection.html" style="color:#2563eb">← Back to Test Selection</a></div>`;
+    el('globalError').style.display = 'block';
+    el('reportTitle').textContent = 'No Run Selected';
+    return;
+  }
+
+  // Set header placeholders while loading
+  el('mRunId').textContent = PC_RUN_ID || '—';
+  const lob = Auth.getLob();
+  el('mLob').textContent = lob.name || lob.lob_name || '—';
+
+  // Load PC + AWR in parallel
+  await Promise.allSettled([loadPcResults(), loadAwrResults(), loadAppdResults()]);
+
+  // Enable AI RCA once data is loaded
+  el('aiRcaBtn').disabled = false;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 1: PC RESULTS
+// ═══════════════════════════════════════════════════════════════
+async function loadPcResults() {
+  try {
+    const data = await apiFetch(`${API_BASE}/monitoring/pc/results/${encodeURIComponent(RUN_ID)}`);
+    pcResult = data;
+    renderPcResults(data);
+  } catch (err) {
+    console.error('PC results error:', err);
+    el('pcLoading').style.display = 'none';
+    el('pcError').innerHTML = `<div class="alert alert-danger">⚠ Could not load PC results: ${err.message}</div>`;
+    el('pcError').style.display = 'block';
+    renderRca(null);
+  }
+}
+
+function renderPcResults(data) {
+  el('pcLoading').style.display = 'none';
+
+  // ── Header meta
+  const name = data.test_name || data.run_name || `PC Run ${PC_RUN_ID}`;
+  el('reportTitle').textContent = name;
+  el('reportSubtitle').textContent = `Run ID: ${RUN_ID}`;
+  el('mTrack').textContent    = data.track    || '—';
+  el('mDate').textContent     = (data.start_time||data.run_start||'').substring(0,10) || '—';
+  el('mDuration').textContent = data.duration_minutes ? data.duration_minutes + ' min' : (data.run_duration || '—');
+  el('mVusers').textContent   = data.vuser_count || data.virtual_users || '—';
+
+  // ── Transactions
+  allTx = data.transactions || data.transaction_results || data.transaction_details || [];
+  const passed   = allTx.filter(t => (t.status||t.result||'').toUpperCase() === 'PASSED').length;
+  const failed   = allTx.filter(t => (t.status||t.result||'').toUpperCase() !== 'PASSED' && (t.failed||t.fail_count||0) > 0).length;
+  const avgRT    = allTx.length
+    ? (allTx.reduce((s,t) => s + parseFloat(t.avg_response_time||t.response_time_avg||0), 0) / allTx.length).toFixed(0)
+    : 0;
+  const p95All   = allTx.map(t => parseFloat(t.pct_95||t.response_time_95th||t.percentile_95||0));
+  const maxP95   = p95All.length ? Math.max(...p95All).toFixed(2) : '—';
+  const slaBreaches = allTx.filter(t => t.sla_breach || t.sla_breached || (t.sla_status||'').toUpperCase() === 'BREACH').length;
+
+  // ── Status badge in header
+  const statusText = slaBreaches > 0 ? `⚠ ${slaBreaches} SLA Breach${slaBreaches>1?'es':''}` : '✓ All SLA Pass';
+  el('mStatus').textContent = statusText;
+
+  // ── Metric cards
+  el('pcMetrics').innerHTML = [
+    { label:'Peak VUsers',    val: data.vuser_count || data.virtual_users || '—', color:'#3b82f6' },
+    { label:'Pass Rate',      val: allTx.length ? Math.round(passed/allTx.length*100)+'%' : '—', color:'#10b981' },
+    { label:'Avg Response',   val: avgRT + '<span class="metric-unit"> ms</span>', color:'#f59e0b' },
+    { label:'Max P95',        val: maxP95 + '<span class="metric-unit"> s</span>', color:'#ef4444' },
+    { label:'Transactions',   val: allTx.length, color:'#6366f1' },
+    { label:'SLA Breaches',   val: slaBreaches, color: slaBreaches > 0 ? '#ef4444' : '#10b981' },
+  ].map(m => `
+    <div class="metric-card" style="border-left-color:${m.color}">
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-value">${m.val}</div>
+    </div>`).join('');
+
+  // ── Transaction table
+  el('pcTxTable').innerHTML = `
+    <thead><tr>
+      <th>Transaction</th><th>Iterations</th><th>Pass</th><th>Fail</th><th>Pass%</th>
+      <th>Min(s)</th><th>Avg(s)</th><th>P90(s)</th><th>P95(s)</th><th>Max(s)</th>
+      <th>SLA(s)</th><th>Result</th>
+    </tr></thead>
+    <tbody>
+      ${allTx.map(t => {
+        const name   = t.transaction_name || t.name || '—';
+        const iters  = t.iterations || t.total || ((t.passed||0) + (t.failed||0));
+        const pass   = t.passed || t.pass_count || 0;
+        const fail   = t.failed || t.fail_count || 0;
+        const pctVal = iters > 0 ? ((pass/iters)*100).toFixed(1) : '—';
+        const avg    = parseFloat(t.avg_response_time||t.response_time_avg||0).toFixed(3);
+        const min    = parseFloat(t.min_response_time||t.response_time_min||0).toFixed(3);
+        const p90    = parseFloat(t.pct_90||t.response_time_90th||t.percentile_90||0).toFixed(3);
+        const p95    = parseFloat(t.pct_95||t.response_time_95th||t.percentile_95||0).toFixed(3);
+        const max    = parseFloat(t.max_response_time||t.response_time_max||0).toFixed(3);
+        const sla    = parseFloat(t.sla_threshold||t.response_time_sla||t.sla_value||0);
+        const breach = t.sla_breach || t.sla_breached || (sla > 0 && parseFloat(avg) > sla);
+        const status = breach ? 'FAIL' : ((t.status||t.result||'').toUpperCase()||'PASS');
+        const badgeCls = status === 'PASS' || status === 'PASSED' ? 'badge-success'
+          : status === 'WARN' ? 'badge-warning' : 'badge-error';
+        const pctColor = parseFloat(pctVal) >= 99 ? '#10b981' : parseFloat(pctVal) >= 95 ? '#f59e0b' : '#ef4444';
+        return `<tr>
+          <td>${name}</td>
+          <td>${Number(iters).toLocaleString()}</td>
+          <td>${Number(pass).toLocaleString()}</td>
+          <td style="color:${fail>0?'#ef4444':'inherit'};font-weight:${fail>0?700:400}">${Number(fail).toLocaleString()}</td>
+          <td style="color:${pctColor};font-weight:700">${pctVal}%</td>
+          <td>${min}</td><td>${avg}</td><td>${p90}</td>
+          <td style="color:${parseFloat(p95)>sla&&sla>0?'#ef4444':'inherit'};font-weight:${parseFloat(p95)>sla&&sla>0?700:400}">${p95}</td>
+          <td>${max}</td>
+          <td>${sla > 0 ? sla.toFixed(1) : '—'}</td>
+          <td><span class="badge ${badgeCls}">${status}</span></td>
+        </tr>`;
+      }).join('')}
+    </tbody>`;
+
+  // ── Charts (RT + TPS timeseries if available, else skip)
+  const timeseries = data.timeseries || data.time_series || {};
+  const times = timeseries.labels || timeseries.timestamps ||
+    (timeseries.response_time||[]).map((_,i)=>`T+${i*15}m`) || [];
+
+  if (times.length > 0) {
+    mkChart('pcRtChart','line', times, [
+      { label:'Avg RT (ms)', data: timeseries.avg_response_time||[], borderColor:'#3b82f6', tension:.4, fill:false },
+      { label:'P95 RT (ms)', data: timeseries.p95_response_time||[], borderColor:'#ef4444', tension:.4, fill:false }
+    ]);
+    mkChart('pcTpsChart','line', times, [
+      { label:'TPS', data: timeseries.tps||timeseries.throughput||[], borderColor:'#10b981', tension:.4, fill:true, backgroundColor:'rgba(16,185,129,.1)' }
+    ]);
+  } else {
+    // No timeseries — show per-transaction bar charts instead
+    const txNames = allTx.map(t => (t.transaction_name||t.name||'').substring(0,12));
+    const avgRTs  = allTx.map(t => parseFloat(t.avg_response_time||t.response_time_avg||0));
+    const p95s    = allTx.map(t => parseFloat(t.pct_95||t.response_time_95th||t.percentile_95||0));
+    mkChart('pcRtChart','bar', txNames, [
+      { label:'Avg RT (s)',  data: avgRTs, backgroundColor:'#3b82f6' },
+      { label:'P95 RT (s)', data: p95s,   backgroundColor:'rgba(239,68,68,.7)' }
+    ], { scales:{ y:{ beginAtZero:true } } });
+    const passes = allTx.map(t => {
+      const tot = (t.passed||0)+(t.failed||0);
+      return tot > 0 ? ((t.passed||0)/tot*100).toFixed(1) : 0;
+    });
+    mkChart('pcTpsChart','bar', txNames, [
+      { label:'Pass %', data: passes,
+        backgroundColor: passes.map(p => parseFloat(p) >= 99 ? '#10b981' : parseFloat(p) >= 95 ? '#f59e0b' : '#ef4444') }
+    ], { scales:{ y:{ beginAtZero:true, max:100 } } });
+  }
+
+  el('pcContent').style.display = 'block';
+  renderRca(data);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 3: AWR
+// ═══════════════════════════════════════════════════════════════
+async function loadAwrResults() {
+  try {
+    const data = await apiFetch(`${API_BASE}/monitoring/awr/summary/${encodeURIComponent(RUN_ID)}`);
+    awrResult = data;
+    renderAwrResults(data);
+  } catch (err) {
+    console.error('AWR results error:', err);
+    el('awrLoading').style.display = 'none';
+    el('awrError').innerHTML = `<div class="alert alert-warning">⚠ AWR results not available: ${err.message}</div>`;
+    el('awrError').style.display = 'block';
+  }
+}
+
+function renderAwrResults(data) {
+  el('awrLoading').style.display = 'none';
+
+  // Normalise to array of analyses (one per DB)
+  let analyses = [];
+  if (Array.isArray(data.analyses))       analyses = data.analyses;
+  else if (Array.isArray(data.results))   analyses = data.results;
+  else if (Array.isArray(data.data))      analyses = data.data;
+  else if (data.analysis_id)              analyses = [data];
+  else analyses = [];
+
+  if (!analyses.length) {
+    el('awrError').innerHTML = `<div class="alert alert-warning">No AWR analyses found for this run.</div>`;
+    el('awrError').style.display = 'block';
+    return;
+  }
+
+  let activeIdx = 0;
+
+  // ── DB tab pills
+  if (analyses.length > 1) {
+    el('awrDbTabs').innerHTML = analyses.map((a, i) => {
+      const db = a.database_name || a.db_name || `DB${i+1}`;
+      return `<button class="badge ${i===0?'badge-info':'badge-gray'}" style="cursor:pointer;padding:6px 14px;font-size:12px"
+        onclick="renderAwrForDb(${i})" id="awrTab_${i}">${db}</button>`;
+    }).join('');
+  }
+
+  // Expose so tab click can call it
+  window.renderAwrForDb = function(idx) {
+    activeIdx = idx;
+    analyses.forEach((_,i) => {
+      const tab = el(`awrTab_${i}`);
+      if (tab) tab.className = `badge ${i===idx?'badge-info':'badge-gray'}`;
+      tab.style.cursor = 'pointer'; tab.style.padding = '6px 14px'; tab.style.fontSize = '12px';
+    });
+    renderAwrDb(analyses[idx]);
+  };
+
+  renderAwrDb(analyses[0]);
+  el('awrContent').style.display = 'block';
+}
+
+function renderAwrDb(a) {
+  // ── Metric cards
+  el('awrMetrics').innerHTML = [
+    { label:'Buffer Cache Hit%', val: (a.buffer_cache_hit_pct ?? '—'), color:'#f59e0b' },
+    { label:'Hard Parses/sec',   val: (a.hard_parses_per_sec ?? '—'), color:'#ef4444' },
+    { label:'DB Time (s)',       val: (a.db_time_seconds ?? '—'),      color:'#3b82f6' },
+    { label:'Snapshot Duration', val: (a.duration_minutes ?? a.snapshot_duration ?? '—') + ' min', color:'#10b981' },
+  ].map(m => `
+    <div class="metric-card" style="border-left-color:${m.color}">
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-value">${m.val}</div>
+    </div>`).join('');
+
+  // ── Wait events table
+  const waits = a.wait_events || a.waits || [];
+  el('awrWaitTable').innerHTML = `
+    <thead><tr><th>Wait Event</th><th>Waits</th><th>Time (s)</th><th>Avg Wait (ms)</th><th>% DB Time</th></tr></thead>
+    <tbody>
+      ${waits.slice(0,15).map(w => {
+        const pct    = parseFloat(w.pct_db_time || w.db_time_pct || 0);
+        const avgMs  = parseFloat(w.avg_wait_ms || w.average_wait_ms || 0);
+        return `<tr>
+          <td>${w.event_name || w.event || '—'}</td>
+          <td>${Number(w.waits||w.total_waits||0).toLocaleString()}</td>
+          <td>${parseFloat(w.wait_time_s||w.time_waited_s||0).toFixed(1)}</td>
+          <td style="color:${avgMs>5?'#ef4444':avgMs>2?'#f59e0b':'inherit'};font-weight:${avgMs>2?700:400}">${avgMs.toFixed(2)}</td>
+          <td style="color:${pct>10?'#ef4444':pct>5?'#f59e0b':'inherit'};font-weight:${pct>5?700:400}">${pct.toFixed(1)}%</td>
+        </tr>`;
+      }).join('')}
+    </tbody>`;
+
+  // ── Wait chart
+  const topWaits = waits.slice(0, 6);
+  mkChart('awrWaitChart','doughnut',
+    topWaits.map(w => (w.event_name||w.event||'?').substring(0,20)),
+    [{ data: topWaits.map(w => parseFloat(w.pct_db_time||w.db_time_pct||0)),
+       backgroundColor:['#f59e0b','#3b82f6','#ef4444','#10b981','#6366f1','#e5e7eb'] }]
+  );
+
+  // ── Top SQL table
+  const sqls = a.top_sql || a.sql_statements || [];
+  el('awrSqlTable').innerHTML = `
+    <thead><tr><th>SQL ID</th><th>Executions</th><th>Elapsed (s)</th><th>CPU (s)</th><th>Gets/Exec</th><th>SQL Text (preview)</th></tr></thead>
+    <tbody>
+      ${sqls.slice(0,10).map(s => `<tr>
+        <td><code style="font-size:11px">${s.sql_id||'—'}</code></td>
+        <td>${Number(s.executions||0).toLocaleString()}</td>
+        <td style="font-weight:700">${parseFloat(s.elapsed_time_s??s.elapsed_time??0).toFixed(2)}</td>
+        <td>${parseFloat(s.cpu_time_s??s.cpu_time??0).toFixed(2)}</td>
+        <td>${parseFloat(s.buffer_gets_per_exec??s.gets_per_exec??0).toFixed(0)}</td>
+        <td style="max-width:280px;font-size:11px;font-family:monospace;color:#4b5563;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+          ${(s.sql_text||s.text||'—').substring(0,80)}
+        </td>
+      </tr>`).join('')}
+    </tbody>`;
+
+  // ── Top SQL chart
+  mkChart('awrSqlChart','bar',
+    sqls.slice(0,6).map(s => s.sql_id||'?'),
+    [{ label:'Elapsed (s)',
+       data: sqls.slice(0,6).map(s => parseFloat(s.elapsed_time_s??s.elapsed_time??0)),
+       backgroundColor:['#ef4444','#f59e0b','#10b981','#10b981','#10b981','#3b82f6'] }],
+    { indexAxis:'y', scales:{ x:{ beginAtZero:true } }, plugins:{ legend:{ display:false } } }
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// APPD RESULTS
+// ═══════════════════════════════════════════════════════════════
+async function loadAppdResults() {
+  try {
+    // GET /api/v1/monitoring/summary/{run_id}  (appd router)
+    const data = await apiFetch(`${API_BASE}/monitoring/summary/${encodeURIComponent(RUN_ID)}`);
+    renderAppdResults(data);
+  } catch (err) {
+    console.warn('AppD results not available:', err.message);
+    const errMsg = err.message.includes('404') || err.message.includes('not found')
+      ? 'No AppD monitoring data found for this run. Start monitoring via AppD tab to collect data.'
+      : `AppD data unavailable: ${err.message}`;
+    if (document.getElementById('appdLoading')) {
+      document.getElementById('appdLoading').style.display = 'none';
+      document.getElementById('appdError').innerHTML =
+        `<div style="padding:20px;text-align:center;color:#9ca3af;font-size:13px">📊 ${errMsg}</div>`;
+      document.getElementById('appdError').style.display = 'block';
+    }
+  }
+}
+
+function renderAppdResults(data) {
+  const loadEl = document.getElementById('appdLoading');
+  const contEl = document.getElementById('appdContent');
+  if (loadEl) loadEl.style.display = 'none';
+  if (!contEl) return;
+
+  // Summary counts from /monitoring/summary/{run_id}
+  // Returns: monitoring_runs, application_metrics, jvm_metrics, server_metrics counts
+  const cards1 = [
+    { label:'Monitoring Runs',        val: data.monitoring_runs_count        || data.monitoring_runs        || 0, color:'#3b82f6' },
+    { label:'Application Metrics',    val: data.application_metrics_count    || data.application_metrics    || 0, color:'#10b981' },
+    { label:'JVM Metrics',            val: data.jvm_metrics_count            || data.jvm_metrics            || 0, color:'#f59e0b' },
+    { label:'Server Metrics',         val: data.server_metrics_count         || data.server_metrics         || 0, color:'#6366f1' },
+  ];
+
+  document.getElementById('appdMetrics').innerHTML = cards1.map(m => `
+    <div class="metric-card" style="border-left:4px solid ${m.color};background:#f9fafb;
+      padding:14px 16px;border-radius:8px">
+      <div class="metric-label" style="font-size:12px;color:#6b7280;margin-bottom:4px">${m.label}</div>
+      <div class="metric-value" style="font-size:22px;font-weight:800">${Number(m.val).toLocaleString()}</div>
+    </div>`).join('');
+
+  // Additional info if available
+  const cards2 = [];
+  if (data.run_status)    cards2.push({ label:'Run Status',    val: data.run_status,    color:'#10b981' });
+  if (data.node_count)    cards2.push({ label:'Nodes Monitored', val: data.node_count,  color:'#3b82f6' });
+  if (data.app_name)      cards2.push({ label:'Application',   val: data.app_name,      color:'#6366f1' });
+  if (data.duration_min)  cards2.push({ label:'Duration (min)', val: data.duration_min, color:'#f59e0b' });
+  if (cards2.length) {
+    document.getElementById('appdMetrics2').innerHTML = cards2.map(m => `
+      <div class="metric-card" style="border-left:4px solid ${m.color};background:#f9fafb;
+        padding:14px 16px;border-radius:8px">
+        <div class="metric-label" style="font-size:12px;color:#6b7280;margin-bottom:4px">${m.label}</div>
+        <div class="metric-value" style="font-size:18px;font-weight:700">${m.val}</div>
+      </div>`).join('');
+  }
+
+  contEl.style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 6: MANUAL RCA (auto-generated from PC failures)
+// ═══════════════════════════════════════════════════════════════
+function renderRca(pcData) {
+  if (!pcData) {
+    el('rcaContent').innerHTML = `<div class="section-placeholder">RCA requires PC results to load successfully.</div>`;
+    return;
+  }
+
+  const breachingTx = allTx.filter(t => {
+    const sla   = parseFloat(t.sla_threshold||t.response_time_sla||t.sla_value||0);
+    const p95   = parseFloat(t.pct_95||t.response_time_95th||t.percentile_95||0);
+    const iters = (t.passed||0) + (t.failed||0);
+    const pct   = iters > 0 ? (t.passed||0)/iters*100 : 100;
+    return t.sla_breach || t.sla_breached || (sla > 0 && p95 > sla) || pct < 99;
+  });
+
+  const passing = allTx.filter(t => !breachingTx.includes(t));
+
+  let html = '';
+
+  breachingTx.forEach(t => {
+    const name  = t.transaction_name || t.name || '—';
+    const sla   = parseFloat(t.sla_threshold||t.response_time_sla||t.sla_value||0);
+    const p95   = parseFloat(t.pct_95||t.response_time_95th||t.percentile_95||0);
+    const avg   = parseFloat(t.avg_response_time||t.response_time_avg||0);
+    const iters = (t.passed||0) + (t.failed||0);
+    const pct   = iters > 0 ? ((t.passed||0)/iters*100).toFixed(1) : '—';
+    const over  = sla > 0 ? (((p95 - sla) / sla) * 100).toFixed(0) : null;
+    const severity = over > 100 ? 'rca-critical' : over > 20 ? 'rca-high' : 'rca-medium';
+    const badge    = over > 100 ? 'badge-error' : over > 20 ? 'badge-warning' : 'badge-info';
+    const priority = over > 100 ? 'P0' : over > 20 ? 'P1' : 'P2';
+
+    html += `
+      <div class="rca-box ${severity}">
+        <div class="rca-title">
+          ${name} — P95 ${p95.toFixed(2)}s${sla > 0 ? ` (SLA: ${sla}s${over ? ', +'+over+'%' : ''})` : ''}, Pass Rate: ${pct}%
+          <span class="badge ${badge}">${priority}</span>
+        </div>
+        <div class="rca-body">
+          <strong>Observed:</strong> Avg RT ${avg.toFixed(3)}s, P95 ${p95.toFixed(2)}s${sla > 0 ? ` exceeds SLA of ${sla}s` : ''}. Pass rate ${pct}%.<br>
+          <strong>Possible Causes:</strong> Resource contention under ${pcData.vuser_count||'high'} VUser load. Review AppDynamics node CPU, AWR wait events, and Splunk error logs for this transaction window.<br>
+          <strong>Recommended Actions:</strong> Investigate lock contention in AWR, review node metrics in AppDynamics, correlate error spikes in Splunk logs. Use AI RCA below for a detailed analysis.
+        </div>
+      </div>`;
+  });
+
+  if (passing.length > 0) {
+    html += `
+      <div class="rca-box rca-pass">
+        <div class="rca-title">
+          PASS: ${passing.map(t => t.transaction_name||t.name).join(', ')}
+          <span class="badge badge-success">OK</span>
+        </div>
+        <div class="rca-body">All ${passing.length} transaction(s) performed within defined SLAs. No action required.</div>
+      </div>`;
+  }
+
+  if (!html) {
+    html = `<div class="rca-box rca-pass">
+      <div class="rca-title">All Transactions Passed <span class="badge badge-success">OK</span></div>
+      <div class="rca-body">All transactions performed within defined SLAs. No failures detected.</div>
+    </div>`;
+  }
+
+  el('rcaContent').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 7: AI RCA
+// ═══════════════════════════════════════════════════════════════
+function buildAiPrompt() {
+  const r = pcResult || {};
+  const a = awrResult ? (awrResult.analyses || awrResult.results || [awrResult])[0] : null;
+
+  const txSummary = allTx.map(t => {
+    const sla  = parseFloat(t.sla_threshold||t.response_time_sla||t.sla_value||0);
+    const p95  = parseFloat(t.pct_95||t.response_time_95th||t.percentile_95||0);
+    const iters= (t.passed||0)+(t.failed||0);
+    const pct  = iters > 0 ? ((t.passed||0)/iters*100).toFixed(1) : '—';
+    return `- ${t.transaction_name||t.name}: Avg=${parseFloat(t.avg_response_time||0).toFixed(2)}s, P95=${p95.toFixed(2)}s, SLA=${sla||'N/A'}s, Pass=${pct}%, Fail=${t.failed||0}`;
+  }).join('\n');
+
+  const waitSummary = a ? (a.wait_events||a.waits||[]).slice(0,5).map(w =>
+    `- ${w.event_name||w.event}: ${parseFloat(w.avg_wait_ms||0).toFixed(2)}ms avg, ${parseFloat(w.pct_db_time||0).toFixed(1)}% DB time`
+  ).join('\n') : 'AWR data not available';
+
+  const sqlSummary = a ? (a.top_sql||[]).slice(0,3).map(s =>
+    `- SQL ID ${s.sql_id||'?'}: ${parseFloat(s.elapsed_time_s||s.elapsed_time||0).toFixed(1)}s elapsed, ${s.executions||0} execs`
+  ).join('\n') : '';
+
+  return `You are a Senior Performance Engineer analysing NFT (Non-Functional Test) results. Based on the data below, provide a comprehensive Root Cause Analysis with specific, actionable recommendations.
+
+TEST CONTEXT:
+- Test: ${r.test_name || 'NFT Run'} | PC Run ID: ${PC_RUN_ID} | Master Run ID: ${RUN_ID}
+- LOB: ${r.lob_name || '—'} | Track: ${r.track || '—'}
+- Duration: ${r.duration_minutes || '—'} min | Peak VUsers: ${r.vuser_count || '—'}
+- Overall Status: ${r.status || '—'}
+
+PERFORMANCE CENTER — TRANSACTION RESULTS:
+${txSummary || 'No transaction data available'}
+
+ORACLE AWR — TOP WAIT EVENTS:
+${waitSummary}
+
+ORACLE AWR — TOP SQL:
+${sqlSummary || 'No SQL data available'}
+
+${a ? `AWR SNAPSHOT: DB Time=${a.db_time_seconds||'—'}s, CPU Time=${a.cpu_time_seconds||'—'}s, Buffer Cache Hit=${a.buffer_cache_hit_pct||'—'}%, Hard Parses/sec=${a.hard_parses_per_sec||'—'}` : ''}
+
+Provide:
+1. ROOT CAUSE SUMMARY — 2-3 sentences for each failing transaction (if any)
+2. EVIDENCE TRAIL — connecting PC failures to AWR findings
+3. PRIORITISED RECOMMENDATIONS — P0/P1/P2 with specific technical fixes
+4. PREVENTIVE MEASURES — for future test runs
+
+Keep response structured, specific, and actionable. Use clear section headers.`;
+}
+
+async function generateAiRca() {
+  el('aiRcaOutput').style.display = 'block';
+  el('aiRcaBtn').disabled = true;
+  el('aiRcaBtn').textContent = '⏳ Generating…';
+  el('aiLoadingState').style.display = 'flex';
+  el('aiContent').style.display = 'none';
+  el('aiTimestamp').textContent = new Date().toLocaleString();
+
+  const prompt = buildAiPrompt();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'AI analysis unavailable.';
+    el('aiLoadingState').style.display = 'none';
+    el('aiContent').style.display = 'block';
+    el('aiContent').textContent = text;
+  } catch (err) {
+    el('aiLoadingState').style.display = 'none';
+    el('aiContent').style.display = 'block';
+    el('aiContent').textContent = `Error calling AI API: ${err.message}\n\nPrompt that would have been sent:\n\n${prompt}`;
+  }
+  el('aiRcaBtn').disabled = false;
+  el('aiRcaBtn').textContent = '↻ Regenerate AI Analysis';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPARE MODAL
+// ═══════════════════════════════════════════════════════════════
+async function openCompare() {
+  el('compareModal').classList.add('open');
+  el('currentRunDisplay').value = `${PC_RUN_ID} — ${pcResult?.test_name || 'Current Run'}`;
+
+  if (allRuns.length === 0) {
+    try {
+      const data = await apiFetch(`${API_BASE}/monitoring/pc/test-run/recent?limit=50`);
+      let runs = data.test_runs || data.runs || data.data || [];
+      // Exclude current run
+      allRuns = runs.filter(r => String(r.pc_run_id) !== String(PC_RUN_ID));
+      el('baseRun').innerHTML = allRuns.map(r =>
+        `<option value="${r.run_id}">${r.pc_run_id} — ${r.test_name||'Test'} (${(r.created_date||'').substring(0,10)})</option>`
+      ).join('') || '<option value="">No other runs available</option>';
+    } catch (err) {
+      el('baseRun').innerHTML = `<option value="">Error loading runs: ${err.message}</option>`;
+    }
+  }
+}
+function closeCompare() { el('compareModal').classList.remove('open'); }
+
+let compareData = null;
+async function runComparison() {
+  const baseRunId = el('baseRun').value;
+  if (!baseRunId) { alert('Select a baseline run first.'); return; }
+
+  el('compareTableWrap').innerHTML = '<div style="padding:20px;text-align:center"><span class="spinner-inline"></span> Loading baseline data…</div>';
+
+  try {
+    const baseData = await apiFetch(`${API_BASE}/monitoring/pc/results/${encodeURIComponent(baseRunId)}`);
+    const baseTx   = baseData.transactions || baseData.transaction_results || baseData.transaction_details || [];
+
+    // Build comparison rows
+    const rows = allTx.map(cur => {
+      const base = baseTx.find(b => (b.transaction_name||b.name) === (cur.transaction_name||cur.name));
+      const curP95  = parseFloat(cur.pct_95||cur.response_time_95th||0);
+      const baseP95 = base ? parseFloat(base.pct_95||base.response_time_95th||0) : null;
+      const curPct  = (() => { const i=(cur.passed||0)+(cur.failed||0); return i>0?((cur.passed||0)/i*100):null; })();
+      const basePct = base ? (() => { const i=(base.passed||0)+(base.failed||0); return i>0?((base.passed||0)/i*100):null; })() : null;
+
+      const p95Delta = baseP95 !== null ? ((curP95-baseP95)/baseP95*100).toFixed(1) : null;
+      const pctDelta = basePct !== null ? (curPct - basePct).toFixed(1) : null;
+
+      const p95DeltaHtml = p95Delta === null ? '<td class="delta-same">N/A</td>'
+        : parseFloat(p95Delta) > 10 ? `<td class="delta-worse">+${p95Delta}% ⬆</td>`
+        : parseFloat(p95Delta) < -5 ? `<td class="delta-better">${p95Delta}% ⬇</td>`
+        : `<td class="delta-same">${p95Delta > 0?'+':''}${p95Delta}%</td>`;
+
+      const pctDeltaHtml = pctDelta === null ? '<td class="delta-same">N/A</td>'
+        : parseFloat(pctDelta) < -0.5 ? `<td class="delta-worse">${pctDelta}% ⬇</td>`
+        : parseFloat(pctDelta) > 0.5  ? `<td class="delta-better">+${pctDelta}% ⬆</td>`
+        : `<td class="delta-same">—</td>`;
+
+      return `<tr>
+        <td>${cur.transaction_name||cur.name}</td>
+        <td>${baseP95 !== null ? baseP95.toFixed(3) : '—'}</td>
+        <td>${curP95.toFixed(3)}</td>
+        ${p95DeltaHtml}
+        <td>${basePct !== null ? basePct.toFixed(1)+'%' : '—'}</td>
+        <td>${curPct !== null ? curPct.toFixed(1)+'%' : '—'}</td>
+        ${pctDeltaHtml}
+      </tr>`;
+    }).join('');
+
+    compareData = { baseTx, curTx: allTx };
+    el('compareTableWrap').innerHTML = `
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr>
+            <th>Transaction</th>
+            <th>Base P95(s)</th><th>Cur P95(s)</th><th>Δ P95</th>
+            <th>Base Pass%</th><th>Cur Pass%</th><th>Δ Pass%</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    el('exportCsvBtn').style.display = 'inline-block';
+  } catch (err) {
+    el('compareTableWrap').innerHTML = `<div class="alert alert-danger">Failed to load baseline: ${err.message}</div>`;
+  }
+}
+
+function exportCompareCsv() {
+  if (!compareData) return;
+  const rows = [['Transaction','Base P95(s)','Current P95(s)','Delta P95%','Base Pass%','Current Pass%','Delta Pass%']];
+  allTx.forEach(cur => {
+    const base = compareData.baseTx.find(b => (b.transaction_name||b.name)===(cur.transaction_name||cur.name));
+    const curP95  = parseFloat(cur.pct_95||cur.response_time_95th||0);
+    const baseP95 = base ? parseFloat(base.pct_95||base.response_time_95th||0) : '';
+    const curPct  = (() => { const i=(cur.passed||0)+(cur.failed||0); return i>0?((cur.passed||0)/i*100).toFixed(1):''; })();
+    const basePct = base ? (() => { const i=(base.passed||0)+(base.failed||0); return i>0?((base.passed||0)/i*100).toFixed(1):''; })() : '';
+    const p95Delta = baseP95 ? ((curP95-baseP95)/baseP95*100).toFixed(1) : '';
+    const pctDelta = basePct && curPct ? (parseFloat(curPct)-parseFloat(basePct)).toFixed(1) : '';
+    rows.push([cur.transaction_name||cur.name, baseP95, curP95, p95Delta, basePct, curPct, pctDelta]);
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv,' + encodeURIComponent(csv);
+  a.download = `compare_${PC_RUN_ID}_vs_baseline.csv`;
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SAVE MODAL
+// ═══════════════════════════════════════════════════════════════
+function openSave()  { el('saveModal').classList.add('open'); }
+function closeSave() { el('saveModal').classList.remove('open'); }
+function toggleBlobNote() {
+  el('blobNote').style.display = el('saveFormat').value === 'blob' ? 'block' : 'none';
+}
+
+async function saveReport() {
+  const fmt      = el('saveFormat').value;
+  const release  = el('saveRelease').value.trim();
+  const testType = el('saveTestType').value;
+  if (!release) { alert('⚠ Release name is required.'); return; }
+
+  if (fmt === 'html') {
+    const html = document.documentElement.outerHTML;
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `NFT_Report_${testType}_${release.replace(/\s+/g,'_')}_RunID_${PC_RUN_ID}.html`;
+    a.click();
+    closeSave();
+  } else {
+    // POST to Oracle save endpoint
+    try {
+      const btn = document.querySelector('#saveModal .btn-success');
+      btn.disabled = true; btn.textContent = '⏳ Saving…';
+
+      const html = document.documentElement.outerHTML;
+      const resp = await fetch(`${API_BASE}/reports/save`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + Auth.getToken(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          run_id: RUN_ID,
+          pc_run_id: PC_RUN_ID,
+          release_name: release,
+          test_type: testType,
+          notes: el('saveNotes').value,
+          report_html: html
+        })
+      });
+      const result = await resp.json();
+      if (!resp.ok) throw new Error(result.detail || `HTTP ${resp.status}`);
+      closeSave();
+      alert(`✓ Report saved to Oracle NFT_RELEASE_REPORTS\nRelease: ${release} | Type: ${testType}`);
+      btn.disabled = false; btn.textContent = '💾 Save Report';
+    } catch (err) {
+      alert(`✗ Save failed: ${err.message}`);
+      const btn = document.querySelector('#saveModal .btn-success');
+      btn.disabled = false; btn.textContent = '💾 Save Report';
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
