@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Upload / Fetch Reports</title>
+<link rel="stylesheet" href="../../css/global.css">
+<style>
+/* ── OUTER TABS (Upload Files | Fetch from PC) ─────────────────────── */
+.tab-row{display:flex;gap:0;border:2px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:18px}
+.tab-btn{flex:1;padding:12px;font-size:14px;font-weight:700;border:none;cursor:pointer;
+  transition:all .2s;background:white;color:#6b7280;display:flex;align-items:center;
+  justify-content:center;gap:8px}
+.tab-btn.active{background:linear-gradient(135deg,#667eea,#764ba2);color:white}
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+/* ── PC METHOD SUB-TABS (Fetch from PC | Upload ZIP) ──────────────── */
+.pc-method-tabs{display:flex;gap:0;border:1.5px solid #d1d5db;border-radius:8px;
+  overflow:hidden;margin-bottom:16px}
+.pc-method-tab{flex:1;padding:10px 14px;border:none;background:#f9fafb;color:#6b7280;
+  font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;
+  align-items:center;justify-content:center;gap:7px}
+.pc-method-tab.active{background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff}
+.pc-method-tab:hover:not(.active){background:#f3f4f6}
+.pc-method-pane{display:none}.pc-method-pane.active{display:block}
+
+/* ── DROP ZONES ───────────────────────────────────────────────────── */
+.drop-zone{border:2px dashed #d1d5db;border-radius:12px;padding:32px 20px;
+  text-align:center;cursor:pointer;transition:all .3s;background:#f9fafb;position:relative}
+.drop-zone:hover,.drop-zone.dragover{border-color:#3b82f6;background:#eff6ff}
+.drop-zone.has-file{border-color:#10b981;background:#f0fdf4}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:36px;margin-bottom:8px}
+.drop-text{font-size:14px;font-weight:700;color:#374151;margin-bottom:4px}
+.drop-sub{font-size:12px;color:#9ca3af}
+
+/* ── RUN INFO BANNER ──────────────────────────────────────────────── */
+.run-info-banner{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid
+  #86efac;border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.run-info-banner .run-id{font-size:13px;font-weight:700;color:#166534;margin-bottom:4px}
+.run-info-banner .run-meta{font-size:12px;color:#15803d;display:flex;gap:12px;flex-wrap:wrap}
+.run-info-meta-tag{background:rgba(255,255,255,.6);padding:2px 8px;border-radius:4px;
+  font-weight:600}
+
+/* ── PROGRESS LOG ─────────────────────────────────────────────────── */
+.log-box{background:#0f1117;color:#10b981;font-family:'Consolas','Courier New',monospace;
+  font-size:12px;padding:12px 14px;border-radius:8px;max-height:200px;overflow-y:auto;
+  line-height:1.7;margin-top:8px}
+.log-label{font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:4px}
+
+/* ── PC RESULTS PANEL ─────────────────────────────────────────────── */
+.pc-results-panel{background:#fff;border-radius:12px;border:1.5px solid #e5e7eb;
+  margin-top:20px;overflow:hidden}
+.pc-results-hdr{background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;
+  padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.pc-results-hdr h4{font-size:15px;font-weight:700;margin:0}
+.pc-meta-row{display:flex;gap:18px;flex-wrap:wrap}
+.pc-meta-item{display:flex;flex-direction:column;align-items:flex-end}
+.pc-meta-lbl{font-size:10px;opacity:.75;text-transform:uppercase;letter-spacing:.4px}
+.pc-meta-val{font-size:13px;font-weight:700}
+.pc-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:1px;background:#e5e7eb;border-bottom:1px solid #e5e7eb}
+.pc-stat{background:#f9fafb;padding:12px 14px;text-align:center}
+.pc-stat-val{font-size:20px;font-weight:800;color:#1f2937}
+.pc-stat-lbl{font-size:11px;color:#9ca3af;margin-top:2px}
+.pc-stat.blue .pc-stat-val{color:#2563eb}
+.pc-stat.green .pc-stat-val{color:#10b981}
+.pc-stat.red .pc-stat-val{color:#ef4444}
+.pc-stat.amber .pc-stat-val{color:#f59e0b}
+
+/* ── TRANSACTION TABLE ────────────────────────────────────────────── */
+.tx-table{width:100%;border-collapse:collapse;font-size:12px}
+.tx-table thead th{padding:9px 12px;background:#f3f4f6;font-size:10px;font-weight:700;
+  color:#6b7280;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #e5e7eb;
+  text-align:left}
+.tx-table thead th.r,.tx-table tbody td.r{text-align:right}
+.tx-table tbody td{padding:9px 12px;border-bottom:1px solid #f3f4f6;color:#374151}
+.tx-table tbody tr:last-child td{border-bottom:none}
+.tx-table tbody tr:hover td{background:#f9fafb}
+.tx-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.tx-badge.pass{background:#d1fae5;color:#065f46}
+.tx-badge.fail{background:#fee2e2;color:#991b1b}
+.tx-badge.warn{background:#fef3c7;color:#92400e}
+
+/* ── MISC ─────────────────────────────────────────────────────────── */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #e5e7eb;
+  border-top-color:#3b82f6;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.view-report-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;
+  background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:13px;
+  font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
+.view-report-btn:hover{background:#1d4ed8}
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <a href="../../pages/landing.html" class="nav-link">🏠 Home</a>
+  <a href="start-monitoring.html" class="nav-link">← Back to Monitoring</a>
+  <span id="userInfo" style="margin-left:auto;font-size:12px;color:rgba(255,255,255,.7)"></span>
+  <a href="#" class="nav-link" onclick="logout()">🚪 Logout</a>
+</div>
+
+<div class="container" style="margin-top:80px">
+  <div class="platform-header">
+    <h1>📤 Upload / Fetch Reports</h1>
+    <p>Upload AWR and PC reports manually, or pull directly from Performance Center</p>
+  </div>
+
+  <!-- ── ROW 1: LOB + Track + PC Run ID + Validate ── -->
+  <div class="card">
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>LOB</label>
+        <input type="text" id="lobField" readonly style="background:#f9fafb">
+      </div>
+      <div class="form-group">
+        <label>Track <span class="required">*</span></label>
+        <select id="trackField"><option value="">-- Select Track --</option></select>
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-bottom:8px">
+      <div class="form-group">
+        <label>PC Run ID <span class="required">*</span></label>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div style="flex:1">
+            <input type="text" id="pcRunField" placeholder="e.g. 39501"
+              oninput="onPcRunIdInput()" style="width:100%">
+            <small style="color:#6b7280;margin-top:3px;display:block">
+              Only runs registered via Start Monitoring are accepted
+            </small>
+          </div>
+          <button class="btn btn-primary" id="btnValidate" onclick="validateRunId()"
+            style="padding:10px 18px;white-space:nowrap">
+            🔍 Validate
+          </button>
+        </div>
+        <div id="preValidationMsg" style="display:none;text-align:center;padding:28px;
+          color:#9ca3af;border:2px dashed #e5e7eb;border-radius:10px;margin-top:8px">
+          🔍 Enter PC Run ID and click Validate
+        </div>
+        <div id="runValidationResult" style="display:none;margin-top:8px"></div>
+      </div>
+      <div class="form-group" id="testNameGroup" style="display:none">
+        <label>Test Name</label>
+        <input type="text" id="testNameField" readonly style="background:#f9fafb">
+      </div>
+    </div>
+
+    <!-- Run info banner — shown when valid -->
+    <div id="runInfoBanner" style="display:none"></div>
+  </div>
+
+  <!-- ── UPLOAD / FETCH SECTION — hidden until validated ── -->
+  <div id="uploadSection" style="display:none">
+
+    <!-- OUTER TABS: Upload Files | Fetch from PC -->
+    <div class="card">
+      <div class="tab-row">
+        <button class="tab-btn active" id="tabUploadBtn"
+          onclick="switchTab('upload',this)">📁 Upload Files</button>
+        <button class="tab-btn" id="tabFetchBtn"
+          onclick="switchTab('fetch',this)">🔌 Fetch from PC</button>
+      </div>
+
+      <!-- ════ TAB: UPLOAD FILES ════ -->
+      <div class="tab-pane active" id="tab-upload">
+        <div class="form-grid" style="margin-bottom:14px">
+          <div class="form-group">
+            <label>AWR HTML Report</label>
+            <div class="drop-zone" id="awrDrop"
+              ondragover="event.preventDefault();this.classList.add('dragover')"
+              ondragleave="this.classList.remove('dragover')"
+              ondrop="handleDrop(event,'awrFile','awrDrop','awrDropText','awrDropSub')">
+              <input type="file" id="awrFile" accept=".html"
+                onchange="showFileInfo(this,'awrDrop','awrDropText','awrDropSub')">
+              <div class="drop-icon">📄</div>
+              <div class="drop-text" id="awrDropText">Click or drag AWR Report HTML here</div>
+              <div class="drop-sub" id="awrDropSub">Accepts .html files (Oracle AWR HTML report)</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Oracle Database Name <span class="required">*</span></label>
+            <select id="awrDbName"><option value="">-- Select Database --</option></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btnUpload" onclick="processUpload()"
+          style="width:100%;padding:13px">📤 Upload & Process Reports</button>
+        <div id="uploadStatus" style="display:none;margin-top:10px"></div>
+      </div>
+
+      <!-- ════ TAB: FETCH FROM PC ════ -->
+      <div class="tab-pane" id="tab-fetch">
+
+        <div class="form-group" style="margin-bottom:14px">
+          <label>PC Project</label>
+          <select id="pcProject"><option value="">-- Select PC Project --</option></select>
+        </div>
+
+        <!-- PC METHOD SUB-TABS -->
+        <div class="pc-method-tabs">
+          <button class="pc-method-tab active" id="tabPcFetchBtn"
+            onclick="switchPcMethod('fetch')">
+            🔌 Fetch from Performance Center
+          </button>
+          <button class="pc-method-tab" id="tabPcUploadBtn"
+            onclick="switchPcMethod('upload')">
+            📦 Upload Results ZIP
+          </button>
+        </div>
+
+        <!-- SUB-PANE: Fetch from PC -->
+        <div class="pc-method-pane active" id="pcMethodFetch">
+          <button class="btn btn-primary" id="btnFetch" onclick="fetchFromPC()"
+            style="width:100%;padding:13px">🔌 Fetch from Performance Center</button>
+          <div class="alert alert-info" style="margin-top:12px">
+            <span>ℹ️</span>
+            <span>Connects to the configured PC instance and downloads reports for the specified Run ID.</span>
+          </div>
+          <div id="fetchLog" style="display:none;margin-top:10px">
+            <div class="log-label">Progress Log</div>
+            <div class="log-box" id="fetchLogBox"></div>
+          </div>
+          <div id="fetchStatus" style="display:none;margin-top:10px"></div>
+        </div>
+
+        <!-- SUB-PANE: Upload ZIP -->
+        <div class="pc-method-pane" id="pcMethodUpload">
+          <div class="alert alert-info" style="margin-bottom:14px">
+            <span>ℹ️</span>
+            <span>Download the results ZIP from Performance Center manually, then upload it here.
+              The ZIP must contain <strong>summary.html</strong>.</span>
+          </div>
+          <div class="drop-zone" id="zipDrop"
+            ondragover="event.preventDefault();this.classList.add('dragover')"
+            ondragleave="this.classList.remove('dragover')"
+            ondrop="handleDrop(event,'zipFileInput','zipDrop','zipDropText','zipDropSub')">
+            <input type="file" id="zipFileInput" accept=".zip"
+              onchange="handleZipSelect(this.files[0])">
+            <div class="drop-icon">📦</div>
+            <div class="drop-text" id="zipDropText">Drop PC Results ZIP here</div>
+            <div class="drop-sub" id="zipDropSub">or click to browse — .zip files only</div>
+          </div>
+          <button class="btn btn-primary" id="btnZipUpload" onclick="uploadZipResults()"
+            style="width:100%;padding:13px;margin-top:14px" disabled>
+            📦 Process & Store ZIP Results
+          </button>
+          <div id="zipLog" style="display:none;margin-top:10px">
+            <div class="log-label">Progress Log</div>
+            <div class="log-box" id="zipLogBox"></div>
+          </div>
+          <div id="zipStatus" style="display:none;margin-top:10px"></div>
+        </div>
+
+      </div><!-- /tab-fetch -->
+    </div><!-- /card -->
+
+    <!-- RESULTS TABLE (shown after any successful operation) -->
+    <div id="uploadResults" class="card" style="display:none">
+      <h3 style="font-weight:800;margin-bottom:16px">✓ Processing Complete</h3>
+      <div id="resultsAlert"></div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Table</th><th>Records Stored</th><th>Status</th></tr>
+        </thead>
+        <tbody id="resultTbody"></tbody>
+      </table>
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="resetPage()">↩ Upload More</button>
+        <button class="btn btn-primary"
+          onclick="window.location.href='../analysis/test-selection.html'">
+          📋 View Test Report
+        </button>
+      </div>
+    </div>
+
+    <!-- PC RESULTS PANEL (shown after fetch/ZIP) -->
+    <div id="pcResultsPanel" class="pc-results-panel" style="display:none">
+      <div class="pc-results-hdr">
+        <h4>⚡ PC Results — <span id="prRunId"></span></h4>
+        <div class="pc-meta-row">
+          <div class="pc-meta-item">
+            <span class="pc-meta-lbl">Status</span>
+            <span class="pc-meta-val" id="prStatus">—</span>
+          </div>
+          <div class="pc-meta-item">
+            <span class="pc-meta-lbl">Collation</span>
+            <span class="pc-meta-val" id="prCollation">—</span>
+          </div>
+          <div class="pc-meta-item">
+            <span class="pc-meta-lbl">Project</span>
+            <span class="pc-meta-val" id="prProject">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="pc-stats">
+        <div class="pc-stat blue"><div class="pc-stat-val" id="prTotal">—</div><div class="pc-stat-lbl">Transactions</div></div>
+        <div class="pc-stat green"><div class="pc-stat-val" id="prPassed">—</div><div class="pc-stat-lbl">Passed</div></div>
+        <div class="pc-stat red"><div class="pc-stat-val" id="prFailed">—</div><div class="pc-stat-lbl">Failed</div></div>
+        <div class="pc-stat amber"><div class="pc-stat-val" id="prAvgRt">—</div><div class="pc-stat-lbl">Avg RT (s)</div></div>
+        <div class="pc-stat amber"><div class="pc-stat-val" id="prMaxP95">—</div><div class="pc-stat-lbl">Max P95 (s)</div></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th>Transaction</th>
+              <th class="r">Pass</th><th class="r">Fail</th><th class="r">Pass%</th>
+              <th class="r">Min(s)</th><th class="r">Avg(s)</th>
+              <th class="r">P90(s)</th><th class="r">P95(s)</th><th class="r">Max(s)</th>
+              <th class="r">TPS</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="prTxBody"></tbody>
+        </table>
+      </div>
+      <div style="padding:14px 16px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end">
+        <a id="prViewReportBtn" href="#" class="view-report-btn">📋 View Full Report</a>
+      </div>
+    </div>
+
+  </div><!-- /uploadSection -->
+</div><!-- /container -->
+
+<script>
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+const API      = 'http://localhost:8000/api/v1';
+const AWR_API  = API + '/monitoring/awr';
+const PC_API   = API + '/monitoring/pc';
+const NFT_API  = API + '/nft';
+const AUTH_API = API + '/auth';
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const el   = id => document.getElementById(id);
+const show = id => { if(el(id)) el(id).style.display='block'; };
+const hide = id => { if(el(id)) el(id).style.display='none';  };
+
+const sess    = JSON.parse(sessionStorage.getItem('userSession') || '{}');
+const lob     = JSON.parse(sessionStorage.getItem('selectedLob') || '{}');
+const tok     = sess.session_token || '';
+const setup   = JSON.parse(sessionStorage.getItem('monitoringSetup') || '{}');
+
+const alertHtml = (t,m) => {
+  const c={success:'alert-success',danger:'alert-danger',info:'alert-info',warning:'alert-warning'};
+  return `<div class="alert ${c[t]||'alert-info'}">${m}</div>`;
+};
+
+async function apiFetch(url, opts={}) {
+  const r = await fetch(url, {
+    ...opts,
+    headers: { 'Authorization':'Bearer '+tok, 'Content-Type':'application/json', ...(opts.headers||{}) }
+  });
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) {
+    const msg = d.detail
+      ? (Array.isArray(d.detail)
+          ? d.detail.map(e=>`${(e.loc||[]).slice(-1)[0]}: ${e.msg}`).join(', ')
+          : String(d.detail))
+      : `HTTP ${r.status}`;
+    throw new Error(msg);
+  }
+  return d;
+}
+
+function logout() { sessionStorage.clear(); window.location.href='../../pages/landing.html'; }
+
+// ── TAB SWITCHERS ─────────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  el('tab-'+tab)?.classList.add('active');
+}
+
+function switchPcMethod(method) {
+  // Sub-tabs within Fetch from PC section
+  el('tabPcFetchBtn')?.classList.toggle('active', method==='fetch');
+  el('tabPcUploadBtn')?.classList.toggle('active', method==='upload');
+  el('pcMethodFetch')?.classList.toggle('active', method==='fetch');
+  el('pcMethodUpload')?.classList.toggle('active', method==='upload');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const lobName = lob.name || lob.lob_name || setup.lob || '';
+  el('lobField').value = lobName || '—';
+  if(sess.username) el('userInfo').textContent = '👤 '+sess.username;
+
+  // Load tracks
+  if(lobName) {
+    try {
+      const d = await apiFetch(`${AUTH_API}/lob-config/public`);
+      const lobData = (d.lobs||[]).find(l=>l.name===lobName);
+      const ts = el('trackField');
+      if(lobData?.tracks) lobData.tracks.forEach(t=>{
+        const o=document.createElement('option'); o.value=t.name||t; o.textContent=t.name||t;
+        ts.appendChild(o);
+      });
+      if(setup.track) ts.value=setup.track;
+    } catch(e){ console.error('Track load error:',e); }
+
+    // Load AWR databases
+    try {
+      const d = await apiFetch(`${NFT_API}/lob-config/databases?lob_name=${encodeURIComponent(lobName)}`);
+      const dbList = d.db_configs||d.databases||[];
+      const sel = el('awrDbName');
+      dbList.forEach(db=>{
+        const name = typeof db==='string'?db:(db.database_name||db.name);
+        const o=document.createElement('option'); o.value=name; o.textContent=name;
+        sel.appendChild(o);
+      });
+    } catch(e){ console.error('DB load error:',e); }
+
+    // Load PC projects
+    try {
+      const d = await apiFetch(`${NFT_API}/config/pc/${encodeURIComponent(lobName)}`);
+      const configs = d.config||d.configs||d.data||[];
+      const sel = el('pcProject');
+      configs.forEach(p=>{
+        const o=document.createElement('option');
+        o.value=p.display_name||p.project_name;
+        o.textContent=p.display_name||p.project_name;
+        sel.appendChild(o);
+      });
+    } catch(e){ console.error('PC projects error:',e); }
+  }
+
+  // Auto-fill from start-monitoring setup
+  if(setup.master_run_id && setup.pc_run_id) {
+    el('pcRunField').value = setup.pc_run_id;
+    el('pcRunField').dataset.runId = setup.master_run_id;
+    el('pcRunField').dataset.lobName = lobName;
+    el('pcRunField').dataset.track = setup.track||'';
+    el('pcRunField').dataset.testName = setup.test_name||'';
+    showRunInfoBanner({
+      run_id: setup.master_run_id, pc_run_id: setup.pc_run_id,
+      test_name: setup.test_name||'—', track: setup.track||'—',
+      status: 'RUNNING'
+    });
+  }
+}
+
+// ── FILE INFO ─────────────────────────────────────────────────────────────────
+function showFileInfo(input, dropId, textId, subId) {
+  const f = input.files[0]; if(!f) return;
+  el(dropId)?.classList.add('has-file');
+  if(el(textId)) el(textId).textContent = '✓ '+f.name;
+  if(el(subId))  el(subId).textContent  = (f.size/1024).toFixed(1)+' KB';
+}
+
+function handleDrop(event, inputId, dropId, textId, subId) {
+  event.preventDefault();
+  el(dropId)?.classList.remove('dragover');
+  const f = event.dataTransfer.files[0]; if(!f) return;
+  // Assign to hidden input via DataTransfer
+  try {
+    const dt = new DataTransfer(); dt.items.add(f);
+    el(inputId).files = dt.files;
+  } catch(e){}
+  showFileInfo({files:[f]}, dropId, textId, subId);
+  if(inputId==='zipFileInput') handleZipSelect(f);
+}
+
+// ── VALIDATE RUN ID ───────────────────────────────────────────────────────────
+function onPcRunIdInput() {
+  hide('runValidationResult');
+  hide('runInfoBanner');
+  hide('uploadSection');
+  el('pcRunField').dataset.runId = '';
+}
+
+async function validateRunId() {
+  const pcRunId = el('pcRunField').value.trim();
+  if(!pcRunId){ alert('⚠ Enter a PC Run ID first.'); return; }
+
+  const btn = el('btnValidate');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Validating…';
+  hide('runValidationResult'); hide('runInfoBanner');
+
+  try {
+    const lobName = el('lobField').value;
+    const d = await apiFetch(`${PC_API}/test-run/recent?lob_name=${encodeURIComponent(lobName)}&limit=50`);
+
+    // Robust key resolution
+    let runs=null;
+    if(Array.isArray(d.test_runs))       runs=d.test_runs;
+    else if(Array.isArray(d.runs))        runs=d.runs;
+    else if(Array.isArray(d.data))        runs=d.data;
+    else if(Array.isArray(d.results))     runs=d.results;
+    else { for(const v of Object.values(d)){ if(Array.isArray(v)){runs=v;break;} } }
+
+    const match = (runs||[]).find(r=>String(r.pc_run_id).trim()===String(pcRunId).trim());
+
+    if(match) {
+      el('pcRunField').dataset.runId    = match.run_id||match.master_run_id||'';
+      el('pcRunField').dataset.lobName  = match.lob_name||'';
+      el('pcRunField').dataset.track    = match.track||'';
+      el('pcRunField').dataset.testName = match.test_name||'';
+      el('runValidationResult').innerHTML = alertHtml('success',
+        `✓ Run Found — Ready to Upload`);
+      show('runValidationResult');
+      showRunInfoBanner(match);
+      // Auto-fill track and test name
+      if(match.track)      el('trackField').value = match.track;
+      if(match.test_name){ show('testNameGroup'); el('testNameField').value=match.test_name; }
+      show('uploadSection');
+    } else {
+      el('runValidationResult').innerHTML = alertHtml('danger',
+        `✗ PC Run ID ${pcRunId} not found in registered runs. Register via Start Monitoring first.`);
+      show('runValidationResult');
+      hide('uploadSection');
+    }
+  } catch(e) {
+    el('runValidationResult').innerHTML = alertHtml('danger','✗ Validation error: '+e.message);
+    show('runValidationResult');
+  }
+  btn.disabled=false; btn.innerHTML='🔍 Validate';
+}
+
+function showRunInfoBanner(run) {
+  const status = run.status||run.test_status||'';
+  const color  = status==='RUNNING'?'#f59e0b':status==='COMPLETED'?'#10b981':'#374151';
+  el('runInfoBanner').innerHTML = `
+    <div class="run-info-banner">
+      <div class="run-id">${run.run_id||run.master_run_id||'—'}</div>
+      <div class="run-meta">
+        <span class="run-info-meta-tag">LOAD</span>
+        <span class="run-info-meta-tag">${run.track||'—'}</span>
+        <span class="run-info-meta-tag" style="color:${color};font-weight:700">${status||'—'}</span>
+        ${run.test_name?`<span class="run-info-meta-tag">${run.test_name}</span>`:''}
+      </div>
+    </div>`;
+  show('runInfoBanner');
+  // Change button to X Change
+  el('btnValidate').innerHTML='✕ Change';
+  el('btnValidate').onclick=clearValidation;
+}
+
+function clearValidation() {
+  el('pcRunField').value=''; el('pcRunField').dataset.runId='';
+  hide('runInfoBanner'); hide('runValidationResult'); hide('uploadSection');
+  el('btnValidate').innerHTML='🔍 Validate';
+  el('btnValidate').onclick=validateRunId;
+}
+
+// ── PROCESS UPLOAD (AWR) ──────────────────────────────────────────────────────
+async function processUpload() {
+  const pcRunId  = el('pcRunField').value.trim();
+  const runId    = el('pcRunField').dataset.runId||'';
+  const track    = el('trackField').value;
+  const dbName   = el('awrDbName').value;
+  const lobName  = el('lobField').value;
+  const testName = el('testNameField').value.trim();
+  const awrFile  = el('awrFile').files[0];
+
+  if(!pcRunId||!track){ alert('⚠ PC Run ID and Track are required.'); return; }
+  if(!awrFile){ alert('⚠ Please select an AWR HTML file.'); return; }
+  if(!dbName){  alert('⚠ Please select the Oracle database name.'); return; }
+
+  const btn=el('btnUpload'); btn.disabled=true; btn.textContent='⏳ Processing…';
+  hide('uploadResults'); hide('uploadStatus');
+
+  try {
+    // Register run if not already done
+    let usedRunId = runId;
+    if(!usedRunId) {
+      try {
+        const reg = await apiFetch(`${PC_API}/test-run/register`,{
+          method:'POST', body:JSON.stringify({lob_name:lobName,track,pc_run_id:pcRunId,test_name:testName||`Upload_${pcRunId}`})
+        });
+        usedRunId = reg.run_id||reg.master_run_id;
+        el('uploadStatus').innerHTML=alertHtml('info',`✓ Run registered. ID: ${usedRunId}`);
+        show('uploadStatus');
+      } catch(e){ console.warn('Registration warning:',e); }
+    }
+
+    el('uploadStatus').innerHTML=alertHtml('info','⏳ Uploading and parsing AWR report…');
+    show('uploadStatus');
+
+    const form=new FormData();
+    form.append('file',awrFile);
+    form.append('run_id',usedRunId||'UPLOAD_'+pcRunId);
+    form.append('pc_run_id',pcRunId);
+    form.append('database_name',dbName);
+    form.append('lob_name',lobName);
+    form.append('track',track);
+    if(testName) form.append('test_name',testName);
+
+    const awrResp=await fetch(`${AWR_API}/upload`,{
+      method:'POST', headers:{'Authorization':'Bearer '+tok}, body:form
+    });
+    const awrData=await awrResp.json();
+    if(!awrResp.ok) throw new Error(awrData.detail||'AWR upload failed');
+
+    // Fetch summary for row counts
+    let results=[{t:'AWR_ANALYSIS_RESULTS',n:1}];
+    try {
+      const summary=await apiFetch(`${API}/summary/${encodeURIComponent(usedRunId)}`);
+      results=[
+        {t:'API_AWR_ANALYSIS_RESULTS', n:summary.analysis_results_count||1},
+        {t:'API_AWR_CONCERNS',          n:summary.concerns_count||awrData.total_concerns||0},
+        {t:'API_AWR_TOP_SQL',           n:summary.top_sql_count||awrData.top_sql_count||0},
+        {t:'API_AWR_WAIT_EVENTS',       n:summary.wait_events_count||awrData.wait_events_count||0},
+      ];
+    } catch(e){
+      results=[
+        {t:'API_AWR_ANALYSIS_RESULTS', n:1},
+        {t:'API_AWR_METRICS',          n:awrData.metrics_count||awrData.total_metrics||0},
+        {t:'API_AWR_TOP_SQL',          n:awrData.sql_count||awrData.top_sql_count||0},
+        {t:'API_AWR_WAIT_EVENTS',      n:awrData.wait_events_count||0},
+      ];
+    }
+    showResults(results,'success','✓ Reports processed and stored to Oracle CQE_NFT database.');
+
+  } catch(e) {
+    el('uploadStatus').innerHTML=alertHtml('danger','✗ Upload failed: '+e.message);
+    show('uploadStatus');
+  }
+  btn.disabled=false; btn.textContent='📤 Upload & Process Reports';
+}
+
+// ── FETCH FROM PC ─────────────────────────────────────────────────────────────
+async function fetchFromPC() {
+  const pcRunId  = el('pcRunField').value.trim();
+  const track    = el('trackField').value;
+  const project  = el('pcProject').value;
+  const lobName  = el('lobField').value;
+  const testName = el('testNameField').value.trim();
+
+  if(!pcRunId||!track){ alert('⚠ PC Run ID and Track are required.'); return; }
+  if(!project){ alert('⚠ Select a PC Project before fetching.'); return; }
+
+  const btn=el('btnFetch'); btn.disabled=true; btn.textContent='⏳ Fetching…';
+  hide('uploadResults'); hide('pcResultsPanel');
+  el('fetchLogBox').innerHTML=''; show('fetchLog'); hide('fetchStatus');
+
+  function log(msg) {
+    const d=document.createElement('div');
+    d.textContent='['+new Date().toTimeString().slice(0,8)+'] '+msg;
+    el('fetchLogBox').appendChild(d);
+    el('fetchLogBox').scrollTop=9999;
+  }
+
+  try {
+    log(`Loading PC config for project: ${project}…`);
+    const configData = await apiFetch(`${NFT_API}/config/pc/${encodeURIComponent(lobName)}`);
+    const configs = configData.config||configData.configs||configData.data||[];
+    const pcConfig = configs.find(c=>c.display_name===project)
+                  || configs.find(c=>c.project_name===project)
+                  || configs[0];
+
+    if(!pcConfig) throw new Error(`No PC config for project "${project}". Configure in Admin → PC Config.`);
+    const pcConfigId = pcConfig.pc_config_id||pcConfig.config_id;
+    if(!pcConfigId)   throw new Error('PC config found but missing pc_config_id.');
+    log(`✓ Config matched: ${pcConfig.display_name||pcConfig.project_name} (ID: ${pcConfigId})`);
+
+    let runId = el('pcRunField').dataset.runId||'';
+    if(!runId) {
+      log('Registering test run…');
+      try {
+        const reg = await apiFetch(`${PC_API}/test-run/register`,{
+          method:'POST', body:JSON.stringify({lob_name:lobName,track,pc_run_id:pcRunId,test_name:testName||`Fetch_${pcRunId}`})
+        });
+        runId=reg.run_id||reg.master_run_id||'';
+        el('pcRunField').dataset.runId=runId;
+        log(`✓ Run registered. Master Run ID: ${runId}`);
+      } catch(e){ log(`⚠ Registration warning: ${e.message}`); }
+    } else { log(`Using existing Run ID: ${runId}`); }
+
+    log(`Connecting to Performance Center for PC Run ID: ${pcRunId}…`);
+    const d = await apiFetch(`${PC_API}/fetch-results`,{
+      method:'POST',
+      body:JSON.stringify({
+        run_id:runId||`FETCH_${pcRunId}`, pc_run_id:pcRunId,
+        lob_name:lobName, track, pc_config_id:pcConfigId,
+        test_set_name:testName||'', test_instance_id:null, test_name:testName||''
+      })
+    });
+
+    log(`✓ Connected to Performance Center`);
+    if(d.test_status)      log(`Test status: ${d.test_status}`);
+    if(d.collation_status) log(`Collation:   ${d.collation_status}`);
+    const txCount=d.total_transactions||d.transactions?.length||0;
+    log(`✓ ${txCount} transactions processed`);
+    log(`✓ Saved to Oracle`);
+
+    showResults(
+      [{t:'PC_TEST_RUNS',n:1},{t:'LR_TRANSACTION_RESULTS',n:txCount}],
+      d.success?'success':'warning',
+      d.success?`✓ PC results fetched and stored. Run ID: ${d.run_id||runId}`:`⚠ ${d.message||'Check PC connection settings'}`
+    );
+    loadPcResults(d.run_id||runId, pcRunId);
+
+  } catch(e) {
+    log(`✗ Error: ${e.message}`);
+    el('fetchStatus').innerHTML=alertHtml('danger','✗ Fetch failed: '+e.message);
+    show('fetchStatus');
+  }
+  btn.disabled=false; btn.textContent='🔌 Fetch from Performance Center';
+}
+
+// ── ZIP UPLOAD ────────────────────────────────────────────────────────────────
+let selectedZipFile=null;
+
+function handleZipSelect(file) {
+  if(!file) return;
+  selectedZipFile=file;
+  el('zipDrop')?.classList.add('has-file');
+  if(el('zipDropText')) el('zipDropText').textContent='✓ '+file.name;
+  if(el('zipDropSub'))  el('zipDropSub').textContent=(file.size/1024).toFixed(1)+' KB — ready to upload';
+  el('btnZipUpload').disabled=false;
+}
+
+async function uploadZipResults() {
+  if(!selectedZipFile){ alert('⚠ Please select a ZIP file first.'); return; }
+
+  const pcRunId  = el('pcRunField').value.trim();
+  const runId    = el('pcRunField').dataset.runId||'';
+  const lobName  = el('lobField').value;
+  const track    = el('trackField').value;
+  const testName = el('testNameField').value.trim();
+
+  if(!pcRunId){ alert('⚠ Enter and validate a PC Run ID before uploading.'); return; }
+  if(!runId){   alert('⚠ Run ID not registered. Validate the PC Run ID first.'); return; }
+
+  const btn=el('btnZipUpload'); btn.disabled=true; btn.textContent='⏳ Processing…';
+  el('zipLogBox').innerHTML=''; show('zipLog'); hide('zipStatus');
+  hide('uploadResults'); hide('pcResultsPanel');
+
+  function log(msg) {
+    const d=document.createElement('div');
+    d.textContent='['+new Date().toTimeString().slice(0,8)+'] '+msg;
+    el('zipLogBox').appendChild(d);
+    el('zipLogBox').scrollTop=9999;
+  }
+
+  try {
+    log(`Reading ZIP: ${selectedZipFile.name} (${(selectedZipFile.size/1024).toFixed(1)} KB)…`);
+    const form=new FormData();
+    form.append('file',selectedZipFile);
+    form.append('run_id',runId);
+    form.append('pc_run_id',pcRunId);
+    form.append('lob_name',lobName);
+    form.append('track',track||'');
+    form.append('test_name',testName);
+    form.append('test_set_name',testName);
+    log('Uploading to server…');
+
+    const resp=await fetch(`${PC_API}/upload-results`,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tok},
+      // NO Content-Type — browser sets multipart boundary
+      body:form
+    });
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok){
+      const msg=data.detail?(Array.isArray(data.detail)?data.detail.map(e=>`${(e.loc||[]).slice(-1)[0]}: ${e.msg}`).join(', '):String(data.detail)):`HTTP ${resp.status}`;
+      throw new Error(msg);
+    }
+
+    log(`✓ ZIP extracted — found: ${data.summary_file}`);
+    log(`✓ Parsed ${data.total_transactions} transactions`);
+    log(`✓ Saved to Oracle`);
+    log(`✓ Run ID: ${data.run_id}`);
+
+    showResults(
+      [{t:'PC_TEST_RUNS',n:1},{t:'LR_TRANSACTION_RESULTS',n:data.total_transactions}],
+      data.success?'success':'warning',
+      data.success?`✓ ZIP processed and stored. Run ID: ${data.run_id}`:`⚠ ${data.message}`
+    );
+    loadPcResults(data.run_id, data.pc_run_id);
+
+  } catch(e) {
+    log(`✗ Error: ${e.message}`);
+    el('zipStatus').innerHTML=alertHtml('danger','✗ Upload failed: '+e.message);
+    show('zipStatus');
+  }
+  btn.disabled=false; btn.textContent='📦 Process & Store ZIP Results';
+}
+
+// ── SHOW RESULTS TABLE ────────────────────────────────────────────────────────
+function showResults(rows, type, msg) {
+  const validRows=rows.filter(r=>r.n>0||r.t.includes('ANALYSIS')||r.t.includes('RUNS'));
+  el('resultTbody').innerHTML=validRows.map(r=>`
+    <tr>
+      <td><strong>${r.t}</strong></td>
+      <td>${r.n.toLocaleString()}</td>
+      <td><span class="badge badge-success">Success</span></td>
+    </tr>`).join('')+
+    `<tr style="background:#f0fdf4">
+      <td><strong>TOTAL</strong></td>
+      <td><strong>${validRows.reduce((s,r)=>s+r.n,0).toLocaleString()}</strong></td>
+      <td><span class="badge badge-success">Complete</span></td>
+    </tr>`;
+  el('resultsAlert').innerHTML=alertHtml(type,msg);
+  show('uploadResults');
+  el('uploadResults').scrollIntoView({behavior:'smooth'});
+}
+
+// ── LOAD PC RESULTS PANEL ─────────────────────────────────────────────────────
+async function loadPcResults(runId, pcRunId) {
+  if(!runId) return;
+  show('pcResultsPanel');
+  el('prRunId').textContent=pcRunId||runId;
+  el('prStatus').textContent='⏳'; el('prCollation').textContent='⏳';
+  el('prTxBody').innerHTML='<tr><td colspan="11" style="text-align:center;padding:20px;color:#9ca3af">Loading transactions…</td></tr>';
+
+  try {
+    const data=await apiFetch(`${PC_API}/results/${encodeURIComponent(runId)}`);
+
+    el('prRunId').textContent     = data.pc_run_id||pcRunId;
+    el('prStatus').textContent    = data.status||'—';
+    el('prCollation').textContent = data.collation_status||'—';
+    el('prProject').textContent   = data.project||'—';
+    el('prTotal').textContent     = data.total_transactions;
+    el('prPassed').textContent    = data.passed_transactions;
+    el('prFailed').textContent    = data.failed_transactions;
+    el('prAvgRt').textContent     = (data.average_response_time||0).toFixed(3);
+    el('prMaxP95').textContent    = (data.max_p95||0).toFixed(3);
+
+    if(data.failed_transactions>0) el('prFailed').closest('.pc-stat').classList.add('red');
+
+    const txs=data.transactions||[];
+    if(!txs.length){
+      el('prTxBody').innerHTML='<tr><td colspan="11" style="text-align:center;padding:20px;color:#9ca3af">No transaction data</td></tr>';
+    } else {
+      el('prTxBody').innerHTML=txs.map(t=>{
+        const pct=t.pass_percentage||0;
+        const pctColor=pct>=99?'#10b981':pct>=95?'#f59e0b':'#ef4444';
+        const fail=t.fail_count||0;
+        const statusCls=fail===0?'pass':pct>=95?'warn':'fail';
+        const statusLbl=fail===0?'PASS':pct>=95?'WARN':'FAIL';
+        return `<tr>
+          <td><strong>${t.transaction_name}</strong></td>
+          <td class="r">${(t.pass_count||0).toLocaleString()}</td>
+          <td class="r" style="color:${fail>0?'#ef4444':'inherit'};font-weight:${fail>0?700:400}">${fail.toLocaleString()}</td>
+          <td class="r" style="color:${pctColor};font-weight:700">${pct.toFixed(1)}%</td>
+          <td class="r">${(t.minimum_time||0).toFixed(3)}</td>
+          <td class="r">${(t.average_time||0).toFixed(3)}</td>
+          <td class="r">${(t.percentile_90||0).toFixed(3)}</td>
+          <td class="r" style="font-weight:700">${(t.percentile_95||0).toFixed(3)}</td>
+          <td class="r">${(t.maximum_time||0).toFixed(3)}</td>
+          <td class="r">${(t.throughput_tps||0).toFixed(2)}</td>
+          <td><span class="tx-badge ${statusCls}">${statusLbl}</span></td>
+        </tr>`;
+      }).join('');
+    }
+
+    el('prViewReportBtn').href=
+      `../analysis/pc_report.html?run_id=${encodeURIComponent(runId)}&pc_run_id=${encodeURIComponent(data.pc_run_id||pcRunId)}`;
+    el('pcResultsPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+
+  } catch(e) {
+    el('prStatus').textContent='✗ Error';
+    el('prTxBody').innerHTML=`<tr><td colspan="11" style="color:#ef4444;padding:14px">${e.message}</td></tr>`;
+  }
+}
+
+function resetPage() {
+  hide('uploadResults'); hide('pcResultsPanel');
+}
+
+init();
+</script>
+</body>
+</html>
