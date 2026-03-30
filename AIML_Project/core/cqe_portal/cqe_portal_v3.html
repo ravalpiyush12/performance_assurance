@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CQE Intelligence Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --sb-bg:#0f1623;--sb-bg2:#151d2e;--sb-border:rgba(255,255,255,0.06);
+  --sb-text:#8496b0;--sb-text-hi:#c8d6ea;--sb-active-bg:rgba(59,130,246,0.12);
+  --sb-active:#60a5fa;--sb-w:220px;--tb-h:54px;
+  --bg:#f0f2f7;--surface:#ffffff;--border:#e2e8f2;--border2:#edf0f7;
+  --text:#111827;--text2:#374151;--text3:#6b7280;--text4:#9ca3af;
+  --shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 12px rgba(0,0,0,0.04);
+  --shadow-md:0 4px 20px rgba(0,0,0,0.09),0 1px 4px rgba(0,0,0,0.04);
+  --shadow-lg:0 8px 32px rgba(0,0,0,0.12),0 2px 8px rgba(0,0,0,0.06);
+  --blue:#2563eb;--blue-d:#1d4ed8;--blue-lt:#dbeafe;--blue-mid:#3b82f6;
+  --green:#059669;--green-lt:#d1fae5;--green-d:#047857;
+  --amber:#d97706;--amber-lt:#fef3c7;--amber-d:#b45309;
+  --red:#dc2626;--red-d:#b91c1c;--red-lt:#fee2e2;
+  --purple:#7c3aed;--purple-lt:#ede9fe;
+  --cyan:#0891b2;--cyan-lt:#cffafe;
+  --rose:#e11d48;--rose-lt:#ffe4e6;
+  --lob-dt:#2563eb;--lob-ai:#7c3aed;--lob-pay:#059669;
+  /* AI insight colors */
+  --ai-bg:#fafbff;--ai-border:#e0e7ff;--ai-accent:#4f46e5;
+  --ai-critical-bg:#fff5f5;--ai-critical-border:#fecaca;--ai-critical-accent:#dc2626;
+  --ai-warn-bg:#fffbeb;--ai-warn-border:#fde68a;--ai-warn-accent:#d97706;
+  --ai-good-bg:#f0fdf4;--ai-good-border:#bbf7d0;--ai-good-accent:#059669;
+  --f-body:'Plus Jakarta Sans',sans-serif;
+  --f-mono:'JetBrains Mono',monospace;
+  --r:10px;--r-lg:14px;--r-xl:18px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--f-body);background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden}
+button{font-family:var(--f-body);cursor:pointer}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.1);border-radius:2px}
+
+/* ─── TOP NAV ─── */
+.topnav{position:fixed;top:0;left:0;right:0;height:var(--tb-h);background:var(--sb-bg);border-bottom:1px solid var(--sb-border);display:flex;align-items:center;z-index:200;padding:0 18px;gap:0}
+.tn-logo{display:flex;align-items:center;gap:10px;width:var(--sb-w);flex-shrink:0;padding-right:16px;border-right:1px solid var(--sb-border)}
+.tn-logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--blue-mid),#60a5fa);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 14px rgba(59,130,246,0.35)}
+.tn-logo-text{font-size:13.5px;font-weight:800;color:#e8eef8;letter-spacing:-.3px}
+.tn-logo-sub{font-size:8.5px;color:var(--sb-text);letter-spacing:1.3px;text-transform:uppercase;margin-top:1px}
+.tn-mods{display:flex;align-items:center;gap:2px;margin-left:16px;flex:1}
+.tn-mod{display:flex;align-items:center;gap:6px;padding:6px 13px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--sb-text);cursor:pointer;transition:all .15s;border:1px solid transparent;background:none}
+.tn-mod:hover{color:var(--sb-text-hi);background:rgba(255,255,255,0.04)}
+.tn-mod.active{color:#fff;background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.25)}
+.tn-mod-badge{font-size:9.5px;background:var(--red);color:#fff;border-radius:4px;padding:1px 5px;font-weight:700}
+.tn-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.tn-live{display:flex;align-items:center;gap:5px;font-size:10.5px;font-family:var(--f-mono);color:var(--sb-text);background:rgba(255,255,255,0.04);border:1px solid var(--sb-border);padding:4px 10px;border-radius:6px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.6);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.role-pill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid var(--sb-border);border-radius:20px;padding:3px 12px 3px 5px;cursor:pointer}
+.r-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff}
+.r-name{font-size:11.5px;font-weight:600;color:var(--sb-text-hi)}
+.r-tag{font-size:9.5px;color:var(--sb-text)}
+.tn-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;font-size:12px;font-weight:700;border:none;transition:all .15s}
+.tn-btn-primary{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+.tn-btn-primary:hover{background:var(--blue-d);transform:translateY(-1px)}
+.tn-btn-ghost{background:rgba(255,255,255,.05);color:var(--sb-text-hi);border:1px solid var(--sb-border)}
+.tn-btn-ghost:hover{background:rgba(255,255,255,.09);color:#fff}
+
+/* ─── SHELL ─── */
+.shell{display:flex;margin-top:var(--tb-h);height:calc(100vh - var(--tb-h));overflow:hidden}
+
+/* ─── SIDEBAR ─── */
+.sidebar{width:var(--sb-w);flex-shrink:0;background:var(--sb-bg);border-right:1px solid var(--sb-border);display:flex;flex-direction:column;overflow-y:auto}
+.sb-sec{padding:16px 12px 6px}
+.sb-lbl{font-size:9px;letter-spacing:1.8px;text-transform:uppercase;color:#2e4060;font-weight:700;padding:0 8px;margin-bottom:5px}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--sb-text);cursor:pointer;transition:all .12s;margin-bottom:1px;border:1px solid transparent}
+.sb-item:hover{color:var(--sb-text-hi);background:rgba(255,255,255,.04)}
+.sb-item.active{color:var(--sb-active);background:var(--sb-active-bg);border-color:rgba(96,165,250,.15);font-weight:600}
+.sb-ico{width:15px;text-align:center;font-size:12px;flex-shrink:0}
+.sb-ct{margin-left:auto;font-size:9.5px;font-family:var(--f-mono);font-weight:600;background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;color:var(--sb-text)}
+.sb-item.active .sb-ct{background:rgba(96,165,250,.2);color:var(--sb-active)}
+.sb-div{height:1px;background:var(--sb-border);margin:8px 12px}
+.lob-pill-list{padding:0 12px 10px;display:flex;flex-direction:column;gap:2px}
+.lob-pill{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:7px;font-size:12px;font-weight:500;color:var(--sb-text);cursor:pointer;transition:all .12s;border:1px solid transparent}
+.lob-pill:hover{background:rgba(255,255,255,.04);color:var(--sb-text-hi)}
+.lob-pill.on{background:rgba(255,255,255,.04);color:var(--sb-text-hi);border-color:var(--sb-border)}
+.lob-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.lob-ct{margin-left:auto;font-size:9.5px;font-family:var(--f-mono);color:#2e4060}
+
+/* ─── MAIN ─── */
+.main{flex:1;overflow-y:auto;background:var(--bg)}
+.page{display:none}.page.active{display:block}
+.pg-hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 26px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100}
+.pg-title{font-size:18px;font-weight:800;color:var(--text);letter-spacing:-.4px;line-height:1.2}
+.pg-sub{font-size:12px;color:var(--text3);margin-top:3px}
+.bc{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text4);margin-bottom:3px}
+.bc span{color:var(--text3);font-weight:500}
+.pg-acts{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.pad{padding:22px 26px}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;transition:all .15s;font-family:var(--f-body);white-space:nowrap}
+.btn-p{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.2)}.btn-p:hover{background:var(--blue-d);transform:translateY(-1px)}
+.btn-s{background:var(--surface);color:var(--text2);border:1px solid var(--border)}.btn-s:hover{background:var(--bg)}
+.btn-d{background:var(--red);color:#fff}.btn-d:hover{background:var(--red-d)}
+.btn-sm{padding:5px 11px;font-size:11.5px}
+.btn-xs{padding:3px 9px;font-size:11px;border-radius:6px}
+
+/* ─── CARDS ─── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.card-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13.5px;font-weight:700;color:var(--text)}
+.card-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.card-body{padding:18px}
+
+/* ─── BADGES ─── */
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.bg{background:var(--green-lt);color:#065f46}
+.ba{background:var(--amber-lt);color:#92400e}
+.br{background:var(--red-lt);color:#991b1b}
+.bb{background:var(--blue-lt);color:#1e40af}
+.bp{background:var(--purple-lt);color:#5b21b6}
+.bgy{background:#f1f5f9;color:#475569}
+
+/* ═══════════════════════════════════════════════
+   ✦ AI INSIGHT SYSTEM
+   The core design element — contextual, action-oriented
+═══════════════════════════════════════════════ */
+
+/* Inline alert strip — appears directly below a KPI or card */
+.ai-inline {
+  display:flex;align-items:flex-start;gap:9px;
+  border-radius:0 0 var(--r-lg) var(--r-lg);
+  padding:10px 16px;
+  font-size:12px;line-height:1.5;
+  border-top:1px dashed;
+  cursor:pointer;
+  transition:all .15s;
+  position:relative;
+}
+.ai-inline:hover{filter:brightness(.97)}
+.ai-inline.critical{background:var(--ai-critical-bg);border-color:var(--ai-critical-border)}
+.ai-inline.warn{background:var(--ai-warn-bg);border-color:var(--ai-warn-border)}
+.ai-inline.good{background:var(--ai-good-bg);border-color:var(--ai-good-border)}
+.ai-inline.info{background:var(--ai-bg);border-color:var(--ai-border)}
+
+.ai-spark{font-size:13px;flex-shrink:0;margin-top:1px}
+.ai-inline-body{flex:1}
+.ai-inline-label{font-size:9px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;gap:6px}
+.ai-inline.critical .ai-inline-label{color:var(--ai-critical-accent)}
+.ai-inline.warn .ai-inline-label{color:var(--ai-warn-accent)}
+.ai-inline.good .ai-inline-label{color:var(--ai-good-accent)}
+.ai-inline.info .ai-inline-label{color:var(--ai-accent)}
+.ai-inline-text{color:var(--text2);font-size:12px}
+.ai-inline-text strong{color:var(--text);font-weight:700}
+.ai-inline-action{
+  display:inline-flex;align-items:center;gap:4px;
+  margin-top:6px;font-size:11.5px;font-weight:700;
+  padding:4px 10px;border-radius:5px;border:none;cursor:pointer;
+  font-family:var(--f-body);transition:all .15s;
+}
+.ai-inline.critical .ai-inline-action{background:var(--red);color:#fff}
+.ai-inline.warn .ai-inline-action{background:var(--amber);color:#fff}
+.ai-inline.good .ai-inline-action{background:var(--green);color:#fff}
+.ai-inline.info .ai-inline-action{background:var(--ai-accent);color:#fff}
+.ai-inline-action:hover{opacity:.88;transform:translateY(-1px)}
+.ai-expand-btn{font-size:11px;color:var(--text4);margin-left:8px;flex-shrink:0;margin-top:2px;background:none;border:none;cursor:pointer;font-family:var(--f-body);transition:color .15s}
+.ai-expand-btn:hover{color:var(--text2)}
+
+/* Expanded AI detail drawer */
+.ai-drawer{
+  display:none;
+  border-top:1px solid;
+  padding:14px 16px 14px 38px;
+  font-size:12px;line-height:1.6;
+  animation:drawerIn .2s ease;
+}
+@keyframes drawerIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.ai-drawer.open{display:block}
+.ai-inline.critical .ai-drawer{background:#fff8f8;border-color:var(--ai-critical-border);color:#7f1d1d}
+.ai-inline.warn .ai-drawer{background:#fffdf0;border-color:var(--ai-warn-border);color:#78350f}
+.ai-inline.good .ai-drawer{background:#f7fef9;border-color:var(--ai-good-border);color:#064e3b}
+.ai-inline.info .ai-drawer{background:#f5f7ff;border-color:var(--ai-border);color:#312e81}
+
+.ai-drawer-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.ai-drawer-fact{background:rgba(255,255,255,.7);border-radius:6px;padding:8px 10px;border:1px solid rgba(0,0,0,.06)}
+.ai-drawer-fact-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;opacity:.6;margin-bottom:2px}
+.ai-drawer-fact-val{font-size:14px;font-weight:800;letter-spacing:-.3px}
+.ai-steps{display:flex;flex-direction:column;gap:5px}
+.ai-step{display:flex;align-items:flex-start;gap:7px;font-size:12px}
+.ai-step-num{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;margin-top:1px}
+.ai-inline.critical .ai-step-num{background:var(--red)}
+.ai-inline.warn .ai-step-num{background:var(--amber)}
+.ai-inline.good .ai-step-num{background:var(--green)}
+.ai-inline.info .ai-step-num{background:var(--ai-accent)}
+
+/* Floating AI tooltip on hover for heatmap cells */
+.heat-cell-wrap{position:relative}
+.heat-ai-tip{
+  position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  background:#1a2236;color:#e8edf5;
+  border-radius:10px;padding:12px 14px;
+  width:240px;z-index:300;
+  box-shadow:0 8px 28px rgba(0,0,0,.25);
+  display:none;pointer-events:none;
+  font-size:11.5px;line-height:1.5;
+}
+.heat-ai-tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:#1a2236}
+.heat-cell-wrap:hover .heat-ai-tip{display:block}
+.heat-ai-tip-header{font-size:9px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;color:#60a5fa;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.heat-ai-tip-text{color:#c8d6ea;margin-bottom:8px}
+.heat-ai-tip-action{color:#fbbf24;font-weight:700;font-size:11px}
+
+/* Incident AI strip */
+.inc-ai{
+  margin-top:10px;
+  display:flex;align-items:flex-start;gap:8px;
+  background:linear-gradient(135deg,#fff5f5,#fff8f0);
+  border:1px solid #fecaca;border-radius:8px;
+  padding:9px 12px;font-size:11.5px;line-height:1.5;
+  cursor:pointer;transition:all .15s;
+}
+.inc-ai:hover{box-shadow:0 2px 8px rgba(220,38,38,.1)}
+.inc-ai.resolved{background:linear-gradient(135deg,#f0fdf4,#f0fdfb);border-color:#bbf7d0}
+.inc-ai-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.inc-ai-body{flex:1}
+.inc-ai-label{font-size:9px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--red);margin-bottom:2px}
+.inc-ai.resolved .inc-ai-label{color:var(--green)}
+.inc-ai-text{color:var(--text2)}.inc-ai-text strong{color:var(--text)}
+.inc-ai-next{display:inline-block;margin-top:5px;font-size:11px;font-weight:700;color:var(--red);border-bottom:1px dashed var(--red);cursor:pointer}
+.inc-ai.resolved .inc-ai-next{color:var(--green);border-color:var(--green)}
+
+/* Milestone AI pop */
+.ms-wrap{position:relative;display:inline-block}
+.ms-ai-pop{
+  position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;min-width:220px;
+  z-index:400;box-shadow:var(--shadow-lg);
+  display:none;font-size:12px;
+  animation:drawerIn .15s ease;
+}
+.ms-wrap:hover .ms-ai-pop{display:block}
+.ms-ai-pop-title{font-size:9px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--ai-accent);margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.ms-ai-pop-text{color:var(--text2);line-height:1.5;margin-bottom:8px;font-size:11.5px}
+.ms-ai-pop-btn{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:5px;border:none;cursor:pointer;font-family:var(--f-body)}
+
+/* ─── KPI CARDS ─── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow);transition:all .15s}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.kpi-top{padding:18px 18px 14px}
+.kpi-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:10px}
+.kpi-val{font-size:26px;font-weight:800;color:var(--text);line-height:1;letter-spacing:-1px}
+.kpi-label{font-size:11.5px;color:var(--text3);margin-top:4px;font-weight:500}
+.kpi-delta{display:flex;align-items:center;gap:4px;margin-top:7px;font-size:11px;font-weight:600}
+.dp{color:var(--green)}.dn{color:var(--red)}.dn2{color:var(--amber)}.dn3{color:var(--text3)}
+
+/* ─── LOB CARDS ─── */
+.lob-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px}
+.lob-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--shadow);transition:all .2s;cursor:pointer}
+.lob-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.lob-card-top{padding:16px 18px 14px;border-bottom:1px solid var(--border)}
+.lob-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.lob-name{font-size:14px;font-weight:800;color:var(--text)}
+.lob-rel{font-size:10.5px;font-family:var(--f-mono);color:var(--text4);margin-top:2px}
+.lob-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.lob-kpi{text-align:center}
+.lob-kpi-v{font-size:18px;font-weight:800;line-height:1;letter-spacing:-.4px}
+.lob-kpi-l{font-size:10px;color:var(--text3);margin-top:2px;font-weight:500}
+.lob-bars{display:flex;flex-direction:column;gap:5px}
+.lob-bar-row{display:flex;align-items:center;gap:7px}
+.lob-bar-lbl{font-size:10.5px;color:var(--text3);width:75px;flex-shrink:0}
+.lob-bar-track{flex:1;height:4px;background:var(--border2);border-radius:2px;overflow:hidden}
+.lob-bar-fill{height:100%;border-radius:2px;transition:width .8s ease}
+.lob-bar-pct{font-size:10.5px;font-family:var(--f-mono);color:var(--text3);width:26px;text-align:right;flex-shrink:0}
+
+/* ─── TIMELINE ─── */
+.tl-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--shadow);margin-bottom:22px}
+.tl-grid{display:grid;grid-template-columns:190px repeat(8,1fr);min-width:780px}
+.tl-hd{padding:9px 7px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);background:#f8fafc;border-bottom:1px solid var(--border);text-align:center}
+.tl-hd:first-child{text-align:left;padding-left:18px}
+.tl-hd.now{color:var(--blue);background:#eff6ff}
+.tl-row-cell{padding:9px 5px;border-bottom:1px solid #f8fafc;display:flex;align-items:center;justify-content:center;min-height:52px;transition:background .1s}
+.tl-row-cell:first-child{padding-left:18px;justify-content:flex-start}
+.tl-row:hover .tl-row-cell{background:#fafbff}
+.tl-row:last-child .tl-row-cell{border-bottom:none}
+.tl-lob-info{display:flex;align-items:center;gap:8px}
+.tl-stripe{width:3px;height:32px;border-radius:2px;flex-shrink:0}
+.tl-lob-name{font-size:12.5px;font-weight:700;color:var(--text)}
+.tl-lob-rel{font-size:10px;font-family:var(--f-mono);color:var(--text4);margin-top:1px}
+.ms{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:4px 9px;border-radius:5px;white-space:nowrap;transition:transform .1s}
+.ms:hover{transform:scale(1.04)}
+.ms-done{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+.ms-prog{background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe}
+.ms-risk{background:#fef3c7;color:#b45309;border:1px solid #fde68a}
+.ms-block{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca}
+.ms-next{background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0}
+
+/* ─── FILTER BAR ─── */
+.fbar{display:flex;align-items:center;gap:9px;padding:12px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.srch-wrap{position:relative;flex:1;min-width:180px}
+.srch-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text4);font-size:12px;pointer-events:none}
+.srch{width:100%;padding:7px 11px 7px 28px;border:1px solid var(--border);border-radius:7px;font-size:12.5px;font-family:var(--f-body);color:var(--text);background:var(--bg);outline:none;transition:border-color .15s}
+.srch:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.07)}
+.fchips{display:flex;gap:5px;flex-wrap:wrap}
+.fc{padding:5px 11px;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--text2);transition:all .12s;font-family:var(--f-body)}
+.fc:hover{border-color:var(--blue);color:var(--blue)}
+.fc.on{background:var(--blue-lt);border-color:#bfdbfe;color:#1e40af}
+
+/* ─── TABLE ─── */
+.tbl-wrap{overflow-x:auto}
+table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.dt thead th{text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);padding:9px 14px;background:#f8fafc;border-bottom:1px solid var(--border);white-space:nowrap}
+table.dt tbody td{padding:11px 14px;border-bottom:1px solid #f8fafc;color:var(--text2);vertical-align:middle}
+table.dt tbody tr:last-child td{border-bottom:none}
+table.dt tbody tr:hover td{background:#fafbff}
+.td-m{font-weight:700;color:var(--text)!important}
+.td-c{font-family:var(--f-mono);font-size:11px;color:var(--blue)!important}
+
+/* ─── PROGRESS ─── */
+.prog-row{display:flex;align-items:center;gap:9px}
+.prog-bar{flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:60px}
+.prog-fill{height:100%;border-radius:3px}
+.prog-pct{font-family:var(--f-mono);font-size:10.5px;color:var(--text3);width:28px;text-align:right;flex-shrink:0}
+
+/* ─── HEATMAP ─── */
+.heat-grid{display:grid;grid-template-columns:170px repeat(6,1fr);gap:3px}
+.heat-lbl{font-size:11.5px;font-weight:700;display:flex;align-items:center;padding:7px 4px}
+.heat-col-h{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);text-align:center;padding:7px 4px}
+.heat-cell{border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;font-family:var(--f-mono);height:44px;transition:transform .1s}
+.h0{background:#f1f5f9;color:#94a3b8}
+.h1{background:#bbf7d0;color:#166534}
+.h2{background:#d1fae5;color:#15803d}
+.h3{background:#fef9c3;color:#854d0e}
+.h4{background:#fde68a;color:#92400e}
+.h5{background:#fecaca;color:#991b1b}
+.h6{background:#fee2e2;color:#b91c1c}
+
+/* ─── INCIDENT CARDS ─── */
+.inc-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid;border-radius:0 var(--r) var(--r) 0;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);transition:all .15s}
+.inc-card:hover{box-shadow:var(--shadow-md)}
+.inc-card.critical{border-left-color:var(--red)}
+.inc-card.high{border-left-color:var(--amber)}
+.inc-card.resolved{border-left-color:var(--green);opacity:.75}
+.inc-id{font-family:var(--f-mono);font-size:10.5px;color:var(--blue);font-weight:600;margin-bottom:3px}
+.inc-title{font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:6px}
+.inc-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.inc-mi{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:3px}
+.inc-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}
+.inc-acts{display:flex;gap:5px;flex-direction:column;align-items:flex-end}
+
+/* ─── RELEASE LIST ─── */
+.rl-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow);margin-bottom:12px;transition:all .15s}
+.rl-item:hover{box-shadow:var(--shadow-md)}
+.rl-hdr{display:grid;grid-template-columns:3fr 1fr 1fr 1fr 1fr auto;align-items:center;gap:10px;padding:14px 18px;cursor:pointer}
+.rl-name{font-size:13.5px;font-weight:800;color:var(--text)}
+.rl-sub{display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap}
+.rl-lob{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);font-weight:500}
+.rl-lob-dot{width:5px;height:5px;border-radius:50%}
+.rl-env{font-size:10.5px;font-family:var(--f-mono);color:var(--text4)}
+.rl-stat-lbl{font-size:10px;color:var(--text4);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.rl-stat-val{font-size:14px;font-weight:800;color:var(--text);margin-top:1px}
+.rl-exp{background:none;border:none;color:var(--text3);font-size:15px;padding:3px 7px;border-radius:5px;transition:all .15s}
+.rl-exp:hover{background:var(--bg);color:var(--text)}
+.rl-body{border-top:1px solid var(--border);background:#fafbfe;display:none;padding:18px}
+.rl-body.open{display:block}
+
+/* ─── KANBAN ─── */
+.kb-wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kb-col-h{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:7px 7px 0 0;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;border-bottom:2px solid;margin-bottom:7px}
+.kb-col-h.bl{background:#f8fafc;color:#475569;border-color:#cbd5e1}
+.kb-col-h.ip{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd}
+.kb-col-h.bk{background:#fff7ed;color:#c2410c;border-color:#fdba74}
+.kb-col-h.dn{background:#f0fdf4;color:#15803d;border-color:#86efac}
+.kb-ct{font-family:var(--f-mono);font-size:11px}
+.kb-card{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:10px 11px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:all .12s;cursor:pointer}
+.kb-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.kb-card.bkd{border-left:3px solid var(--amber)}
+.kb-id{font-family:var(--f-mono);font-size:10px;color:var(--blue);font-weight:600;margin-bottom:3px}
+.kb-t{font-size:12px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:6px}
+.kb-foot{display:flex;align-items:center;justify-content:space-between}
+.kb-type{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.3px}
+.kt-e{background:var(--purple-lt);color:#5b21b6}
+.kt-s{background:var(--blue-lt);color:#1e40af}
+.kt-b{background:var(--red-lt);color:#991b1b}
+.kt-t{background:var(--green-lt);color:#065f46}
+.kb-av{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff}
+
+/* ─── MODAL ─── */
+.overlay{position:fixed;inset:0;background:rgba(10,16,30,.55);backdrop-filter:blur(4px);z-index:500;display:none;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:0 20px 60px rgba(0,0,0,.18);width:600px;max-height:82vh;overflow-y:auto;animation:modalIn .2s ease}
+@keyframes modalIn{from{opacity:0;transform:translateY(-10px) scale(.98)}to{opacity:1;transform:none}}
+.modal-hdr{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:15px;font-weight:800;color:var(--text)}
+.modal-x{background:none;border:none;font-size:17px;color:var(--text3);cursor:pointer;padding:3px 7px;border-radius:5px}
+.modal-x:hover{background:var(--bg);color:var(--text)}
+.modal-body{padding:22px}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:7px;background:#fafbfe}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg.full{grid-column:1/-1}
+.flbl{font-size:11.5px;font-weight:700;color:var(--text2);letter-spacing:.2px}
+.finp{padding:8px 11px;border-radius:7px;border:1px solid var(--border);background:var(--surface);font-size:12.5px;font-family:var(--f-body);color:var(--text);outline:none;transition:border-color .15s}
+.finp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.07)}
+.finp::placeholder{color:var(--text4)}
+.app-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:3px}
+.app-chip-sel{padding:4px 11px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px solid var(--border);background:var(--bg);color:var(--text2);cursor:pointer;transition:all .12s}
+.app-chip-sel:hover{border-color:var(--blue);color:var(--blue)}
+.app-chip-sel.on{background:var(--blue-lt);border-color:#bfdbfe;color:#1e40af}
+
+/* ─── CAP RINGS ─── */
+.cap-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.cap-item{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:14px 10px;text-align:center}
+.cap-ring{position:relative;width:60px;height:60px;margin:0 auto 7px}
+.cap-ring svg{transform:rotate(-90deg)}
+.cr-bg{fill:none;stroke:#e2e8f0;stroke-width:5}
+.cr-fill{fill:none;stroke-width:5;stroke-linecap:round}
+.cr-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:12px;font-weight:700}
+.cap-name{font-size:10.5px;color:var(--text3);font-weight:500}
+.cap-sub{font-size:9.5px;font-family:var(--f-mono);color:var(--text4);margin-top:1px}
+
+/* ─── SECTIONS ─── */
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sec-title{font-size:14.5px;font-weight:800;color:var(--text)}
+.sec-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.mb{margin-bottom:22px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.col-7-5{display:grid;grid-template-columns:7fr 5fr;gap:18px}
+.chart-sm{height:155px;position:relative}
+.chart-md{height:190px;position:relative}
+.info-note{display:flex;align-items:flex-start;gap:8px;background:var(--blue-lt);border:1px solid #bfdbfe;border-radius:7px;padding:9px 13px;font-size:12px;color:#1e40af;font-weight:500;margin-bottom:14px}
+
+/* ─── PROD STATS ─── */
+.pi-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.pi-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--shadow)}
+.pi-stat-ico{font-size:18px;margin-bottom:7px}
+.pi-stat-v{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.pi-stat-l{font-size:11px;color:var(--text3);font-weight:500;margin-top:2px}
+
+/* ─── CHART COLORS ─── */
+.chart-sm canvas,.chart-md canvas{display:block}
+
+/* ─── ANIMS ─── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.a1{animation:fadeUp .4s .05s ease both}
+.a2{animation:fadeUp .4s .12s ease both}
+.a3{animation:fadeUp .4s .18s ease both}
+.a4{animation:fadeUp .4s .24s ease both}
+.a5{animation:fadeUp .4s .30s ease both}
+
+/* Role dropdown */
+.rdrop{position:absolute;top:50px;right:18px;background:var(--sb-bg2);border:1px solid var(--sb-border);border-radius:var(--r-lg);padding:7px;min-width:190px;box-shadow:0 8px 32px rgba(0,0,0,.3);display:none;z-index:300}
+.rdrop.open{display:block}
+.ropt{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:12.5px;color:var(--sb-text-hi);transition:background .1s}
+.ropt:hover{background:rgba(255,255,255,.05)}
+.ropt.on{background:var(--sb-active-bg);color:var(--sb-active)}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="tn-logo">
+    <div class="tn-logo-icon">⬡</div>
+    <div>
+      <div class="tn-logo-text">CQE Intelligence</div>
+      <div class="tn-logo-sub">Release Platform</div>
+    </div>
+  </div>
+  <div class="tn-mods">
+    <button class="tn-mod active" onclick="goTo('dashboard')">⬡ Executive Dashboard</button>
+    <button class="tn-mod" onclick="goTo('releases')">🚀 Release Tracker</button>
+    <button class="tn-mod" onclick="goTo('gaps')">🔍 Testing Gaps</button>
+    <button class="tn-mod" onclick="goTo('prod')">🔥 Production Issues <span class="tn-mod-badge">6</span></button>
+  </div>
+  <div class="tn-right">
+    <div class="tn-live"><div class="live-dot"></div>Live · Jira + Zephyr</div>
+    <div class="role-pill" onclick="toggleRDrop()">
+      <div class="r-avatar" id="rAvatar" style="background:linear-gradient(135deg,#7c3aed,#2563eb)">MD</div>
+      <div><div class="r-name" id="rName">Director</div><div class="r-tag" id="rTag">Read-only</div></div>
+    </div>
+    <button class="tn-btn tn-btn-primary" onclick="openModal()">＋ New Release</button>
+  </div>
+</nav>
+<div class="rdrop" id="rdrop">
+  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#2e4060;padding:3px 10px 7px">Switch Role</div>
+  <div class="ropt on" onclick="setRole('md',this)">
+    <div class="r-avatar" style="background:linear-gradient(135deg,#7c3aed,#2563eb);width:26px;height:26px;font-size:9px">MD</div>
+    <div><div style="font-size:12.5px;font-weight:600;color:#c8d6ea">Director / MD</div><div style="font-size:10.5px;color:#6a7f9a">Read-only · AI insights</div></div>
+  </div>
+  <div class="ropt" onclick="setRole('lead',this)">
+    <div class="r-avatar" style="background:linear-gradient(135deg,#059669,#34d399);width:26px;height:26px;font-size:9px">TL</div>
+    <div><div style="font-size:12.5px;font-weight:600;color:#c8d6ea">Team Lead</div><div style="font-size:10.5px;color:#6a7f9a">Add releases & timelines</div></div>
+  </div>
+  <div class="ropt" onclick="setRole('eng',this)">
+    <div class="r-avatar" style="background:linear-gradient(135deg,#d97706,#fbbf24);width:26px;height:26px;font-size:9px">PE</div>
+    <div><div style="font-size:12.5px;font-weight:600;color:#c8d6ea">Perf. Engineer</div><div style="font-size:10.5px;color:#6a7f9a">Test results & defects</div></div>
+  </div>
+</div>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div id="sb-dashboard">
+    <div class="sb-sec">
+      <div class="sb-lbl">Overview</div>
+      <div class="sb-item active"><span class="sb-ico">📊</span> Executive Summary</div>
+      <div class="sb-item"><span class="sb-ico">📅</span> Release Roadmap</div>
+      <div class="sb-item"><span class="sb-ico">📈</span> NFT Metrics</div>
+      <div class="sb-item"><span class="sb-ico">⚡</span> Capacity Analysis</div>
+    </div>
+    <div class="sb-div"></div>
+    <div class="sb-sec"><div class="sb-lbl">Filter by LOB</div></div>
+    <div class="lob-pill-list">
+      <div class="lob-pill on"><div class="lob-dot" style="background:var(--lob-dt)"></div>Digital Technology<span class="lob-ct">4</span></div>
+      <div class="lob-pill on"><div class="lob-dot" style="background:var(--lob-ai)"></div>AI & Operations<span class="lob-ct">3</span></div>
+      <div class="lob-pill on"><div class="lob-dot" style="background:var(--lob-pay)"></div>Payments<span class="lob-ct">5</span></div>
+    </div>
+  </div>
+  <div id="sb-releases" style="display:none">
+    <div class="sb-sec">
+      <div class="sb-lbl">Release Views</div>
+      <div class="sb-item active"><span class="sb-ico">📋</span> All Releases <span class="sb-ct">12</span></div>
+      <div class="sb-item"><span class="sb-ico">🔴</span> Active <span class="sb-ct">4</span></div>
+      <div class="sb-item"><span class="sb-ico">⚠️</span> At Risk <span class="sb-ct">2</span></div>
+      <div class="sb-item"><span class="sb-ico">✅</span> Completed <span class="sb-ct">6</span></div>
+    </div>
+    <div class="sb-div"></div>
+    <div class="sb-sec">
+      <div class="sb-lbl">By Environment</div>
+      <div class="sb-item"><span class="sb-ico">🔷</span> PERF-1 <span class="sb-ct">5</span></div>
+      <div class="sb-item"><span class="sb-ico">🔶</span> PERF-2 <span class="sb-ct">4</span></div>
+      <div class="sb-item"><span class="sb-ico">🟣</span> STAGING <span class="sb-ct">3</span></div>
+    </div>
+  </div>
+  <div id="sb-gaps" style="display:none">
+    <div class="sb-sec">
+      <div class="sb-lbl">Gap Analysis</div>
+      <div class="sb-item active"><span class="sb-ico">🔥</span> Heatmap View</div>
+      <div class="sb-item"><span class="sb-ico">📊</span> Coverage Report</div>
+      <div class="sb-item"><span class="sb-ico">🧪</span> Untested Areas <span class="sb-ct" style="background:var(--red-lt);color:var(--red)">23</span></div>
+      <div class="sb-item"><span class="sb-ico">📉</span> Trend Analysis</div>
+    </div>
+    <div class="sb-div"></div>
+    <div class="sb-sec">
+      <div class="sb-lbl">Gap Type</div>
+      <div class="sb-item"><span class="sb-ico" style="color:var(--red)">■</span> No Coverage <span class="sb-ct">8</span></div>
+      <div class="sb-item"><span class="sb-ico" style="color:var(--amber)">■</span> Partial <span class="sb-ct">15</span></div>
+      <div class="sb-item"><span class="sb-ico" style="color:var(--blue)">■</span> Not Executed <span class="sb-ct">31</span></div>
+    </div>
+  </div>
+  <div id="sb-prod" style="display:none">
+    <div class="sb-sec">
+      <div class="sb-lbl">Issue Views</div>
+      <div class="sb-item active"><span class="sb-ico">🔥</span> Active Incidents <span class="sb-ct">6</span></div>
+      <div class="sb-item"><span class="sb-ico">🔗</span> NFT Correlation</div>
+      <div class="sb-item"><span class="sb-ico">📉</span> RCA Analysis</div>
+      <div class="sb-item"><span class="sb-ico">✅</span> Resolved <span class="sb-ct">18</span></div>
+    </div>
+    <div class="sb-div"></div>
+    <div class="sb-sec">
+      <div class="sb-lbl">By Severity</div>
+      <div class="sb-item"><span class="sb-ico" style="color:var(--red)">●</span> P1 Critical <span class="sb-ct" style="background:var(--red-lt);color:var(--red)">3</span></div>
+      <div class="sb-item"><span class="sb-ico" style="color:var(--amber)">●</span> P2 High <span class="sb-ct">3</span></div>
+      <div class="sb-item"><span class="sb-ico" style="color:var(--blue)">●</span> P3 Medium <span class="sb-ct">8</span></div>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+
+<!-- ════════════════════════════════
+  PAGE: EXECUTIVE DASHBOARD
+════════════════════════════════ -->
+<div class="page active" id="page-dashboard">
+  <div class="pg-hdr">
+    <div>
+      <div class="bc">CQE Platform <span style="color:var(--border);margin:0 2px">›</span> <span>Executive Dashboard</span></div>
+      <div class="pg-title">Release Intelligence · Q2 2026</div>
+      <div class="pg-sub">All Lines of Business · NFT Progress · Live from Jira + Zephyr</div>
+    </div>
+    <div class="pg-acts">
+      <button class="btn btn-s btn-sm">⬇ Export PDF</button>
+      <button class="btn btn-s btn-sm">📧 Email Digest</button>
+    </div>
+  </div>
+
+  <div class="pad">
+
+    <!-- KPI CARDS WITH INLINE AI INSIGHTS -->
+    <div class="kpi-grid a1">
+
+      <!-- KPI: Active Releases -->
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <div class="kpi-icon" style="background:#dbeafe">🚀</div>
+          <div class="kpi-val">12</div>
+          <div class="kpi-label">Active Releases</div>
+          <div class="kpi-delta"><span class="dp">↑ 3 new</span><span class="dn3">this quarter</span></div>
+        </div>
+        <div class="ai-inline info" onclick="toggleDrawer(this)">
+          <span class="ai-spark">✦</span>
+          <div class="ai-inline-body">
+            <div class="ai-inline-label">AI Insight<span class="ai-expand-btn" id="exp-kpi1">▾ expand</span></div>
+            <div class="ai-inline-text"><strong>2 of 12 releases are on collision course</strong> — DT v4.1 and Payments v3.2 share PERF-1 bandwidth in the same 3-week window.</div>
+            <button class="ai-inline-action">→ Review environment scheduling</button>
+            <div class="ai-drawer" id="drawer-kpi1">
+              <div class="ai-drawer-grid">
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Conflict Window</div><div class="ai-drawer-fact-val">Apr 10–30</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Env at Risk</div><div class="ai-drawer-fact-val">PERF-1</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Releases Affected</div><div class="ai-drawer-fact-val">DT v4.1, PAY v3.2</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Delay Probability</div><div class="ai-drawer-fact-val">74%</div></div>
+              </div>
+              <div class="ai-steps">
+                <div class="ai-step"><div class="ai-step-num">1</div>Re-assign DT v4.1 to PERF-2 from Apr 12–22 (capacity available).</div>
+                <div class="ai-step"><div class="ai-step-num">2</div>Confirm with DT lead — requires 2-day re-provisioning window.</div>
+                <div class="ai-step"><div class="ai-step-num">3</div>Update Jira release calendar by EOD today to avoid downstream blocking.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI: Pass Rate -->
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <div class="kpi-icon" style="background:#d1fae5">✅</div>
+          <div class="kpi-val">83%</div>
+          <div class="kpi-label">Avg Pass Rate</div>
+          <div class="kpi-delta"><span class="dp">↑ 6%</span><span class="dn3">vs last sprint</span></div>
+        </div>
+        <div class="ai-inline warn" onclick="toggleDrawer(this)">
+          <span class="ai-spark">✦</span>
+          <div class="ai-inline-body">
+            <div class="ai-inline-label">AI Insight<span class="ai-expand-btn">▾ expand</span></div>
+            <div class="ai-inline-text"><strong>83% is 7 points below the 90% release gate.</strong> Payments drags the average — DT and AI&Ops individually meet threshold.</div>
+            <button class="ai-inline-action">→ Prioritise Payments defect sprint</button>
+            <div class="ai-drawer">
+              <div class="ai-drawer-grid">
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Release Gate</div><div class="ai-drawer-fact-val">90% min</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Payments Rate</div><div class="ai-drawer-fact-val" style="color:var(--red)">76%</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">TCs to Fix</div><div class="ai-drawer-fact-val">45 failing</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Est. Fix Time</div><div class="ai-drawer-fact-val">~8 days</div></div>
+              </div>
+              <div class="ai-steps">
+                <div class="ai-step"><div class="ai-step-num">1</div>Assign 2 additional engineers to Payments defect backlog this sprint.</div>
+                <div class="ai-step"><div class="ai-step-num">2</div>De-scope 5 low-priority PAY scenarios — reduces failing count by 12%.</div>
+                <div class="ai-step"><div class="ai-step-num">3</div>Re-run PAY regression by Apr 18 — minimum 88% pass rate required to proceed to UAT.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI: Open Defects -->
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <div class="kpi-icon" style="background:#fee2e2">🐛</div>
+          <div class="kpi-val">56</div>
+          <div class="kpi-label">Open Defects</div>
+          <div class="kpi-delta"><span class="dn">▲ 6 Critical</span><span class="dn3">unresolved &gt;72h</span></div>
+        </div>
+        <div class="ai-inline critical" onclick="toggleDrawer(this)">
+          <span class="ai-spark">✦</span>
+          <div class="ai-inline-body">
+            <div class="ai-inline-label">AI Insight — Action Required<span class="ai-expand-btn">▾ expand</span></div>
+            <div class="ai-inline-text"><strong>3 P1 defects in Payments are unresolved for 31h, 18h, and 5h</strong> — all on the critical path. At current fix velocity, release date slips by 12 days.</div>
+            <button class="ai-inline-action">→ Escalate PAY P1s to engineering lead now</button>
+            <div class="ai-drawer">
+              <div class="ai-drawer-grid">
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Oldest P1</div><div class="ai-drawer-fact-val" style="color:var(--red)">PAY-2838 · 31h</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Release Impact</div><div class="ai-drawer-fact-val" style="color:var(--red)">+12 day slip</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Avg Fix Time</div><div class="ai-drawer-fact-val">18.4h (P1)</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Engineers Available</div><div class="ai-drawer-fact-val">2 / 5 free</div></div>
+              </div>
+              <div class="ai-steps">
+                <div class="ai-step"><div class="ai-step-num">1</div>Immediately re-assign PAY-2838 (duplicate txn) — 3 engineers needed, currently only 1 assigned.</div>
+                <div class="ai-step"><div class="ai-step-num">2</div>PAY-2841 (timeout) needs infra team involvement — escalate to Platform Engineering today.</div>
+                <div class="ai-step"><div class="ai-step-num">3</div>Daily 9AM P1 stand-up until all 3 are resolved — track on Jira board.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI: Capacity -->
+      <div class="kpi-card">
+        <div class="kpi-top">
+          <div class="kpi-icon" style="background:#fef3c7">⚡</div>
+          <div class="kpi-val">64%</div>
+          <div class="kpi-label">Avg Capacity Tested</div>
+          <div class="kpi-delta"><span class="dn">↓ Below 80% threshold</span></div>
+        </div>
+        <div class="ai-inline warn" onclick="toggleDrawer(this)">
+          <span class="ai-spark">✦</span>
+          <div class="ai-inline-body">
+            <div class="ai-inline-label">AI Insight<span class="ai-expand-btn">▾ expand</span></div>
+            <div class="ai-inline-text"><strong>API Gateway tested at only 54% capacity</strong> — highest production risk. Peak load events (month-end, festivals) will exceed tested limits.</div>
+            <button class="ai-inline-action">→ Schedule capacity re-run for API Gateway</button>
+            <div class="ai-drawer">
+              <div class="ai-drawer-grid">
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Critical Module</div><div class="ai-drawer-fact-val">API Gateway 54%</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Peak Prod Load</div><div class="ai-drawer-fact-val">~90k TPS</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Tested Up To</div><div class="ai-drawer-fact-val">54k TPS</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Risk Event</div><div class="ai-drawer-fact-val">Mar 31 EOQ</div></div>
+              </div>
+              <div class="ai-steps">
+                <div class="ai-step"><div class="ai-step-num">1</div>Book PERF-1 for 2-day load run at 90k+ TPS — target window Apr 5–6.</div>
+                <div class="ai-step"><div class="ai-step-num">2</div>Coordinate with Payments team to avoid PERF-1 conflict (see release scheduling insight above).</div>
+                <div class="ai-step"><div class="ai-step-num">3</div>Do not approve DT v4.1 release sign-off until capacity re-run meets ≥80% threshold.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOB STATUS CARDS WITH INLINE AI -->
+    <div class="sec-hd a2">
+      <div><div class="sec-title">LOB Release Status</div><div class="sec-sub">Click expand for AI recommendations</div></div>
+      <button class="btn btn-s btn-sm" onclick="goTo('releases')">View All →</button>
+    </div>
+
+    <div class="lob-grid a2">
+      <!-- Digital Technology -->
+      <div class="lob-card">
+        <div class="lob-card-top">
+          <div class="lob-hdr">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                <div style="width:7px;height:7px;border-radius:50%;background:var(--lob-dt)"></div>
+                <div class="lob-name">Digital Technology</div>
+              </div>
+              <div class="lob-rel">API Modernisation v4.1 · PERF-1</div>
+            </div>
+            <span class="badge ba">⚠ At Risk</span>
+          </div>
+          <div class="lob-kpis">
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--lob-dt)">247</div><div class="lob-kpi-l">Req.</div></div>
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--green)">348</div><div class="lob-kpi-l">Test Cases</div></div>
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--amber)">18</div><div class="lob-kpi-l">Defects</div></div>
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--green)">83%</div><div class="lob-kpi-l">Pass Rate</div></div>
+          </div>
+          <div class="lob-bars">
+            <div class="lob-bar-row"><div class="lob-bar-lbl">Requirements</div><div class="lob-bar-track"><div class="lob-bar-fill" style="width:78%;background:var(--lob-dt)"></div></div><div class="lob-bar-pct">78%</div></div>
+            <div class="lob-bar-row"><div class="lob-bar-lbl">Test Cases</div><div class="lob-bar-track"><div class="lob-bar-fill" style="width:61%;background:var(--amber)"></div></div><div class="lob-bar-pct">61%</div></div>
+            <div class="lob-bar-row"><div class="lob-bar-lbl">Capacity</div><div class="lob-bar-track"><div class="lob-bar-fill" style="width:54%;background:var(--red)"></div></div><div class="lob-bar-pct">54%</div></div>
+          </div>
+        </div>
+        <div class="ai-inline warn" onclick="toggleDrawer(this)" style="border-radius:0 0 var(--r-xl) var(--r-xl)">
+          <span class="ai-spark">✦</span>
+          <div class="ai-inline-body">
+            <div class="ai-inline-label">AI Insight · Digital Technology<span class="ai-expand-btn">▾ expand</span></div>
+            <div class="ai-inline-text">TC execution is <strong>19 points behind schedule</strong> at W13. API Gateway epic (DT-EPX-01) is the primary drag — 46 uncovered test cases.</div>
+            <button class="ai-inline-action">→ Allocate 2 testers to DT-EPX-01 immediately</button>
+            <div class="ai-drawer">
+              <div class="ai-drawer-grid">
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Behind Schedule</div><div class="ai-drawer-fact-val" style="color:var(--amber)">19 pts</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Uncovered TCs</div><div class="ai-drawer-fact-val" style="color:var(--red)">46</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Bottleneck Epic</div><div class="ai-drawer-fact-val">DT-EPX-01</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Days to Gate</div><div class="ai-drawer-fact-val" style="color:var(--amber)">18 days</div></div>
+              </div>
+              <div class="ai-steps">
+                <div class="ai-step"><div class="ai-step-num">1</div>Reassign 2 testers from completed AI&Ops cycle to DT-EPX-01 epic this week.</div>
+                <div class="ai-step"><div class="ai-step-num">2</div>De-prioritise 12 low-risk regression TCs to free up execution bandwidth.</div>
+                <div class="ai-step"><div class="ai-step-num">3</div>Weekly checkpoint every Monday — if below 75% by Apr 7, recommend release scope reduction.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI & Operations -->
+      <div class="lob-card">
+        <div class="lob-card-top">
+          <div class="lob-hdr">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                <div style="width:7px;height:7px;border-radius:50%;background:var(--lob-ai)"></div>
+                <div class="lob-name">AI & Operations</div>
+              </div>
+              <div class="lob-rel">ML Pipeline v2.1 · PERF-2</div>
+            </div>
+            <span class="badge bg">✓ On Track</span>
+          </div>
+          <div class="lob-kpis">
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--lob-ai)">184</div><div class="lob-kpi-l">Req.</div></div>
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--green)">276</div><div class="lob-kpi-l">Test Cases</div></div>
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--green)">7</div><div class="lob-kpi-l">Defects</div></div>
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--green)">93%</div><div class="lob-kpi-l">Pass Rate</div></div>
+          </div>
+          <div class="lob-bars">
+            <div class="lob-bar-row"><div class="lob-bar-lbl">Requirements</div><div class="lob-bar-track"><div class="lob-bar-fill" style="width:91%;background:var(--lob-ai)"></div></div><div class="lob-bar-pct">91%</div></div>
+            <div class="lob-bar-row"><div class="lob-bar-lbl">Test Cases</div><div class="lob-bar-track"><div class="lob-bar-fill" style="width:89%;background:var(--green)"></div></div><div class="lob-bar-pct">89%</div></div>
+            <div class="lob-bar-row"><div class="lob-bar-lbl">Capacity</div><div class="lob-bar-track"><div class="lob-bar-fill" style="width:76%;background:var(--green)"></div></div><div class="lob-bar-pct">76%</div></div>
+          </div>
+        </div>
+        <div class="ai-inline good" onclick="toggleDrawer(this)" style="border-radius:0 0 var(--r-xl) var(--r-xl)">
+          <span class="ai-spark">✦</span>
+          <div class="ai-inline-body">
+            <div class="ai-inline-label">AI Insight · AI & Operations<span class="ai-expand-btn">▾ expand</span></div>
+            <div class="ai-inline-text"><strong>UAT sign-off conditions are met.</strong> 93% pass rate exceeds the 90% gate. 7 remaining defects are all P3 — no release blockers.</div>
+            <button class="ai-inline-action">→ Approve UAT sign-off for ML Pipeline v2.1</button>
+            <div class="ai-drawer">
+              <div class="ai-drawer-grid">
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Gate Status</div><div class="ai-drawer-fact-val" style="color:var(--green)">✓ Passed</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Remaining Risk</div><div class="ai-drawer-fact-val">Low</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Open Defects</div><div class="ai-drawer-fact-val" style="color:var(--green)">7 (P3 only)</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Team Velocity</div><div class="ai-drawer-fact-val" style="color:var(--green)">+22%</div></div>
+              </div>
+              <div class="ai-steps">
+                <div class="ai-step"><div class="ai-step-num">1</div>Formally sign off UAT — send approval to business stakeholders today.</div>
+                <div class="ai-step"><div class="ai-step-num">2</div>Schedule production deployment window for May 28–30 (low-traffic period).</div>
+                <div class="ai-step"><div class="ai-step-num">3</div>Optionally reassign 2 AI&Ops engineers to Payments P1 backlog to assist resolution.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payments -->
+      <div class="lob-card">
+        <div class="lob-card-top">
+          <div class="lob-hdr">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                <div style="width:7px;height:7px;border-radius:50%;background:var(--lob-pay)"></div>
+                <div class="lob-name">Payments</div>
+              </div>
+              <div class="lob-rel">Payment Gateway v3.2 · STAGING</div>
+            </div>
+            <span class="badge br">✕ Critical</span>
+          </div>
+          <div class="lob-kpis">
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--lob-pay)">312</div><div class="lob-kpi-l">Req.</div></div>
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--amber)">420</div><div class="lob-kpi-l">Test Cases</div></div>
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--red)">31</div><div class="lob-kpi-l">Defects</div></div>
+            <div class="lob-kpi"><div class="lob-kpi-v" style="color:var(--amber)">76%</div><div class="lob-kpi-l">Pass Rate</div></div>
+          </div>
+          <div class="lob-bars">
+            <div class="lob-bar-row"><div class="lob-bar-lbl">Requirements</div><div class="lob-bar-track"><div class="lob-bar-fill" style="width:82%;background:var(--lob-pay)"></div></div><div class="lob-bar-pct">82%</div></div>
+            <div class="lob-bar-row"><div class="lob-bar-lbl">Test Cases</div><div class="lob-bar-track"><div class="lob-bar-fill" style="width:71%;background:var(--amber)"></div></div><div class="lob-bar-pct">71%</div></div>
+            <div class="lob-bar-row"><div class="lob-bar-lbl">Capacity</div><div class="lob-bar-track"><div class="lob-bar-fill" style="width:63%;background:var(--red)"></div></div><div class="lob-bar-pct">63%</div></div>
+          </div>
+        </div>
+        <div class="ai-inline critical" onclick="toggleDrawer(this)" style="border-radius:0 0 var(--r-xl) var(--r-xl)">
+          <span class="ai-spark">✦</span>
+          <div class="ai-inline-body">
+            <div class="ai-inline-label">AI Insight · Critical Action Required<span class="ai-expand-btn">▾ expand</span></div>
+            <div class="ai-inline-text"><strong>Release June 10 is no longer achievable</strong> without P1 resolution within 48h. Projected slip: June 24 at current velocity.</div>
+            <button class="ai-inline-action">→ Invoke release risk protocol immediately</button>
+            <div class="ai-drawer">
+              <div class="ai-drawer-grid">
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Original Date</div><div class="ai-drawer-fact-val" style="color:var(--text)">10 Jun 2026</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Projected Date</div><div class="ai-drawer-fact-val" style="color:var(--red)">24 Jun 2026</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">P1 Blockers</div><div class="ai-drawer-fact-val" style="color:var(--red)">3 open</div></div>
+                <div class="ai-drawer-fact"><div class="ai-drawer-fact-label">Decision Window</div><div class="ai-drawer-fact-val" style="color:var(--red)">48h</div></div>
+              </div>
+              <div class="ai-steps">
+                <div class="ai-step"><div class="ai-step-num">1</div><strong>Today:</strong> Convene P1 war room with Payments lead, Platform Eng and QA — assign dedicated owners to each P1.</div>
+                <div class="ai-step"><div class="ai-step-num">2</div><strong>48h gate:</strong> If PAY-2838 (duplicate txn) not resolved by Apr 1, formally notify business stakeholders of slip.</div>
+                <div class="ai-step"><div class="ai-step-num">3</div><strong>Option:</strong> Defer Rupay 3DS feature (PAY-2821) to v3.3 — reduces P1 count to 2 and restores June 10 feasibility.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TIMELINE WITH MILESTONE AI POPUPS -->
+    <div class="sec-hd a3">
+      <div><div class="sec-title">Release Roadmap · Q2 2026</div><div class="sec-sub">Hover any milestone for AI insight · ✦ = AI flagged</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="badge bg">● Done</span><span class="badge bb">● In Progress</span>
+        <span class="badge ba">● At Risk</span><span class="badge br">● Blocked</span><span class="badge bgy">● Upcoming</span>
+      </div>
+    </div>
+
+    <div class="tl-card a3" style="overflow-x:auto">
+      <div class="tl-grid">
+        <div class="tl-hd">LOB / Release</div>
+        <div class="tl-hd">Jan</div><div class="tl-hd">Feb</div>
+        <div class="tl-hd now">Mar ◀</div>
+        <div class="tl-hd">Apr</div><div class="tl-hd">May</div>
+        <div class="tl-hd">Jun</div><div class="tl-hd">Jul</div><div class="tl-hd">Aug</div>
+
+        <!-- DT Row -->
+        <div class="tl-row-cell"><div class="tl-lob-info"><div class="tl-stripe" style="background:var(--lob-dt)"></div><div><div class="tl-lob-name">Digital Tech</div><div class="tl-lob-rel">API Mod v4.1</div></div></div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ Req. Freeze</div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ NFT Start</div></div>
+        <div class="tl-row-cell">
+          <div class="ms-wrap">
+            <div class="ms ms-risk">⚠ TC Exec ✦</div>
+            <div class="ms-ai-pop">
+              <div class="ms-ai-pop-title">✦ AI · Milestone Risk</div>
+              <div class="ms-ai-pop-text">TC execution at 61% — 19pts behind plan. 46 test cases uncovered in API Gateway epic. At current pace, this milestone misses by 8 days.</div>
+              <div class="ms-ai-pop-text" style="margin-top:4px"><strong>Next step:</strong> Reassign 2 testers from AI&Ops to DT-EPX-01 by Apr 4.</div>
+              <button class="ms-ai-pop-btn" style="background:var(--amber-lt);color:var(--amber-d);margin-top:6px">View Epic →</button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-row-cell"><div class="ms ms-prog">◉ Defect Fix</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">UAT</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">Release</div></div>
+        <div class="tl-row-cell"></div><div class="tl-row-cell"></div>
+
+        <!-- AI Row -->
+        <div class="tl-row-cell"><div class="tl-lob-info"><div class="tl-stripe" style="background:var(--lob-ai)"></div><div><div class="tl-lob-name">AI & Ops</div><div class="tl-lob-rel">ML Pipeline v2.1</div></div></div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ Req. Freeze</div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ NFT Start</div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ TC Exec</div></div>
+        <div class="tl-row-cell"><div class="ms ms-prog">◉ Regression</div></div>
+        <div class="tl-row-cell">
+          <div class="ms-wrap">
+            <div class="ms ms-prog">◉ UAT ✦</div>
+            <div class="ms-ai-pop">
+              <div class="ms-ai-pop-title">✦ AI · Ready to Advance</div>
+              <div class="ms-ai-pop-text">UAT entry conditions exceeded. 93% pass rate, no P1/P2 defects. UAT can begin immediately — no blocking issues.</div>
+              <div class="ms-ai-pop-text" style="margin-top:4px"><strong>Next step:</strong> Issue formal UAT entry notification to business today.</div>
+              <button class="ms-ai-pop-btn" style="background:var(--green-lt);color:var(--green-d);margin-top:6px">Approve UAT →</button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-row-cell"><div class="ms ms-next">Release</div></div>
+        <div class="tl-row-cell"></div><div class="tl-row-cell"></div>
+
+        <!-- Payments Row -->
+        <div class="tl-row-cell"><div class="tl-lob-info"><div class="tl-stripe" style="background:var(--lob-pay)"></div><div><div class="tl-lob-name">Payments</div><div class="tl-lob-rel">Gateway v3.2</div></div></div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ Req. Freeze</div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ NFT Start</div></div>
+        <div class="tl-row-cell">
+          <div class="ms-wrap">
+            <div class="ms ms-block">✕ Blocked ✦</div>
+            <div class="ms-ai-pop" style="min-width:260px">
+              <div class="ms-ai-pop-title">✦ AI · Critical Block</div>
+              <div class="ms-ai-pop-text">3 P1 defects (PAY-2838, PAY-2841, PAY-2821) are blocking all further progress. NFT cycle cannot advance until resolved. Current block duration: 31h.</div>
+              <div class="ms-ai-pop-text" style="margin-top:4px;color:var(--red);font-weight:600"><strong>Next step:</strong> P1 war room — today, 10AM. Assign dedicated leads to each.</div>
+              <button class="ms-ai-pop-btn" style="background:var(--red-lt);color:var(--red-d);margin-top:6px">View P1 Defects →</button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-row-cell"><div class="ms ms-risk">⚠ TC Exec</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">UAT</div></div>
+        <div class="tl-row-cell">
+          <div class="ms-wrap">
+            <div class="ms ms-next">Release ✦</div>
+            <div class="ms-ai-pop">
+              <div class="ms-ai-pop-title">✦ AI · Release Date at Risk</div>
+              <div class="ms-ai-pop-text">Original date: June 10. AI-projected date at current velocity: June 24. A 14-day slip is likely without immediate P1 resolution.</div>
+              <button class="ms-ai-pop-btn" style="background:var(--red-lt);color:var(--red-d);margin-top:8px">Risk Protocol →</button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-row-cell"></div><div class="tl-row-cell"></div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="two-col a4 mb">
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Defect Trend — All LOBs</div><div class="card-sub">Weekly opened vs closed</div></div></div>
+        <div class="card-body"><div class="chart-md"><canvas id="ch-deftrend"></canvas></div></div>
+        <div class="ai-inline warn" onclick="toggleDrawer(this)" style="border-radius:0 0 var(--r-lg) var(--r-lg)">
+          <span class="ai-spark">✦</span>
+          <div class="ai-inline-body">
+            <div class="ai-inline-label">AI Trend Insight<span class="ai-expand-btn">▾ expand</span></div>
+            <div class="ai-inline-text">Defect open rate <strong>outpaced close rate for 3 consecutive weeks</strong>. W13 gap is widest at +7. Backlog is growing, not shrinking.</div>
+            <button class="ai-inline-action">→ Double defect triage frequency this sprint</button>
+            <div class="ai-drawer">
+              <div class="ai-steps">
+                <div class="ai-step"><div class="ai-step-num">1</div>Increase triage cadence from weekly to bi-daily for Payments and DT teams.</div>
+                <div class="ai-step"><div class="ai-step-num">2</div>Enforce "fix before new" policy — no new features until critical backlog drops below 10.</div>
+                <div class="ai-step"><div class="ai-step-num">3</div>Target: Close rate must exceed open rate by W14 or escalate to programme management.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Test Execution Overview</div><div class="card-sub">Pass / Fail / Not Run</div></div></div>
+        <div class="card-body"><div class="chart-md"><canvas id="ch-exec"></canvas></div></div>
+        <div class="ai-inline info" onclick="toggleDrawer(this)" style="border-radius:0 0 var(--r-lg) var(--r-lg)">
+          <span class="ai-spark">✦</span>
+          <div class="ai-inline-body">
+            <div class="ai-inline-label">AI Insight<span class="ai-expand-btn">▾ expand</span></div>
+            <div class="ai-inline-text"><strong>22% of test cases (238) are Not Run</strong> — concentrated in Payments and DT. These represent unvalidated production risk.</div>
+            <button class="ai-inline-action">→ Prioritise 238 not-run TCs for W14 sprint</button>
+            <div class="ai-drawer">
+              <div class="ai-steps">
+                <div class="ai-step"><div class="ai-step-num">1</div>Filter Zephyr for "Not Run" status across DT v4.1 and PAY v3.2 cycles.</div>
+                <div class="ai-step"><div class="ai-step-num">2</div>Triage by risk: 47 are in critical payment flows — execute these first.</div>
+                <div class="ai-step"><div class="ai-step-num">3</div>Set W14 sprint goal: reduce Not Run count from 238 to below 100.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+  PAGE: RELEASE TRACKER
+════════════════════════════════ -->
+<div class="page" id="page-releases">
+  <div class="pg-hdr">
+    <div>
+      <div class="bc">CQE Platform <span style="color:var(--border)">›</span> <span>Release Tracker</span></div>
+      <div class="pg-title">Release Tracker</div>
+      <div class="pg-sub">Manage releases, timelines, applications & environments · 12 releases this quarter</div>
+    </div>
+    <div class="pg-acts">
+      <button class="btn btn-s btn-sm">⬇ Export</button>
+      <button class="btn btn-p" onclick="openModal()">＋ Add Release</button>
+    </div>
+  </div>
+  <div class="fbar">
+    <div class="srch-wrap"><span class="srch-ico">🔍</span><input class="srch" placeholder="Search releases, epics, apps..."></div>
+    <div class="fchips">
+      <button class="fc on">All</button><button class="fc">Active</button>
+      <button class="fc">At Risk</button><button class="fc">Completed</button>
+    </div>
+  </div>
+  <div class="pad">
+    <div class="info-note">ℹ Team Leads can add/edit releases. <strong>Current role: Director</strong> — switch to Lead role to enable editing.</div>
+
+    <div class="rl-item">
+      <div class="rl-hdr" onclick="toggleRel(this)">
+        <div class="rl-meta">
+          <div class="rl-name">API Modernisation v4.1</div>
+          <div class="rl-sub">
+            <div class="rl-lob"><div class="rl-lob-dot" style="background:var(--lob-dt)"></div>Digital Technology</div>
+            <span style="color:var(--border2)">·</span><div class="rl-env">PERF-1</div>
+            <span style="color:var(--border2)">·</span><span class="badge ba" style="font-size:10px">⚠ At Risk</span>
+          </div>
+        </div>
+        <div><div class="rl-stat-lbl">Target Date</div><div class="rl-stat-val" style="font-size:12px;font-family:var(--f-mono);color:var(--amber)">15 Jun 2026</div></div>
+        <div><div class="rl-stat-lbl">Pass Rate</div><div class="rl-stat-val" style="color:var(--amber)">83%</div></div>
+        <div><div class="rl-stat-lbl">Defects</div><div class="rl-stat-val" style="color:var(--red)">18</div></div>
+        <div><div class="rl-stat-lbl">Progress</div><div style="margin-top:3px"><div class="prog-row"><div class="prog-bar"><div class="prog-fill" style="width:61%;background:var(--amber)"></div></div><div class="prog-pct">61%</div></div></div></div>
+        <button class="rl-exp">▾</button>
+      </div>
+      <div class="ai-inline warn" onclick="toggleDrawer(this)" style="border-radius:0">
+        <span class="ai-spark">✦</span>
+        <div class="ai-inline-body">
+          <div class="ai-inline-label">AI Release Insight<span class="ai-expand-btn">▾ expand</span></div>
+          <div class="ai-inline-text">API Gateway epic is the sole blocker — <strong>46 TCs remain unexecuted</strong>. All other epics (Auth, Config) are on track.</div>
+          <button class="ai-inline-action">→ Focus sprint 14 entirely on DT-EPX-01</button>
+          <div class="ai-drawer">
+            <div class="ai-steps">
+              <div class="ai-step"><div class="ai-step-num">1</div>Pin DT-EPX-01 as sprint 14 primary objective — notify DT lead today.</div>
+              <div class="ai-step"><div class="ai-step-num">2</div>Pull 2 engineers from completed stories to clear the 46-TC backlog.</div>
+              <div class="ai-step"><div class="ai-step-num">3</div>If not cleared by Apr 10, trigger formal scope reduction review.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="rl-body open">
+        <div class="two-col" style="gap:20px">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Applications Impacted</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">
+              <span style="background:var(--red-lt);color:#991b1b;border:1px solid #fecaca;border-radius:5px;padding:3px 9px;font-size:11.5px;font-weight:600">API Gateway ⚠</span>
+              <span style="background:var(--blue-lt);color:#1e40af;border:1px solid #bfdbfe;border-radius:5px;padding:3px 9px;font-size:11.5px;font-weight:600">Auth Service</span>
+              <span style="background:var(--amber-lt);color:#92400e;border:1px solid #fde68a;border-radius:5px;padding:3px 9px;font-size:11.5px;font-weight:600">User Mgmt ⚠</span>
+              <span style="background:var(--blue-lt);color:#1e40af;border:1px solid #bfdbfe;border-radius:5px;padding:3px 9px;font-size:11.5px;font-weight:600">Config Service</span>
+              <span style="background:var(--blue-lt);color:#1e40af;border:1px solid #bfdbfe;border-radius:5px;padding:3px 9px;font-size:11.5px;font-weight:600">Audit Logger</span>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Environment</div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">
+              <span style="background:#dbeafe;color:#1e40af;border-radius:5px;padding:3px 10px;font-size:11px;font-weight:700;font-family:var(--f-mono)">🔷 PERF-1 (Primary)</span>
+              <span style="background:#f1f5f9;color:#475569;border-radius:5px;padding:3px 10px;font-size:11px;font-weight:700;font-family:var(--f-mono)">📋 PERF-2 (Failover)</span>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Jira Epics</div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px"><span class="td-c">DT-EPX-01</span><span style="color:var(--text2)">API Gateway Refactor</span><span class="badge ba" style="margin-left:auto;font-size:10px">At Risk</span></div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px"><span class="td-c">DT-EPX-02</span><span style="color:var(--text2)">Auth Service v2</span><span class="badge bg" style="margin-left:auto;font-size:10px">Done</span></div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12.5px"><span class="td-c">DT-EPX-03</span><span style="color:var(--text2)">User Mgmt Migration</span><span class="badge ba" style="margin-left:auto;font-size:10px">At Risk</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">NFT Summary</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+              <div style="background:var(--bg);border-radius:8px;padding:11px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Test Cases</div><div style="font-size:17px;font-weight:800;margin-top:3px">348</div><div style="font-size:11px;margin-top:2px"><span style="color:var(--green)">213 Pass</span> · <span style="color:var(--red)">42 Fail</span> · <span style="color:var(--text3)">93 NR</span></div></div>
+              <div style="background:var(--bg);border-radius:8px;padding:11px;border:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.4px">Scenarios</div><div style="font-size:17px;font-weight:800;margin-top:3px">124</div><div style="font-size:11px;margin-top:2px"><span style="color:var(--green)">91 Pass</span> · <span style="color:var(--red)">19 Fail</span> · <span style="color:var(--text3)">14 NR</span></div></div>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Timeline</div>
+            <div style="border-left:2px solid var(--border);padding-left:14px;display:flex;flex-direction:column;gap:10px">
+              <div style="font-size:12px;color:var(--text2);position:relative"><div style="position:absolute;left:-19px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--green);border:2px solid var(--surface)"></div><div style="font-size:10px;font-family:var(--f-mono);color:var(--text4)">15 Jan 2026</div><strong>Requirements Freeze</strong> — 247 req. baselined</div>
+              <div style="font-size:12px;color:var(--text2);position:relative"><div style="position:absolute;left:-19px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--green);border:2px solid var(--surface)"></div><div style="font-size:10px;font-family:var(--f-mono);color:var(--text4)">03 Feb 2026</div><strong>NFT Cycle Started</strong> — PERF-1 provisioned</div>
+              <div style="font-size:12px;color:var(--amber);position:relative"><div style="position:absolute;left:-19px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--amber);border:2px solid var(--surface)"></div><div style="font-size:10px;font-family:var(--f-mono);color:var(--text4)">10 Mar 2026</div><strong>Risk Raised</strong> — 61% TC executed at W13</div>
+              <div style="font-size:12px;color:var(--text3);position:relative"><div style="position:absolute;left:-19px;top:4px;width:7px;height:7px;border-radius:50%;background:var(--border);border:2px solid var(--surface)"></div><div style="font-size:10px;font-family:var(--f-mono);color:var(--text4)">Target: 15 Jun 2026</div><strong>Release Date</strong> — At risk</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rl-item">
+      <div class="rl-hdr" onclick="toggleRel(this)">
+        <div><div class="rl-name">ML Pipeline v2.1</div><div class="rl-sub"><div class="rl-lob"><div class="rl-lob-dot" style="background:var(--lob-ai)"></div>AI & Operations</div><span style="color:var(--border2)">·</span><div class="rl-env">PERF-2</div><span style="color:var(--border2)">·</span><span class="badge bg" style="font-size:10px">✓ On Track</span></div></div>
+        <div><div class="rl-stat-lbl">Target Date</div><div class="rl-stat-val" style="font-size:12px;font-family:var(--f-mono);color:var(--green)">30 May 2026</div></div>
+        <div><div class="rl-stat-lbl">Pass Rate</div><div class="rl-stat-val" style="color:var(--green)">93%</div></div>
+        <div><div class="rl-stat-lbl">Defects</div><div class="rl-stat-val" style="color:var(--green)">7</div></div>
+        <div><div class="rl-stat-lbl">Progress</div><div style="margin-top:3px"><div class="prog-row"><div class="prog-bar"><div class="prog-fill" style="width:89%;background:var(--green)"></div></div><div class="prog-pct">89%</div></div></div></div>
+        <button class="rl-exp">▾</button>
+      </div>
+      <div class="ai-inline good" onclick="toggleDrawer(this)" style="border-radius:0">
+        <span class="ai-spark">✦</span>
+        <div class="ai-inline-body">
+          <div class="ai-inline-label">AI Release Insight<span class="ai-expand-btn">▾ expand</span></div>
+          <div class="ai-inline-text"><strong>Release is UAT-ready today.</strong> All gate criteria met. 7 open defects are P3 non-blockers. PERF-2 env can be released for other use.</div>
+          <button class="ai-inline-action">→ Initiate UAT sign-off and free PERF-2</button>
+          <div class="ai-drawer">
+            <div class="ai-steps">
+              <div class="ai-step"><div class="ai-step-num">1</div>Send UAT approval communication to business owner and BAU team.</div>
+              <div class="ai-step"><div class="ai-step-num">2</div>Schedule production deployment: May 28–30 (verified low-traffic window).</div>
+              <div class="ai-step"><div class="ai-step-num">3</div>Release PERF-2 slot from May 1 — DT team can utilise for capacity re-run.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="rl-body"><p style="color:var(--text3);font-size:12.5px">Expand to view ML Pipeline v2.1 detail — applications, environments, epics and metrics.</p></div>
+    </div>
+
+    <div class="rl-item">
+      <div class="rl-hdr" onclick="toggleRel(this)">
+        <div><div class="rl-name">Payment Gateway v3.2</div><div class="rl-sub"><div class="rl-lob"><div class="rl-lob-dot" style="background:var(--lob-pay)"></div>Payments</div><span style="color:var(--border2)">·</span><div class="rl-env">STAGING</div><span style="color:var(--border2)">·</span><span class="badge br" style="font-size:10px">✕ Critical</span></div></div>
+        <div><div class="rl-stat-lbl">Target Date</div><div class="rl-stat-val" style="font-size:12px;font-family:var(--f-mono);color:var(--red)">10 Jun 2026</div></div>
+        <div><div class="rl-stat-lbl">Pass Rate</div><div class="rl-stat-val" style="color:var(--red)">76%</div></div>
+        <div><div class="rl-stat-lbl">Defects</div><div class="rl-stat-val" style="color:var(--red)">31</div></div>
+        <div><div class="rl-stat-lbl">Progress</div><div style="margin-top:3px"><div class="prog-row"><div class="prog-bar"><div class="prog-fill" style="width:71%;background:var(--red)"></div></div><div class="prog-pct">71%</div></div></div></div>
+        <button class="rl-exp">▾</button>
+      </div>
+      <div class="ai-inline critical" onclick="toggleDrawer(this)" style="border-radius:0">
+        <span class="ai-spark">✦</span>
+        <div class="ai-inline-body">
+          <div class="ai-inline-label">AI Insight — Release Jeopardised<span class="ai-expand-btn">▾ expand</span></div>
+          <div class="ai-inline-text"><strong>Option available:</strong> Defer PAY-2821 (Rupay 3DS) to v3.3. This reduces P1 count from 3 to 2 and makes June 10 technically feasible if PAY-2838 and PAY-2841 close by Apr 5.</div>
+          <button class="ai-inline-action">→ Evaluate scope deferral for PAY-2821</button>
+          <div class="ai-drawer">
+            <div class="ai-steps">
+              <div class="ai-step"><div class="ai-step-num">1</div>Business sign-off needed to defer Rupay 3DS — impact is ~2% of card transactions.</div>
+              <div class="ai-step"><div class="ai-step-num">2</div>If deferred: focus all resources on PAY-2838 (dup txn) and PAY-2841 (timeout) — 72h resolution window.</div>
+              <div class="ai-step"><div class="ai-step-num">3</div>If not deferred: formally notify stakeholders of June 24 revised date today.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="rl-body"><p style="color:var(--text3);font-size:12.5px">Expand to view Payment Gateway v3.2 full detail — 3 P1 defects, 420 test cases, 5 applications impacted.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+  PAGE: TESTING GAPS
+════════════════════════════════ -->
+<div class="page" id="page-gaps">
+  <div class="pg-hdr">
+    <div>
+      <div class="bc">CQE Platform <span style="color:var(--border)">›</span> <span>Testing Gaps</span></div>
+      <div class="pg-title">Testing Gaps Analysis</div>
+      <div class="pg-sub">Hover any heatmap cell for AI-powered gap analysis and next step</div>
+    </div>
+    <div class="pg-acts">
+      <button class="btn btn-s btn-sm">⬇ Gap Report</button>
+      <button class="btn btn-p btn-sm">+ Create Test Cases</button>
+    </div>
+  </div>
+  <div class="pad">
+
+    <!-- HEATMAP WITH AI HOVER TOOLTIPS -->
+    <div class="sec-hd">
+      <div><div class="sec-title">Coverage Heatmap · LOB × Functional Area</div><div class="sec-sub">Hover any cell for AI insight · Red = critical gap needing immediate action</div></div>
+      <div style="display:flex;gap:5px;align-items:center;font-size:11px;color:var(--text3)">
+        <div style="width:11px;height:11px;background:#bbf7d0;border-radius:2px"></div>High (80%+)
+        <div style="width:11px;height:11px;background:#fde68a;border-radius:2px"></div>Medium (50–79%)
+        <div style="width:11px;height:11px;background:#fecaca;border-radius:2px"></div>Low (&lt;50%)
+      </div>
+    </div>
+
+    <div class="card mb" style="overflow-x:auto">
+      <div class="card-body">
+        <div class="heat-grid">
+          <div></div>
+          <div class="heat-col-h">Auth & Login</div>
+          <div class="heat-col-h">API Layer</div>
+          <div class="heat-col-h">Database</div>
+          <div class="heat-col-h">Messaging</div>
+          <div class="heat-col-h">Payments</div>
+          <div class="heat-col-h">Reporting</div>
+
+          <div class="heat-lbl" style="color:var(--lob-dt);font-weight:700">Digital Tech</div>
+          <div class="heat-cell-wrap"><div class="heat-cell h2">88%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Auth & Login</div><div class="heat-ai-tip-text">88% coverage. 4 edge cases untested: concurrent session invalidation, MFA fallback, LDAP timeout. Risk: Low.</div><div class="heat-ai-tip-action">→ Add 4 edge-case TCs in next sprint cycle.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h5">54%</div><div class="heat-ai-tip" style="background:#2a0a0a;border:1px solid #7f1d1d"><div class="heat-ai-tip-header" style="color:#f87171">✦ AI · CRITICAL GAP</div><div class="heat-ai-tip-text">API Layer at 54% — highest risk area. 21 test cases cover failure modes that triggered DT-1192 in production. Zero coverage on rate-limiting and circuit-breaker scenarios.</div><div class="heat-ai-tip-action" style="color:#fca5a5">→ Immediate: create 15 TCs for rate-limit + circuit-breaker. Assign by Apr 4.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h2">81%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Database</div><div class="heat-ai-tip-text">81% coverage. Connection pool exhaustion and deadlock scenarios are untested. Low immediate risk but schedule for W15.</div><div class="heat-ai-tip-action">→ Schedule 3 DB stress TCs for W15 sprint.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h3">67%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Messaging</div><div class="heat-ai-tip-text">67% coverage. Message ordering under high load and DLQ handling are gaps. Medium risk — correlates with 2 open DT defects.</div><div class="heat-ai-tip-action">→ Add DLQ + ordering TCs to sprint 15 backlog.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h0">N/A</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI</div><div class="heat-ai-tip-text">Payments module not applicable to Digital Technology LOB.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h4">58%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Reporting</div><div class="heat-ai-tip-text">58% coverage. Pagination under 1M+ records and export timeout are untested. Reporting failures are invisible until month-end runs.</div><div class="heat-ai-tip-action">→ Schedule reporting load TCs before next month-end cycle.</div></div></div>
+
+          <div class="heat-lbl" style="color:var(--lob-ai);font-weight:700">AI & Ops</div>
+          <div class="heat-cell-wrap"><div class="heat-cell h2">82%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Auth & Login</div><div class="heat-ai-tip-text">82% coverage. Service-to-service auth token expiry edge case untested. Low risk — add to W16 backlog.</div><div class="heat-ai-tip-action">→ Log 2 token expiry TCs for W16.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h2">79%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · API Layer</div><div class="heat-ai-tip-text">79% — just below the 80% threshold. Inference API timeout handling is the gap. Low risk but worth closing before UAT.</div><div class="heat-ai-tip-action">→ Add 3 timeout TCs before UAT sign-off.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h1">91%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Database</div><div class="heat-ai-tip-text">91% — excellent coverage. No immediate action required. Review after major schema changes.</div><div class="heat-ai-tip-action">→ No action needed. Recheck post v2.2 schema changes.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h3">71%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Messaging</div><div class="heat-ai-tip-text">71% coverage. Kafka consumer lag and rebalancing scenarios not tested. Risk increases significantly at scale.</div><div class="heat-ai-tip-action">→ Add Kafka stress scenarios to W15 sprint.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h0">N/A</div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h3">65%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Reporting</div><div class="heat-ai-tip-text">65% coverage on ML reporting. Model drift report generation and large dataset export untested. Medium risk.</div><div class="heat-ai-tip-action">→ Prioritise ML report load TCs in W15.</div></div></div>
+
+          <div class="heat-lbl" style="color:var(--lob-pay);font-weight:700">Payments</div>
+          <div class="heat-cell-wrap"><div class="heat-cell h3">72%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Auth & Login</div><div class="heat-ai-tip-text">72% coverage. OAuth token revocation during active payment not tested. Moderate risk — seen in 1 prod incident.</div><div class="heat-ai-tip-action">→ Add OAuth revocation TC — correlate with INC-DT-1187.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h3">69%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · API Layer</div><div class="heat-ai-tip-text">69% coverage. API retry logic is undertested — directly linked to PAY-2838 (duplicate txn in production). This gap caused a P1 incident.</div><div class="heat-ai-tip-action">→ Critical: 8 retry-logic TCs needed NOW. Assign before P1 resolution.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h4">55%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Database Gap</div><div class="heat-ai-tip-text">55% DB coverage. Transaction rollback under network partition and MVCC conflict scenarios are entirely untested. High risk for payment integrity.</div><div class="heat-ai-tip-action">→ Schedule DB isolation TCs for W14. Block release sign-off until complete.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h2">80%</div><div class="heat-ai-tip"><div class="heat-ai-tip-header">✦ AI · Messaging</div><div class="heat-ai-tip-text">80% — meets threshold. Notification delivery order under burst load is the only gap. Low risk for current release.</div><div class="heat-ai-tip-action">→ No blocking action. Add burst scenario to v3.3 backlog.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h6">41%</div><div class="heat-ai-tip" style="background:#2a0a0a;border:1px solid #7f1d1d"><div class="heat-ai-tip-header" style="color:#f87171">✦ AI · CRITICAL GAP</div><div class="heat-ai-tip-text">41% Payments Core coverage is the most dangerous gap. Concurrent payment processing, partial settlement, and 3DS fallback scenarios all untested. This is a release blocker.</div><div class="heat-ai-tip-action" style="color:#fca5a5">→ Create 37 TCs immediately. Do NOT proceed to UAT without this. Assign 3 engineers.</div></div></div>
+          <div class="heat-cell-wrap"><div class="heat-cell h5">44%</div><div class="heat-ai-tip" style="background:#1a1200;border:1px solid #92400e"><div class="heat-ai-tip-header" style="color:#fcd34d">✦ AI · High Gap</div><div class="heat-ai-tip-text">44% reporting coverage. Reconciliation report under 100k+ daily transactions and audit trail export are untested. This affects regulatory compliance.</div><div class="heat-ai-tip-action" style="color:#fde68a">→ Escalate to compliance team — 18 TCs needed before release audit.</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gap Summary Table -->
+    <div class="sec-hd">
+      <div><div class="sec-title">Critical Gaps — Immediate Action Required</div></div>
+      <span class="badge br">8 Critical</span>
+    </div>
+    <div class="card mb">
+      <div class="tbl-wrap">
+        <table class="dt">
+          <thead><tr><th>Component</th><th>LOB</th><th>Coverage</th><th>Missing TCs</th><th>AI Next Step</th><th>Risk</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="td-m">Payment Core Processing</td><td><span style="color:var(--lob-pay);font-weight:600">Payments</span></td><td><div class="prog-row"><div class="prog-bar"><div class="prog-fill" style="width:41%;background:var(--red)"></div></div><div class="prog-pct">41%</div></div></td><td style="font-weight:700;color:var(--red)">37 TCs</td><td style="font-size:11.5px;color:var(--text2)">Assign 3 engineers — block UAT until done</td><td><span class="badge br">Critical</span></td><td><button class="btn btn-p btn-xs">Create TCs</button></td></tr>
+            <tr><td class="td-m">Payments Reporting</td><td><span style="color:var(--lob-pay);font-weight:600">Payments</span></td><td><div class="prog-row"><div class="prog-bar"><div class="prog-fill" style="width:44%;background:var(--red)"></div></div><div class="prog-pct">44%</div></div></td><td style="font-weight:700;color:var(--red)">18 TCs</td><td style="font-size:11.5px;color:var(--text2)">Escalate to compliance — regulatory risk</td><td><span class="badge br">Critical</span></td><td><button class="btn btn-p btn-xs">Create TCs</button></td></tr>
+            <tr><td class="td-m">API Gateway Load</td><td><span style="color:var(--lob-dt);font-weight:600">Digital Tech</span></td><td><div class="prog-row"><div class="prog-bar"><div class="prog-fill" style="width:54%;background:var(--red)"></div></div><div class="prog-pct">54%</div></div></td><td style="font-weight:700;color:var(--red)">21 TCs</td><td style="font-size:11.5px;color:var(--text2)">Rate-limit + circuit-breaker TCs by Apr 4</td><td><span class="badge br">Critical</span></td><td><button class="btn btn-p btn-xs">Create TCs</button></td></tr>
+            <tr><td class="td-m">PAY DB Transactions</td><td><span style="color:var(--lob-pay);font-weight:600">Payments</span></td><td><div class="prog-row"><div class="prog-bar"><div class="prog-fill" style="width:55%;background:var(--amber)"></div></div><div class="prog-pct">55%</div></div></td><td style="font-weight:700;color:var(--amber)">14 TCs</td><td style="font-size:11.5px;color:var(--text2)">DB isolation TCs — block release sign-off</td><td><span class="badge ba">High</span></td><td><button class="btn btn-s btn-xs">Schedule</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+  PAGE: PRODUCTION ISSUES
+════════════════════════════════ -->
+<div class="page" id="page-prod">
+  <div class="pg-hdr">
+    <div>
+      <div class="bc">CQE Platform <span style="color:var(--border)">›</span> <span>Production Issues</span></div>
+      <div class="pg-title">Production Issues</div>
+      <div class="pg-sub">Live incidents with AI root cause analysis and next steps · 6 active</div>
+    </div>
+    <div class="pg-acts">
+      <button class="btn btn-s btn-sm">📊 RCA Report</button>
+      <button class="btn btn-d">🚨 Raise P1</button>
+    </div>
+  </div>
+  <div class="fbar">
+    <div class="srch-wrap"><span class="srch-ico">🔍</span><input class="srch" placeholder="Search incidents, Jira IDs..."></div>
+    <div class="fchips">
+      <button class="fc on">All</button><button class="fc">Critical</button>
+      <button class="fc">High</button><button class="fc">Resolved</button>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:7px;align-items:center">
+      <span style="font-size:11.5px;color:var(--text3)">Refreshed 2 min ago</span>
+      <button class="btn btn-s btn-sm">↻</button>
+    </div>
+  </div>
+  <div class="pad">
+    <div class="pi-stats a1">
+      <div class="pi-stat"><div class="pi-stat-ico">🔥</div><div class="pi-stat-v" style="color:var(--red)">6</div><div class="pi-stat-l">Active Incidents</div></div>
+      <div class="pi-stat"><div class="pi-stat-ico">🚨</div><div class="pi-stat-v" style="color:var(--red)">3</div><div class="pi-stat-l">P1 Critical</div></div>
+      <div class="pi-stat"><div class="pi-stat-ico">⏱</div><div class="pi-stat-v" style="color:var(--amber)">4.2h</div><div class="pi-stat-l">Avg MTTR</div></div>
+      <div class="pi-stat"><div class="pi-stat-ico">🔗</div><div class="pi-stat-v" style="color:var(--blue)">4</div><div class="pi-stat-l">Linked to NFT Gaps</div></div>
+      <div class="pi-stat"><div class="pi-stat-ico">✅</div><div class="pi-stat-v" style="color:var(--green)">18</div><div class="pi-stat-l">Resolved This Month</div></div>
+    </div>
+
+    <div class="col-7-5 a2">
+      <div>
+        <div class="sec-hd"><div class="sec-title">Active Incidents + AI Next Steps</div><span class="badge br">6 Open</span></div>
+
+        <!-- Incident 1 -->
+        <div class="inc-card critical">
+          <div class="inc-row">
+            <div>
+              <div class="inc-id">INC-PAY-2841 · Jira: PAY-2841</div>
+              <div class="inc-title">Payment timeout under 5k concurrent users</div>
+              <div class="inc-meta">
+                <div class="inc-mi">🏢 Payments</div>
+                <div class="inc-mi">📍 Payment Gateway v3.2</div>
+                <div class="inc-mi">⏱ Open 18h</div>
+                <div class="inc-mi">🔗 NFT: <span style="color:var(--blue)">TC-PAY-0441 (pass)</span></div>
+              </div>
+            </div>
+            <div class="inc-acts"><span class="badge br">P1 · Critical</span><button class="btn btn-s btn-xs">View →</button></div>
+          </div>
+          <div class="inc-ai">
+            <div class="inc-ai-icon">✦</div>
+            <div class="inc-ai-body">
+              <div class="inc-ai-label">AI Root Cause Analysis</div>
+              <div class="inc-ai-text"><strong>Likely cause: connection pool exhaustion</strong> at 5k+ concurrent users. TC-PAY-0441 tested up to 3k only — the gap between tested (3k) and actual load (5k) is where this broke. NFT capacity tested at only 64% for this module.</div>
+              <span class="inc-ai-next" onclick="goTo('gaps')">→ Raise DB pool size limit to 800 in staging, re-run PAY load test at 6k. Fix in ~4h. Escalate to Platform Eng now.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Incident 2 -->
+        <div class="inc-card critical">
+          <div class="inc-row">
+            <div>
+              <div class="inc-id">INC-PAY-2838 · Jira: PAY-2838</div>
+              <div class="inc-title">Duplicate transaction on network retry</div>
+              <div class="inc-meta">
+                <div class="inc-mi">🏢 Payments</div>
+                <div class="inc-mi">📍 Payment Gateway v3.2</div>
+                <div class="inc-mi">⏱ Open 31h — longest open P1</div>
+                <div class="inc-mi">🔗 NFT Gap: <span style="color:var(--red)">Not covered in Zephyr</span></div>
+              </div>
+            </div>
+            <div class="inc-acts"><span class="badge br">P1 · Critical</span><button class="btn btn-s btn-xs">View →</button></div>
+          </div>
+          <div class="inc-ai">
+            <div class="inc-ai-icon">✦</div>
+            <div class="inc-ai-body">
+              <div class="inc-ai-label">AI Root Cause Analysis</div>
+              <div class="inc-ai-text"><strong>Idempotency key not enforced on retry path</strong> — this scenario was never in the Zephyr test cycle (gap confirmed in heatmap: PAY API layer at 69%). This is a test-coverage miss that reached production. PAY-2838 has been open 31h with only 1 engineer assigned.</div>
+              <span class="inc-ai-next">→ Assign 2 more engineers immediately. Fix: add idempotency key check in retry handler. ETA 6h. Simultaneously create TC in Zephyr to prevent recurrence.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Incident 3 -->
+        <div class="inc-card critical">
+          <div class="inc-row">
+            <div>
+              <div class="inc-id">INC-PAY-2821 · Jira: PAY-2821</div>
+              <div class="inc-title">3DS authentication failing for Rupay cards</div>
+              <div class="inc-meta">
+                <div class="inc-mi">🏢 Payments</div>
+                <div class="inc-mi">📍 Auth Service</div>
+                <div class="inc-mi">⏱ Open 5h</div>
+                <div class="inc-mi">🔗 NFT: <span style="color:var(--blue)">TC-PAY-0312 (fail — known)</span></div>
+              </div>
+            </div>
+            <div class="inc-acts"><span class="badge br">P1 · Critical</span><button class="btn btn-s btn-xs">View →</button></div>
+          </div>
+          <div class="inc-ai">
+            <div class="inc-ai-icon">✦</div>
+            <div class="inc-ai-body">
+              <div class="inc-ai-label">AI Root Cause Analysis</div>
+              <div class="inc-ai-text"><strong>This failure was predicted</strong> — TC-PAY-0312 was already failing in NFT cycle. A known failing TC was allowed through to release. Process gap: failing TCs should be release blockers. Certificate mismatch between Rupay network and internal auth service is the technical root cause.</div>
+              <span class="inc-ai-next">→ Immediate: Update Rupay 3DS cert in Auth Service config (30min fix). Process fix: enforce "no release with failing P1 TCs" gate in Jira workflow.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Incident 4 -->
+        <div class="inc-card high">
+          <div class="inc-row">
+            <div>
+              <div class="inc-id">INC-DT-1192 · Jira: DT-1192</div>
+              <div class="inc-title">API latency spike at 80% load threshold</div>
+              <div class="inc-meta">
+                <div class="inc-mi">🏢 Digital Technology</div>
+                <div class="inc-mi">📍 API Gateway</div>
+                <div class="inc-mi">⏱ Open 22h</div>
+                <div class="inc-mi">🔗 NFT: <span style="color:var(--blue)">TC-DT-0198 (pass at 60% load only)</span></div>
+              </div>
+            </div>
+            <div class="inc-acts"><span class="badge ba">P2 · High</span><button class="btn btn-s btn-xs">View →</button></div>
+          </div>
+          <div class="inc-ai">
+            <div class="inc-ai-icon">✦</div>
+            <div class="inc-ai-body">
+              <div class="inc-ai-label">AI Root Cause Analysis</div>
+              <div class="inc-ai-text"><strong>TC-DT-0198 only validated up to 60% load</strong> — the 80% threshold was never tested (API Layer heatmap gap: 54%). Latency spike is caused by thread contention in connection pool at high concurrency. Directly linked to the DT capacity gap.</div>
+              <span class="inc-ai-next">→ Tune thread pool max-size from 200 to 400. Re-run DT load test at 80%+ before next release. Add coverage for 75-100% load band in Zephyr.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Incident 5 - Resolved -->
+        <div class="inc-card resolved">
+          <div class="inc-row">
+            <div>
+              <div class="inc-id">INC-AI-441 · ✅ Resolved 6h ago</div>
+              <div class="inc-title">ML inference P99 latency exceeded 2s threshold</div>
+              <div class="inc-meta">
+                <div class="inc-mi">🏢 AI & Operations</div>
+                <div class="inc-mi">⏱ Resolved in 3.1h</div>
+                <div class="inc-mi">🔗 NFT: <span style="color:var(--green)">TC updated post-fix</span></div>
+              </div>
+            </div>
+            <div class="inc-acts"><span class="badge bg">Resolved</span><button class="btn btn-s btn-xs">RCA →</button></div>
+          </div>
+          <div class="inc-ai resolved">
+            <div class="inc-ai-icon">✦</div>
+            <div class="inc-ai-body">
+              <div class="inc-ai-label">AI Post-Incident Insight</div>
+              <div class="inc-ai-text"><strong>Fix successful.</strong> Model batch size was reduced from 64 to 32, bringing P99 to 1.4s. Root cause: no NFT scenario existed for 64-batch inference under peak load. Test gap is now closed — TC-AI-0204 added to Zephyr cycle.</div>
+              <span class="inc-ai-next" style="color:var(--green);border-color:var(--green)">→ Apply lesson to Payments: audit batch-size configs across all payment processing services.</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right panel -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="card-hdr"><div><div class="card-title">Incident Trend</div><div class="card-sub">P1+P2 last 8 weeks</div></div></div>
+          <div class="card-body"><div class="chart-md"><canvas id="ch-inc"></canvas></div></div>
+          <div class="ai-inline warn" onclick="toggleDrawer(this)" style="border-radius:0 0 var(--r-lg) var(--r-lg)">
+            <span class="ai-spark">✦</span>
+            <div class="ai-inline-body">
+              <div class="ai-inline-label">AI Trend<span class="ai-expand-btn">▾ expand</span></div>
+              <div class="ai-inline-text">W13 shows a <strong>40% spike in P1 incidents</strong> — all from Payments. Correlates with deferred test cases from W10.</div>
+              <button class="ai-inline-action">→ Mandate Payments test coverage review</button>
+              <div class="ai-drawer">
+                <div class="ai-steps">
+                  <div class="ai-step"><div class="ai-step-num">1</div>Convene post-incident review for all W13 Payments P1s — identify systemic gaps.</div>
+                  <div class="ai-step"><div class="ai-step-num">2</div>Any deferred TCs from prior sprints must be completed before next release cycle.</div>
+                  <div class="ai-step"><div class="ai-step-num">3</div>Set KPI target: zero P1 incidents linked to test gaps by Q3.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hdr"><div><div class="card-title">NFT → Prod Correlation</div><div class="card-sub">4 of 6 incidents had NFT signal</div></div></div>
+          <div class="card-body">
+            <div class="chart-sm"><canvas id="ch-corr"></canvas></div>
+            <div style="height:1px;background:var(--border);margin:14px 0"></div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px"><span>Linked to failing TCs</span><span class="badge br">2 incidents</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px"><span>Linked to test gaps</span><span class="badge ba">2 incidents</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px"><span>No TC coverage at all</span><span class="badge br">1 incident</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px"><span>Unrelated to NFT</span><span class="badge bgy">1 incident</span></div>
+            </div>
+            <div class="ai-inline info" onclick="toggleDrawer(this)" style="border-radius:var(--r);margin-top:12px">
+              <span class="ai-spark">✦</span>
+              <div class="ai-inline-body">
+                <div class="ai-inline-label">AI Correlation Insight<span class="ai-expand-btn">▾ expand</span></div>
+                <div class="ai-inline-text"><strong>83% of incidents were predictable</strong> from NFT data. Fixing test gaps would have prevented 5 of 6 production issues.</div>
+                <button class="ai-inline-action">→ Mandate gap closure before every release</button>
+                <div class="ai-drawer">
+                  <div class="ai-steps">
+                    <div class="ai-step"><div class="ai-step-num">1</div>Add mandatory "test gap review" as a release gate in Jira workflow — no bypass.</div>
+                    <div class="ai-step"><div class="ai-step-num">2</div>Any heatmap cell below 70% must have an approved exception to proceed to UAT.</div>
+                    <div class="ai-step"><div class="ai-step-num">3</div>Present this correlation data to MDs — it makes the business case for NFT investment.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ADD RELEASE MODAL -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">🚀 Add New Release</div>
+      <button class="modal-x" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg-grid">
+        <div class="fg full"><div class="flbl">Release Name *</div><input class="finp" placeholder="e.g. Payment Gateway v3.3" style="width:100%"></div>
+        <div class="fg"><div class="flbl">Line of Business *</div><select class="finp" style="width:100%"><option value="">Select LOB...</option><option>Digital Technology</option><option>AI & Operations</option><option>Payments</option></select></div>
+        <div class="fg"><div class="flbl">Version *</div><input class="finp" placeholder="e.g. v1.0.0" style="width:100%"></div>
+        <div class="fg"><div class="flbl">NFT Start Date *</div><input type="date" class="finp" style="width:100%"></div>
+        <div class="fg"><div class="flbl">Target Release Date *</div><input type="date" class="finp" style="width:100%"></div>
+        <div class="fg"><div class="flbl">Environment *</div><select class="finp" style="width:100%"><option value="">Select...</option><option>PERF-1</option><option>PERF-2</option><option>STAGING</option><option>PERF-3</option></select></div>
+        <div class="fg"><div class="flbl">Jira Epic Key *</div><input class="finp" placeholder="e.g. PAY-EPX-08" style="width:100%"></div>
+        <div class="fg"><div class="flbl">Zephyr Test Cycle</div><input class="finp" placeholder="e.g. ZCY-2026-Q2-PAY" style="width:100%"></div>
+        <div class="fg full"><div class="flbl">Applications Impacted</div>
+          <div class="app-chips">
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">API Gateway</div>
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">Auth Service</div>
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">Payment Core</div>
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">User Management</div>
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">Notification Svc</div>
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">Config Service</div>
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">ML Pipeline</div>
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">Settlement Engine</div>
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">Audit Logger</div>
+            <div class="app-chip-sel" onclick="this.classList.toggle('on')">Reporting Service</div>
+          </div>
+        </div>
+        <div class="fg full"><div class="flbl">Scope / Notes</div><textarea class="finp" rows="2" placeholder="Brief description of release scope..." style="width:100%;resize:none"></textarea></div>
+        <div class="fg"><div class="flbl">Release Manager</div><input class="finp" placeholder="Name or email" style="width:100%"></div>
+        <div class="fg"><div class="flbl">Risk Level</div><select class="finp" style="width:100%"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-s" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-p">Create Release</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─ Navigation
+function goTo(mod) {
+  document.querySelectorAll('.tn-mod').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('[id^="sb-"]').forEach(s=>s.style.display='none');
+  const idx={dashboard:0,releases:1,gaps:2,prod:3}[mod];
+  document.querySelectorAll('.tn-mod')[idx].classList.add('active');
+  document.getElementById('page-'+mod).classList.add('active');
+  document.getElementById('sb-'+mod).style.display='';
+  setTimeout(()=>initCharts(mod),60);
+}
+
+// ─ AI Drawer toggle
+function toggleDrawer(el) {
+  const drawer=el.querySelector('.ai-drawer');
+  const btn=el.querySelector('.ai-expand-btn');
+  if(!drawer)return;
+  const open=drawer.classList.toggle('open');
+  if(btn)btn.textContent=open?'▴ collapse':'▾ expand';
+}
+
+// ─ Release row toggle
+function toggleRel(hdr) {
+  const body=hdr.nextElementSibling?.nextElementSibling||hdr.nextElementSibling;
+  // find .rl-body after possible .ai-inline
+  let b=hdr.parentElement.querySelector('.rl-body');
+  if(b){b.classList.toggle('open');hdr.querySelector('.rl-exp').textContent=b.classList.contains('open')?'▴':'▾';}
+}
+
+// ─ Role
+const roles={md:{n:'Director',t:'Read-only',bg:'linear-gradient(135deg,#7c3aed,#2563eb)',i:'MD'},lead:{n:'Team Lead',t:'Can edit',bg:'linear-gradient(135deg,#059669,#34d399)',i:'TL'},eng:{n:'Perf. Eng',t:'Test results',bg:'linear-gradient(135deg,#d97706,#fbbf24)',i:'PE'}};
+function setRole(r,el){
+  const d=roles[r];
+  document.getElementById('rAvatar').textContent=d.i;
+  document.getElementById('rAvatar').style.background=d.bg;
+  document.getElementById('rName').textContent=d.n;
+  document.getElementById('rTag').textContent=d.t;
+  document.querySelectorAll('.ropt').forEach(o=>o.classList.remove('on'));
+  el.classList.add('on');
+  toggleRDrop();
+}
+function toggleRDrop(){document.getElementById('rdrop').classList.toggle('open')}
+document.addEventListener('click',e=>{if(!e.target.closest('.role-pill')&&!e.target.closest('.rdrop'))document.getElementById('rdrop').classList.remove('open')});
+
+// ─ Modal
+function openModal(){document.getElementById('modal').classList.add('open')}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal()});
+
+// ─ Filter chips
+document.querySelectorAll('.fchips').forEach(wrap=>{wrap.querySelectorAll('.fc').forEach(c=>{c.addEventListener('click',function(){wrap.querySelectorAll('.fc').forEach(x=>x.classList.remove('on'));this.classList.add('on')})})});
+
+// ─ Charts
+const tc={color:'#94a3b8',font:{size:10,family:'Plus Jakarta Sans'}};
+const grid='#f1f5f9';
+const axes={x:{ticks:tc,grid:{display:false}},y:{ticks:tc,grid:{color:grid}}};
+const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},animation:{duration:500}};
+const weeks=['W6','W7','W8','W9','W10','W11','W12','W13'];
+const charts={};
+
+function mkChart(id,cfg){
+  const el=document.getElementById(id);
+  if(!el||charts[id])return;
+  charts[id]=new Chart(el,cfg);
+}
+
+function initCharts(mod){
+  if(mod==='dashboard'){
+    mkChart('ch-deftrend',{type:'bar',data:{labels:weeks,datasets:[{label:'Opened',data:[12,15,18,14,16,13,18,17],backgroundColor:'#fecaca',borderRadius:4},{label:'Closed',data:[8,10,12,13,11,14,12,10],backgroundColor:'#bbf7d0',borderRadius:4}]},options:{...base,plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{size:10},boxWidth:9,padding:8}}},scales:axes}});
+    mkChart('ch-exec',{type:'doughnut',data:{labels:['Pass','Fail','Not Run'],datasets:[{data:[708,140,238],backgroundColor:['#bbf7d0','#fecaca','#e2e8f0'],borderWidth:0,hoverOffset:4}]},options:{...base,cutout:'68%',plugins:{legend:{display:true,position:'right',labels:{color:'#94a3b8',font:{size:10},boxWidth:9,padding:8}}}}});
+  }
+  if(mod==='prod'){
+    mkChart('ch-inc',{type:'bar',data:{labels:weeks,datasets:[{label:'P1',data:[1,2,1,3,2,1,2,3],backgroundColor:'#fecaca',borderRadius:4},{label:'P2',data:[3,2,4,2,3,2,3,3],backgroundColor:'#fde68a',borderRadius:4}]},options:{...base,plugins:{legend:{display:true,labels:{color:'#94a3b8',font:{size:10},boxWidth:9,padding:8}}},scales:axes}});
+    mkChart('ch-corr',{type:'doughnut',data:{labels:['Failing TCs','Test Gaps','No Coverage','Unrelated'],datasets:[{data:[2,2,1,1],backgroundColor:['#fecaca','#fde68a','#f87171','#e2e8f0'],borderWidth:0,hoverOffset:3}]},options:{...base,cutout:'60%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#94a3b8',font:{size:10},boxWidth:9,padding:6}}}}});
+  }
+}
+window.addEventListener('load',()=>initCharts('dashboard'));
+</script>
+</body>
+</html>

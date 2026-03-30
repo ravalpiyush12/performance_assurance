@@ -1,0 +1,2632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CQE Intelligence Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ══════════════════════════════════════════════
+   DESIGN TOKENS
+══════════════════════════════════════════════ */
+:root {
+  /* Sidebar — deep slate */
+  --sb-bg:        #0f1623;
+  --sb-bg2:       #151d2e;
+  --sb-border:    rgba(255,255,255,0.06);
+  --sb-text:      #8496b0;
+  --sb-text-hi:   #c8d6ea;
+  --sb-active-bg: rgba(59,130,246,0.12);
+  --sb-active:    #60a5fa;
+  --sb-width:     232px;
+
+  /* Top bar */
+  --tb-bg:        #ffffff;
+  --tb-border:    #e8ecf2;
+  --tb-height:    56px;
+
+  /* Content area */
+  --c-bg:         #f4f6fa;
+  --c-bg2:        #edf0f7;
+  --c-surface:    #ffffff;
+  --c-border:     #e2e7f0;
+  --c-text:       #1a2236;
+  --c-text2:      #4a5672;
+  --c-text3:      #8494ae;
+  --c-shadow:     0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --c-shadow-md:  0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+
+  /* Brand accents */
+  --blue:         #2563eb;
+  --blue-lt:      #dbeafe;
+  --blue-mid:     #3b82f6;
+  --cyan:         #0891b2;
+  --cyan-lt:      #cffafe;
+  --green:        #059669;
+  --green-lt:     #d1fae5;
+  --amber:        #d97706;
+  --amber-lt:     #fef3c7;
+  --red:          #dc2626;
+  --red-lt:       #fee2e2;
+  --purple:       #7c3aed;
+  --purple-lt:    #ede9fe;
+  --rose:         #e11d48;
+  --rose-lt:      #ffe4e6;
+
+  /* LOB colors */
+  --lob-dt:       #2563eb;
+  --lob-ai:       #7c3aed;
+  --lob-pay:      #059669;
+
+  /* Fonts */
+  --f-body:       'Plus Jakarta Sans', sans-serif;
+  --f-serif:      'Instrument Serif', serif;
+  --f-mono:       'JetBrains Mono', monospace;
+
+  --radius:       10px;
+  --radius-lg:    14px;
+  --radius-xl:    18px;
+}
+
+/* ══════════════════════════════════════════════
+   RESET & BASE
+══════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: var(--f-body);
+  background: var(--c-bg);
+  color: var(--c-text);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+button { font-family: var(--f-body); cursor: pointer; }
+a { text-decoration: none; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
+
+/* ══════════════════════════════════════════════
+   TOP NAVBAR
+══════════════════════════════════════════════ */
+.topnav {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--tb-height);
+  background: var(--sb-bg);
+  border-bottom: 1px solid var(--sb-border);
+  display: flex; align-items: center;
+  z-index: 100;
+  padding: 0 20px;
+  gap: 0;
+}
+
+.tn-logo {
+  display: flex; align-items: center; gap: 10px;
+  width: var(--sb-width);
+  flex-shrink: 0;
+  padding-right: 20px;
+  border-right: 1px solid var(--sb-border);
+}
+.tn-logo-icon {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--blue-mid), #60a5fa);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(59,130,246,0.4);
+}
+.tn-logo-text { font-size: 14px; font-weight: 800; color: #e8eef8; letter-spacing: -0.3px; }
+.tn-logo-sub { font-size: 9px; color: var(--sb-text); letter-spacing: 1.2px; text-transform: uppercase; margin-top: 1px; }
+
+/* Module tabs in top bar */
+.tn-modules {
+  display: flex; align-items: center; gap: 2px;
+  margin-left: 20px;
+  flex: 1;
+}
+.tn-module {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 13px; font-weight: 600;
+  color: var(--sb-text);
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  background: none;
+  position: relative;
+}
+.tn-module:hover { color: var(--sb-text-hi); background: rgba(255,255,255,0.04); }
+.tn-module.active {
+  color: #ffffff;
+  background: rgba(59,130,246,0.15);
+  border-color: rgba(59,130,246,0.25);
+}
+.tn-module-icon { font-size: 14px; }
+.tn-module-badge {
+  font-size: 10px; font-family: var(--f-mono);
+  background: var(--red); color: white;
+  border-radius: 4px; padding: 1px 5px;
+  font-weight: 700;
+}
+
+.tn-right {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto;
+}
+.tn-live {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-family: var(--f-mono);
+  color: var(--sb-text);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--sb-border);
+  padding: 5px 11px; border-radius: 6px;
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34,197,94,0.6);
+  animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+}
+
+.tn-role-pill {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--sb-border);
+  border-radius: 20px;
+  padding: 4px 14px 4px 6px;
+  cursor: pointer;
+}
+.role-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: white;
+}
+.role-name { font-size: 12px; font-weight: 600; color: var(--sb-text-hi); }
+.role-tag { font-size: 10px; color: var(--sb-text); }
+
+.tn-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 7px;
+  font-size: 12px; font-weight: 700;
+  border: none; transition: all 0.15s;
+}
+.tn-btn-primary {
+  background: var(--blue);
+  color: white;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.35);
+}
+.tn-btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+.tn-btn-ghost {
+  background: rgba(255,255,255,0.05);
+  color: var(--sb-text-hi);
+  border: 1px solid var(--sb-border);
+}
+.tn-btn-ghost:hover { background: rgba(255,255,255,0.09); color: white; }
+
+/* Role switcher */
+.role-dropdown {
+  position: absolute; top: 52px; right: 20px;
+  background: var(--sb-bg2);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  min-width: 200px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  display: none;
+  z-index: 200;
+}
+.role-dropdown.open { display: block; }
+.role-option {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px;
+  cursor: pointer; transition: background 0.1s;
+  font-size: 13px; color: var(--sb-text-hi);
+}
+.role-option:hover { background: rgba(255,255,255,0.05); }
+.role-option.active { background: var(--sb-active-bg); color: var(--sb-active); }
+
+/* ══════════════════════════════════════════════
+   LAYOUT SHELL
+══════════════════════════════════════════════ */
+.app-shell {
+  display: flex;
+  margin-top: var(--tb-height);
+  height: calc(100vh - var(--tb-height));
+  overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════
+   LEFT SIDEBAR (contextual per module)
+══════════════════════════════════════════════ */
+.sidebar {
+  width: var(--sb-width);
+  flex-shrink: 0;
+  background: var(--sb-bg);
+  border-right: 1px solid var(--sb-border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sb-section { padding: 16px 12px 8px; }
+.sb-section-label {
+  font-size: 9.5px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #3d506a; font-weight: 700;
+  padding: 0 8px; margin-bottom: 6px;
+}
+.sb-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 8px;
+  font-size: 13px; font-weight: 500;
+  color: var(--sb-text); cursor: pointer;
+  transition: all 0.12s; margin-bottom: 1px;
+  border: 1px solid transparent;
+}
+.sb-item:hover { color: var(--sb-text-hi); background: rgba(255,255,255,0.04); }
+.sb-item.active {
+  color: var(--sb-active);
+  background: var(--sb-active-bg);
+  border-color: rgba(96,165,250,0.15);
+  font-weight: 600;
+}
+.sb-item-icon { width: 16px; text-align: center; font-size: 13px; flex-shrink: 0; }
+.sb-item-count {
+  margin-left: auto;
+  font-size: 10px; font-family: var(--f-mono); font-weight: 600;
+  background: rgba(255,255,255,0.07);
+  padding: 1px 6px; border-radius: 4px;
+  color: var(--sb-text);
+}
+.sb-item.active .sb-item-count { background: rgba(96,165,250,0.2); color: var(--sb-active); }
+.sb-item-badge {
+  margin-left: auto;
+  font-size: 9px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px;
+}
+
+.sb-divider { height: 1px; background: var(--sb-border); margin: 8px 12px; }
+
+/* LOB filter pills */
+.sb-lob-pills { display: flex; flex-direction: column; gap: 3px; padding: 0 12px 12px; }
+.lob-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 7px;
+  font-size: 12px; font-weight: 500;
+  color: var(--sb-text); cursor: pointer;
+  transition: all 0.12s; border: 1px solid transparent;
+}
+.lob-pill:hover { background: rgba(255,255,255,0.04); color: var(--sb-text-hi); }
+.lob-pill.active { background: rgba(255,255,255,0.05); color: var(--sb-text-hi); border-color: var(--sb-border); }
+.lob-color { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.lob-pill-count { margin-left: auto; font-size: 10px; font-family: var(--f-mono); color: #3d506a; }
+
+/* AI panel in sidebar */
+.sb-ai-panel {
+  margin: 8px 12px 12px;
+  background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(37,99,235,0.06));
+  border: 1px solid rgba(124,58,237,0.2);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.sb-ai-header { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+.ai-tag {
+  font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 800;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  color: white; padding: 2px 7px; border-radius: 3px;
+}
+.sb-ai-title { font-size: 11px; font-weight: 700; color: var(--sb-text-hi); }
+.ai-insight-item {
+  display: flex; gap: 7px; padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 11px; line-height: 1.5; color: #6a7f9a;
+}
+.ai-insight-item:last-child { border-bottom: none; padding-bottom: 0; }
+.ai-bullet { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.ai-insight-item strong { display: block; color: #9db3cc; font-size: 11px; margin-bottom: 1px; }
+
+/* ══════════════════════════════════════════════
+   MAIN CONTENT AREA
+══════════════════════════════════════════════ */
+.main-content {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  background: var(--c-bg);
+  padding: 0;
+}
+
+/* Page */
+.page { display: none; }
+.page.active { display: block; }
+
+/* Content padding */
+.content-pad { padding: 24px 28px; }
+
+/* Page header */
+.page-hdr {
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  padding: 18px 28px 16px;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px;
+}
+.page-title {
+  font-size: 19px; font-weight: 800; color: var(--c-text);
+  letter-spacing: -0.4px; line-height: 1.2;
+}
+.page-subtitle { font-size: 13px; color: var(--c-text3); margin-top: 3px; }
+.page-hdr-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* Breadcrumb */
+.breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--c-text3); margin-bottom: 4px;
+}
+.breadcrumb span { color: var(--c-text2); font-weight: 500; }
+.breadcrumb-sep { color: var(--c-border); }
+
+/* ══════════════════════════════════════════════
+   BUTTONS (light theme)
+══════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  border: none; cursor: pointer; transition: all 0.15s;
+  font-family: var(--f-body);
+  white-space: nowrap;
+}
+.btn-primary { background: var(--blue); color: white; box-shadow: 0 2px 8px rgba(37,99,235,0.25); }
+.btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+.btn-secondary { background: var(--c-surface); color: var(--c-text2); border: 1px solid var(--c-border); }
+.btn-secondary:hover { background: var(--c-bg); color: var(--c-text); }
+.btn-success { background: var(--green); color: white; box-shadow: 0 2px 8px rgba(5,150,105,0.25); }
+.btn-danger { background: var(--red); color: white; }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn-xs { padding: 3px 9px; font-size: 11px; border-radius: 6px; }
+
+/* ══════════════════════════════════════════════
+   CARDS & SURFACES
+══════════════════════════════════════════════ */
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--c-shadow);
+}
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--c-border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 14px; font-weight: 700; color: var(--c-text); }
+.card-sub { font-size: 12px; color: var(--c-text3); margin-top: 2px; }
+.card-body { padding: 20px; }
+
+/* KPI cards */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.kpi-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--c-shadow);
+  transition: all 0.15s;
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--c-shadow-md); }
+.kpi-card::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.kpi-card.blue::after { background: linear-gradient(90deg, var(--blue), #60a5fa); }
+.kpi-card.green::after { background: linear-gradient(90deg, var(--green), #34d399); }
+.kpi-card.amber::after { background: linear-gradient(90deg, var(--amber), #fbbf24); }
+.kpi-card.red::after { background: linear-gradient(90deg, var(--red), #f87171); }
+.kpi-card.purple::after { background: linear-gradient(90deg, var(--purple), #a78bfa); }
+.kpi-card.cyan::after { background: linear-gradient(90deg, var(--cyan), #22d3ee); }
+
+.kpi-icon-wrap {
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; margin-bottom: 12px;
+}
+.kpi-val { font-size: 28px; font-weight: 800; color: var(--c-text); line-height: 1; letter-spacing: -1px; }
+.kpi-label { font-size: 12px; color: var(--c-text3); margin-top: 4px; font-weight: 500; }
+.kpi-delta {
+  display: flex; align-items: center; gap: 4px;
+  margin-top: 8px; font-size: 11.5px; font-weight: 600;
+}
+.delta-pos { color: var(--green); }
+.delta-neg { color: var(--red); }
+.delta-neu { color: var(--c-text3); }
+
+/* ══════════════════════════════════════════════
+   STATUS BADGES
+══════════════════════════════════════════════ */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 5px;
+  white-space: nowrap;
+}
+.badge-green { background: var(--green-lt); color: #065f46; }
+.badge-amber { background: var(--amber-lt); color: #92400e; }
+.badge-red { background: var(--red-lt); color: #991b1b; }
+.badge-blue { background: var(--blue-lt); color: #1e40af; }
+.badge-purple { background: var(--purple-lt); color: #5b21b6; }
+.badge-cyan { background: var(--cyan-lt); color: #164e63; }
+.badge-grey { background: #f1f5f9; color: #475569; }
+
+/* ══════════════════════════════════════════════
+   TABLES
+══════════════════════════════════════════════ */
+.tbl-wrap { overflow-x: auto; }
+table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data-table thead th {
+  text-align: left;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--c-text3);
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--c-border);
+  white-space: nowrap;
+}
+table.data-table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--c-text2);
+  vertical-align: middle;
+}
+table.data-table tbody tr:last-child td { border-bottom: none; }
+table.data-table tbody tr:hover td { background: #f8fafd; }
+.td-main { font-weight: 600; color: var(--c-text) !important; }
+.td-mono { font-family: var(--f-mono); font-size: 12px; color: var(--blue) !important; }
+
+/* ══════════════════════════════════════════════
+   PROGRESS BARS
+══════════════════════════════════════════════ */
+.progress-wrap { display: flex; align-items: center; gap: 10px; }
+.progress-bar {
+  flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; min-width: 80px;
+}
+.progress-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.progress-pct { font-family: var(--f-mono); font-size: 11px; color: var(--c-text3); width: 32px; text-align: right; flex-shrink: 0; }
+
+/* ══════════════════════════════════════════════
+   GRIDS
+══════════════════════════════════════════════ */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.col-7-5 { display: grid; grid-template-columns: 7fr 5fr; gap: 20px; }
+.col-5-7 { display: grid; grid-template-columns: 5fr 7fr; gap: 20px; }
+
+/* ══════════════════════════════════════════════
+   ★ MODULE 1: EXECUTIVE DASHBOARD
+══════════════════════════════════════════════ */
+.exec-lob-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+  margin-bottom: 24px;
+}
+.exec-lob-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--c-shadow);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.exec-lob-card:hover { transform: translateY(-3px); box-shadow: var(--c-shadow-md); }
+
+.elc-top {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--c-border);
+}
+.elc-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.elc-lob { font-size: 14px; font-weight: 800; color: var(--c-text); }
+.elc-release { font-size: 11px; color: var(--c-text3); font-family: var(--f-mono); margin-top: 2px; }
+.elc-health-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
+
+.elc-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+.elc-kpi { text-align: center; }
+.elc-kpi-val { font-size: 20px; font-weight: 800; line-height: 1; letter-spacing: -0.5px; }
+.elc-kpi-label { font-size: 10px; color: var(--c-text3); margin-top: 2px; font-weight: 500; }
+
+.elc-bars { display: flex; flex-direction: column; gap: 6px; }
+.elc-bar-row { display: flex; align-items: center; gap: 8px; }
+.elc-bar-label { font-size: 11px; color: var(--c-text3); width: 80px; flex-shrink: 0; }
+.elc-bar-track { flex: 1; height: 5px; background: var(--c-bg2); border-radius: 3px; overflow: hidden; }
+.elc-bar-fill { height: 100%; border-radius: 3px; }
+.elc-bar-pct { font-size: 11px; font-family: var(--f-mono); color: var(--c-text3); width: 28px; text-align: right; flex-shrink: 0; }
+
+.elc-bottom {
+  padding: 12px 20px;
+  background: #fafbfe;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.elc-status-text { font-size: 12px; font-weight: 600; }
+.elc-action { font-size: 11px; color: var(--blue); font-weight: 600; cursor: pointer; }
+.elc-action:hover { text-decoration: underline; }
+
+/* ══════════════════════════════════════════════
+   TIMELINE SECTION
+══════════════════════════════════════════════ */
+.timeline-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--c-shadow);
+  margin-bottom: 24px;
+}
+.tl-grid {
+  display: grid;
+  grid-template-columns: 210px repeat(8, 1fr);
+  min-width: 800px;
+}
+.tl-head-row {
+  display: contents;
+}
+.tl-head-cell {
+  padding: 10px 8px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--c-text3);
+  background: #f8fafc;
+  border-bottom: 1px solid var(--c-border);
+  text-align: center;
+}
+.tl-head-cell:first-child { text-align: left; padding-left: 20px; }
+.tl-head-cell.today { color: var(--blue); background: #eff6ff; }
+
+.tl-row { display: contents; }
+.tl-row-cell {
+  padding: 10px 6px;
+  border-bottom: 1px solid #f8fafc;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 52px;
+}
+.tl-row-cell:first-child { padding-left: 20px; justify-content: flex-start; }
+.tl-row:hover .tl-row-cell { background: #fafbff; }
+.tl-row:last-child .tl-row-cell { border-bottom: none; }
+
+.tl-lob-info { display: flex; align-items: center; gap: 8px; }
+.tl-lob-stripe { width: 3px; height: 36px; border-radius: 2px; flex-shrink: 0; }
+.tl-lob-name { font-size: 13px; font-weight: 700; color: var(--c-text); }
+.tl-lob-rel { font-size: 10.5px; font-family: var(--f-mono); color: var(--c-text3); margin-top: 1px; }
+
+.ms { /* milestone */
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10.5px; font-weight: 700;
+  padding: 5px 10px; border-radius: 6px;
+  white-space: nowrap; cursor: default;
+  transition: transform 0.15s;
+}
+.ms:hover { transform: scale(1.04); }
+.ms-done { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.ms-prog { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.ms-risk { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+.ms-block { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+.ms-next { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+.ms-span { width: 90%; text-align: center; }
+
+/* ══════════════════════════════════════════════
+   RELEASE TRACKER MODULE
+══════════════════════════════════════════════ */
+.release-list { display: flex; flex-direction: column; gap: 14px; }
+.release-item {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--c-shadow);
+  transition: all 0.15s;
+}
+.release-item:hover { box-shadow: var(--c-shadow-md); }
+
+.ri-header {
+  display: grid; grid-template-columns: 3fr 1fr 1fr 1fr 1fr auto;
+  align-items: center; gap: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+}
+.ri-meta { }
+.ri-name { font-size: 14px; font-weight: 800; color: var(--c-text); }
+.ri-details {
+  display: flex; align-items: center; gap: 10px; margin-top: 4px;
+}
+.ri-lob-dot {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--c-text3); font-weight: 500;
+}
+.ri-lob-color { width: 6px; height: 6px; border-radius: 50%; }
+.ri-env { font-size: 11px; font-family: var(--f-mono); color: var(--c-text3); }
+.ri-stat-cell { }
+.ri-stat-label { font-size: 10px; color: var(--c-text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.ri-stat-val { font-size: 15px; font-weight: 800; color: var(--c-text); margin-top: 2px; }
+.ri-expand-btn {
+  background: none; border: none;
+  color: var(--c-text3); font-size: 16px;
+  padding: 4px 8px; border-radius: 6px;
+  transition: all 0.15s;
+}
+.ri-expand-btn:hover { background: var(--c-bg); color: var(--c-text); }
+
+.ri-body {
+  border-top: 1px solid var(--c-border);
+  background: #fafbfe;
+  display: none; padding: 20px;
+}
+.ri-body.open { display: block; }
+
+/* App chips */
+.app-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.app-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 600;
+  padding: 4px 10px; border-radius: 6px;
+  background: var(--blue-lt); color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+.app-chip.critical { background: var(--red-lt); color: #991b1b; border-color: #fecaca; }
+.app-chip.medium { background: var(--amber-lt); color: #92400e; border-color: #fde68a; }
+
+/* Environment badge */
+.env-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; font-family: var(--f-mono);
+  padding: 4px 10px; border-radius: 6px;
+}
+
+/* Add Release Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15,22,35,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 500;
+  display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  width: 620px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: modalIn 0.2s ease;
+}
+@keyframes modalIn {
+  from { opacity:0; transform: translateY(-12px) scale(0.98); }
+  to { opacity:1; transform: translateY(0) scale(1); }
+}
+.modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--c-border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-title { font-size: 16px; font-weight: 800; color: var(--c-text); }
+.modal-close {
+  background: none; border: none; font-size: 18px; color: var(--c-text3); cursor: pointer;
+  padding: 4px 8px; border-radius: 6px;
+}
+.modal-close:hover { background: var(--c-bg); color: var(--c-text); }
+.modal-body { padding: 24px; }
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--c-border);
+  display: flex; justify-content: flex-end; gap: 8px;
+  background: #fafbfe;
+}
+
+/* Form */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-label { font-size: 12px; font-weight: 700; color: var(--c-text2); letter-spacing: 0.2px; }
+.form-control {
+  padding: 9px 12px; border-radius: 8px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  font-size: 13px; font-family: var(--f-body);
+  color: var(--c-text);
+  transition: border-color 0.15s;
+  outline: none;
+}
+.form-control:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+.form-control::placeholder { color: var(--c-text3); }
+select.form-control { cursor: pointer; }
+.form-hint { font-size: 11px; color: var(--c-text3); }
+
+/* App selector */
+.app-selector { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.app-sel-chip {
+  padding: 5px 12px; border-radius: 6px;
+  font-size: 12px; font-weight: 600;
+  border: 1px solid var(--c-border);
+  background: var(--c-bg); color: var(--c-text2);
+  cursor: pointer; transition: all 0.12s;
+}
+.app-sel-chip:hover { border-color: var(--blue); color: var(--blue); }
+.app-sel-chip.selected { background: var(--blue-lt); border-color: #bfdbfe; color: #1e40af; }
+
+/* ══════════════════════════════════════════════
+   TESTING GAPS MODULE
+══════════════════════════════════════════════ */
+.gap-heat-grid {
+  display: grid;
+  grid-template-columns: 180px repeat(6, 1fr);
+  gap: 2px;
+  margin-bottom: 24px;
+}
+.heat-label {
+  font-size: 12px; font-weight: 600; color: var(--c-text2);
+  display: flex; align-items: center; padding: 8px 4px;
+}
+.heat-col-head {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--c-text3); text-align: center;
+  padding: 8px 4px;
+}
+.heat-cell {
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; font-family: var(--f-mono);
+  height: 44px;
+  cursor: default; transition: transform 0.1s;
+}
+.heat-cell:hover { transform: scale(1.06); }
+.h-0 { background: #f1f5f9; color: #94a3b8; }
+.h-1 { background: #dcfce7; color: #166534; }
+.h-2 { background: #bbf7d0; color: #15803d; }
+.h-3 { background: #fef9c3; color: #854d0e; }
+.h-4 { background: #fde68a; color: #92400e; }
+.h-5 { background: #fecaca; color: #991b1b; }
+.h-6 { background: #fee2e2; color: #b91c1c; }
+
+.gap-table-card { margin-bottom: 24px; }
+
+/* ══════════════════════════════════════════════
+   PRODUCTION ISSUES MODULE
+══════════════════════════════════════════════ */
+.pi-stats-strip {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
+  margin-bottom: 24px;
+}
+.pi-stat {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  box-shadow: var(--c-shadow);
+}
+.pi-stat-icon { font-size: 20px; margin-bottom: 8px; }
+.pi-stat-val { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+.pi-stat-label { font-size: 11px; color: var(--c-text3); font-weight: 500; margin-top: 3px; }
+
+.incident-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-left: 4px solid;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  box-shadow: var(--c-shadow);
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 12px; align-items: start;
+  transition: all 0.15s;
+}
+.incident-card:hover { box-shadow: var(--c-shadow-md); }
+.incident-card.critical { border-left-color: var(--red); }
+.incident-card.high { border-left-color: var(--amber); }
+.incident-card.medium { border-left-color: var(--blue); }
+.incident-card.resolved { border-left-color: var(--green); opacity: 0.7; }
+
+.inc-id { font-family: var(--f-mono); font-size: 11px; color: var(--blue); font-weight: 600; margin-bottom: 4px; }
+.inc-title { font-size: 14px; font-weight: 700; color: var(--c-text); margin-bottom: 6px; }
+.inc-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.inc-meta-item { font-size: 11.5px; color: var(--c-text3); display: flex; align-items: center; gap: 4px; }
+.inc-actions { display: flex; gap: 6px; flex-direction: column; align-items: flex-end; }
+
+/* Timeline dot line */
+.timeline-dots {
+  position: relative;
+  padding-left: 28px;
+}
+.timeline-dots::before {
+  content: '';
+  position: absolute; left: 9px; top: 8px; bottom: 8px;
+  width: 2px; background: var(--c-border);
+}
+.tl-event {
+  position: relative; padding-bottom: 18px;
+  font-size: 13px; color: var(--c-text2);
+}
+.tl-event::before {
+  content: '';
+  position: absolute; left: -23px; top: 4px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid white;
+  box-shadow: 0 0 0 2px var(--blue);
+}
+.tl-event-time { font-size: 10.5px; font-family: var(--f-mono); color: var(--c-text3); margin-bottom: 2px; }
+.tl-event strong { color: var(--c-text); font-weight: 700; }
+
+/* ══════════════════════════════════════════════
+   FILTER / SEARCH BAR
+══════════════════════════════════════════════ */
+.filter-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  flex-wrap: wrap;
+}
+.search-wrap {
+  position: relative; flex: 1; min-width: 200px;
+}
+.search-icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--c-text3); font-size: 13px; pointer-events: none;
+}
+.search-input {
+  width: 100%; padding: 8px 12px 8px 32px;
+  border: 1px solid var(--c-border); border-radius: 8px;
+  font-size: 13px; font-family: var(--f-body);
+  color: var(--c-text); background: var(--c-bg);
+  outline: none; transition: border-color 0.15s;
+}
+.search-input:focus { border-color: var(--blue); background: white; box-shadow: 0 0 0 3px rgba(37,99,235,0.07); }
+.filter-chip-wrap { display: flex; gap: 6px; flex-wrap: wrap; }
+.fchip {
+  padding: 6px 12px; border-radius: 7px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--c-border); background: var(--c-bg);
+  color: var(--c-text2); transition: all 0.12s;
+  font-family: var(--f-body);
+}
+.fchip:hover { border-color: var(--blue); color: var(--blue); }
+.fchip.active { background: var(--blue-lt); border-color: #bfdbfe; color: #1e40af; }
+
+/* ══════════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════════ */
+.chart-wrap-sm { height: 160px; position: relative; }
+.chart-wrap-md { height: 200px; position: relative; }
+.chart-wrap-lg { height: 240px; position: relative; }
+
+/* ══════════════════════════════════════════════
+   CAPACITY RINGS
+══════════════════════════════════════════════ */
+.cap-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.cap-item {
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 16px 12px;
+  text-align: center;
+}
+.cap-ring { position: relative; width: 64px; height: 64px; margin: 0 auto 8px; }
+.cap-ring svg { transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: #e2e8f0; stroke-width: 5; }
+.ring-fill { fill: none; stroke-width: 5; stroke-linecap: round; }
+.ring-pct {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--f-mono); font-size: 13px; font-weight: 700;
+  color: var(--c-text);
+}
+.cap-name { font-size: 11px; color: var(--c-text3); font-weight: 500; }
+.cap-sub { font-size: 10px; font-family: var(--f-mono); color: var(--c-text3); margin-top: 2px; }
+
+/* ══════════════════════════════════════════════
+   KANBAN
+══════════════════════════════════════════════ */
+.kanban-wrap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.kb-col { }
+.kb-col-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px 8px 0 0;
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
+  border-bottom: 2px solid;
+  margin-bottom: 8px;
+}
+.kb-col-head.backlog { background: #f8fafc; color: #475569; border-color: #cbd5e1; }
+.kb-col-head.inprog { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+.kb-col-head.blocked { background: #fff7ed; color: #c2410c; border-color: #fdba74; }
+.kb-col-head.done { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+.kb-count { font-family: var(--f-mono); font-size: 12px; }
+.kb-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 11px 13px;
+  margin-bottom: 7px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: all 0.12s;
+  cursor: pointer;
+}
+.kb-card:hover { box-shadow: var(--c-shadow-md); transform: translateY(-1px); }
+.kb-card.blocked-card { border-left: 3px solid var(--amber); }
+.kb-card-id { font-family: var(--f-mono); font-size: 10px; color: var(--blue); font-weight: 600; margin-bottom: 4px; }
+.kb-card-title { font-size: 12.5px; font-weight: 600; color: var(--c-text); line-height: 1.4; margin-bottom: 7px; }
+.kb-card-foot { display: flex; align-items: center; justify-content: space-between; }
+.kb-type {
+  font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.kt-epic { background: var(--purple-lt); color: #5b21b6; }
+.kt-story { background: var(--blue-lt); color: #1e40af; }
+.kt-bug { background: var(--red-lt); color: #991b1b; }
+.kt-task { background: var(--green-lt); color: #065f46; }
+.kb-assignee {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: white;
+}
+
+/* ══════════════════════════════════════════════
+   SECTION SPACING
+══════════════════════════════════════════════ */
+.mb-6 { margin-bottom: 24px; }
+.mb-4 { margin-bottom: 16px; }
+.section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-head-title { font-size: 15px; font-weight: 800; color: var(--c-text); }
+.section-head-sub { font-size: 12px; color: var(--c-text3); margin-top: 2px; }
+
+/* ══════════════════════════════════════════════
+   ANIMATIONS
+══════════════════════════════════════════════ */
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(14px); }
+  to { opacity:1; transform: translateY(0); }
+}
+.anim-1 { animation: fadeUp 0.4s 0.05s ease both; }
+.anim-2 { animation: fadeUp 0.4s 0.12s ease both; }
+.anim-3 { animation: fadeUp 0.4s 0.19s ease both; }
+.anim-4 { animation: fadeUp 0.4s 0.26s ease both; }
+.anim-5 { animation: fadeUp 0.4s 0.33s ease both; }
+
+/* ══════════════════════════════════════════════
+   TOOLTIP
+══════════════════════════════════════════════ */
+[data-tip] { position: relative; cursor: help; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: #1a2236; color: #e8edf5; font-size: 11px; font-family: var(--f-body);
+  padding: 5px 10px; border-radius: 6px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 999;
+}
+[data-tip]:hover::after { opacity: 1; }
+
+/* ══════════════════════════════════════════════
+   EMPTY STATE
+══════════════════════════════════════════════ */
+.empty-state {
+  text-align: center; padding: 48px 20px;
+  color: var(--c-text3);
+}
+.empty-icon { font-size: 36px; margin-bottom: 12px; }
+.empty-title { font-size: 15px; font-weight: 700; color: var(--c-text2); margin-bottom: 6px; }
+.empty-sub { font-size: 13px; }
+
+/* Divider */
+.h-divider { height: 1px; background: var(--c-border); margin: 20px 0; }
+
+/* Info note */
+.info-note {
+  display: flex; align-items: flex-start; gap: 9px;
+  background: var(--blue-lt); border: 1px solid #bfdbfe;
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 12px; color: #1e40af; font-weight: 500;
+  margin-bottom: 16px;
+}
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE TWEAKS
+══════════════════════════════════════════════ */
+@media (max-width: 1200px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .exec-lob-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     TOP NAVIGATION BAR
+══════════════════════════════════════════ -->
+<nav class="topnav">
+  <div class="tn-logo">
+    <div class="tn-logo-icon">⬡</div>
+    <div>
+      <div class="tn-logo-text">CQE Intelligence</div>
+      <div class="tn-logo-sub">Release Platform</div>
+    </div>
+  </div>
+
+  <div class="tn-modules">
+    <button class="tn-module active" onclick="switchModule('dashboard')">
+      <span class="tn-module-icon">⬡</span> Executive Dashboard
+    </button>
+    <button class="tn-module" onclick="switchModule('releases')">
+      <span class="tn-module-icon">🚀</span> Release Tracker
+    </button>
+    <button class="tn-module" onclick="switchModule('gaps')">
+      <span class="tn-module-icon">🔍</span> Testing Gaps
+    </button>
+    <button class="tn-module" onclick="switchModule('production')">
+      <span class="tn-module-icon">🔥</span> Production Issues
+      <span class="tn-module-badge">6</span>
+    </button>
+  </div>
+
+  <div class="tn-right">
+    <div class="tn-live">
+      <div class="live-dot"></div>
+      Live · Jira + Zephyr
+    </div>
+    <div class="tn-role-pill" onclick="toggleRoleDropdown()">
+      <div class="role-avatar" id="roleAvatar" style="background:linear-gradient(135deg,#7c3aed,#2563eb)">MD</div>
+      <div>
+        <div class="role-name" id="roleName">Director</div>
+        <div class="role-tag" id="roleTag">Read-only</div>
+      </div>
+    </div>
+    <button class="tn-btn tn-btn-primary" onclick="openModal()">＋ New Release</button>
+  </div>
+</nav>
+
+<!-- Role Dropdown -->
+<div class="role-dropdown" id="roleDropdown">
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#3d506a;padding:4px 12px 8px">Switch Role</div>
+  <div class="role-option active" onclick="setRole('md')">
+    <div class="role-avatar" style="background:linear-gradient(135deg,#7c3aed,#2563eb);width:28px;height:28px;font-size:10px">MD</div>
+    <div><div style="font-size:13px;font-weight:600;color:#c8d6ea">Director / MD</div><div style="font-size:11px;color:#6a7f9a">Read-only · AI insights</div></div>
+  </div>
+  <div class="role-option" onclick="setRole('lead')">
+    <div class="role-avatar" style="background:linear-gradient(135deg,#059669,#34d399);width:28px;height:28px;font-size:10px">TL</div>
+    <div><div style="font-size:13px;font-weight:600;color:#c8d6ea">Team Lead</div><div style="font-size:11px;color:#6a7f9a">Can add releases & timelines</div></div>
+  </div>
+  <div class="role-option" onclick="setRole('eng')">
+    <div class="role-avatar" style="background:linear-gradient(135deg,#d97706,#fbbf24);width:28px;height:28px;font-size:10px">PE</div>
+    <div><div style="font-size:13px;font-weight:600;color:#c8d6ea">Perf. Engineer</div><div style="font-size:11px;color:#6a7f9a">Test results & defects</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     APP SHELL
+══════════════════════════════════════════ -->
+<div class="app-shell">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar">
+
+  <!-- Dashboard Sidebar -->
+  <div id="sb-dashboard">
+    <div class="sb-section">
+      <div class="sb-section-label">Overview</div>
+      <div class="sb-item active"><span class="sb-item-icon">📊</span> Executive Summary</div>
+      <div class="sb-item"><span class="sb-item-icon">📅</span> Release Roadmap</div>
+      <div class="sb-item"><span class="sb-item-icon">📈</span> NFT Metrics</div>
+      <div class="sb-item"><span class="sb-item-icon">⚡</span> Capacity Analysis</div>
+    </div>
+    <div class="sb-divider"></div>
+    <div class="sb-section">
+      <div class="sb-section-label">Filter by LOB</div>
+    </div>
+    <div class="sb-lob-pills">
+      <div class="lob-pill active">
+        <div class="lob-color" style="background:var(--lob-dt)"></div>
+        Digital Technology
+        <span class="lob-pill-count">4</span>
+      </div>
+      <div class="lob-pill active">
+        <div class="lob-color" style="background:var(--lob-ai)"></div>
+        AI & Operations
+        <span class="lob-pill-count">3</span>
+      </div>
+      <div class="lob-pill active">
+        <div class="lob-color" style="background:var(--lob-pay)"></div>
+        Payments
+        <span class="lob-pill-count">5</span>
+      </div>
+    </div>
+    <div class="sb-divider"></div>
+    <!-- AI Panel -->
+    <div class="sb-ai-panel">
+      <div class="sb-ai-header">
+        <div class="ai-tag">✦ AI</div>
+        <div class="sb-ai-title">Actionable Insights</div>
+      </div>
+      <div class="ai-insight-item">
+        <div class="ai-bullet" style="background:#dc2626"></div>
+        <div><strong>🚨 Payments — P1 Blocker</strong>3 critical defects open with &lt;5d to release. Escalation needed.</div>
+      </div>
+      <div class="ai-insight-item">
+        <div class="ai-bullet" style="background:#d97706"></div>
+        <div><strong>⚠ DT — TC Coverage Low</strong>61% execution at W13. Re-schedule sprint 14 cycles.</div>
+      </div>
+      <div class="ai-insight-item">
+        <div class="ai-bullet" style="background:#059669"></div>
+        <div><strong>✅ AI & Ops — UAT Ready</strong>87% pass rate. Proceed to sign-off.</div>
+      </div>
+      <div class="ai-insight-item">
+        <div class="ai-bullet" style="background:#2563eb"></div>
+        <div><strong>📌 14 Tasks Blocked</strong>Dependency review meeting overdue by 3 days.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Release Tracker Sidebar -->
+  <div id="sb-releases" style="display:none">
+    <div class="sb-section">
+      <div class="sb-section-label">Release Views</div>
+      <div class="sb-item active"><span class="sb-item-icon">📋</span> All Releases <span class="sb-item-count">12</span></div>
+      <div class="sb-item"><span class="sb-item-icon">🔴</span> Active <span class="sb-item-count">4</span></div>
+      <div class="sb-item"><span class="sb-item-icon">⚠️</span> At Risk <span class="sb-item-count">2</span></div>
+      <div class="sb-item"><span class="sb-item-icon">✅</span> Completed <span class="sb-item-count">6</span></div>
+      <div class="sb-item"><span class="sb-item-icon">📅</span> Upcoming <span class="sb-item-count">3</span></div>
+    </div>
+    <div class="sb-divider"></div>
+    <div class="sb-section">
+      <div class="sb-section-label">By LOB</div>
+      <div class="sb-item"><span class="sb-item-icon" style="color:var(--lob-dt)">●</span> Digital Technology <span class="sb-item-count">4</span></div>
+      <div class="sb-item"><span class="sb-item-icon" style="color:var(--lob-ai)">●</span> AI & Operations <span class="sb-item-count">3</span></div>
+      <div class="sb-item"><span class="sb-item-icon" style="color:var(--lob-pay)">●</span> Payments <span class="sb-item-count">5</span></div>
+    </div>
+    <div class="sb-divider"></div>
+    <div class="sb-section">
+      <div class="sb-section-label">By Environment</div>
+      <div class="sb-item"><span class="sb-item-icon">🔷</span> PERF-1 <span class="sb-item-count">5</span></div>
+      <div class="sb-item"><span class="sb-item-icon">🔶</span> PERF-2 <span class="sb-item-count">4</span></div>
+      <div class="sb-item"><span class="sb-item-icon">🟣</span> STAGING <span class="sb-item-count">3</span></div>
+    </div>
+  </div>
+
+  <!-- Testing Gaps Sidebar -->
+  <div id="sb-gaps" style="display:none">
+    <div class="sb-section">
+      <div class="sb-section-label">Gap Analysis</div>
+      <div class="sb-item active"><span class="sb-item-icon">🔥</span> Heatmap View</div>
+      <div class="sb-item"><span class="sb-item-icon">📊</span> Coverage Report</div>
+      <div class="sb-item"><span class="sb-item-icon">🧪</span> Untested Areas <span class="sb-item-badge" style="background:var(--red-lt);color:#991b1b">23</span></div>
+      <div class="sb-item"><span class="sb-item-icon">📉</span> Trend Analysis</div>
+    </div>
+    <div class="sb-divider"></div>
+    <div class="sb-section">
+      <div class="sb-section-label">Gap Type</div>
+      <div class="sb-item"><span class="sb-item-icon">🟥</span> No Coverage <span class="sb-item-count">8</span></div>
+      <div class="sb-item"><span class="sb-item-icon">🟧</span> Partial Coverage <span class="sb-item-count">15</span></div>
+      <div class="sb-item"><span class="sb-item-icon">🟨</span> Stale Tests <span class="sb-item-count">12</span></div>
+      <div class="sb-item"><span class="sb-item-icon">🟦</span> Not Executed <span class="sb-item-count">31</span></div>
+    </div>
+  </div>
+
+  <!-- Production Issues Sidebar -->
+  <div id="sb-production" style="display:none">
+    <div class="sb-section">
+      <div class="sb-section-label">Issue Views</div>
+      <div class="sb-item active"><span class="sb-item-icon">🔥</span> Active Incidents <span class="sb-item-count">6</span></div>
+      <div class="sb-item"><span class="sb-item-icon">📉</span> Impact Analysis</div>
+      <div class="sb-item"><span class="sb-item-icon">🔗</span> Root Cause Map</div>
+      <div class="sb-item"><span class="sb-item-icon">✅</span> Resolved <span class="sb-item-count">18</span></div>
+    </div>
+    <div class="sb-divider"></div>
+    <div class="sb-section">
+      <div class="sb-section-label">By Severity</div>
+      <div class="sb-item"><span class="sb-item-icon" style="color:var(--red)">●</span> Critical <span class="sb-item-badge" style="background:var(--red-lt);color:#991b1b">3</span></div>
+      <div class="sb-item"><span class="sb-item-icon" style="color:var(--amber)">●</span> High <span class="sb-item-count">3</span></div>
+      <div class="sb-item"><span class="sb-item-icon" style="color:var(--blue)">●</span> Medium <span class="sb-item-count">8</span></div>
+    </div>
+    <div class="sb-divider"></div>
+    <div class="sb-section">
+      <div class="sb-section-label">By LOB</div>
+      <div class="sb-item"><span class="sb-item-icon" style="color:var(--lob-pay)">●</span> Payments <span class="sb-item-count">4</span></div>
+      <div class="sb-item"><span class="sb-item-icon" style="color:var(--lob-dt)">●</span> Digital Tech <span class="sb-item-count">2</span></div>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<main class="main-content">
+
+<!-- ══════════════════════════════════════════
+  PAGE 1 — EXECUTIVE DASHBOARD
+══════════════════════════════════════════ -->
+<div class="page active" id="page-dashboard">
+  <div class="page-hdr">
+    <div>
+      <div class="breadcrumb">CQE Platform <span class="breadcrumb-sep">›</span> <span>Executive Dashboard</span></div>
+      <div class="page-title">Release Intelligence · Q2 2026</div>
+      <div class="page-subtitle">All Lines of Business · NFT Progress · Live data from Jira + Zephyr</div>
+    </div>
+    <div class="page-hdr-actions">
+      <button class="btn btn-secondary btn-sm">⬇ Export PDF</button>
+      <button class="btn btn-secondary btn-sm">📧 Send Report</button>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="content-pad">
+    <div class="kpi-grid anim-1">
+      <div class="kpi-card blue">
+        <div class="kpi-icon-wrap" style="background:#dbeafe"><span>🚀</span></div>
+        <div class="kpi-val">12</div>
+        <div class="kpi-label">Active Releases</div>
+        <div class="kpi-delta"><span class="delta-pos">↑ 3 new</span><span class="delta-neu">this quarter</span></div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-icon-wrap" style="background:#d1fae5"><span>✅</span></div>
+        <div class="kpi-val">83%</div>
+        <div class="kpi-label">Avg Pass Rate</div>
+        <div class="kpi-delta"><span class="delta-pos">↑ 6%</span><span class="delta-neu">vs last sprint</span></div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-icon-wrap" style="background:#fee2e2"><span>🐛</span></div>
+        <div class="kpi-val">56</div>
+        <div class="kpi-label">Open Defects</div>
+        <div class="kpi-delta"><span class="delta-neg">▲ 6 Critical</span><span class="delta-neu">needs action</span></div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-icon-wrap" style="background:#fef3c7"><span>⚡</span></div>
+        <div class="kpi-val">64%</div>
+        <div class="kpi-label">Avg Capacity Tested</div>
+        <div class="kpi-delta"><span class="delta-neg">↓ Below 80% threshold</span></div>
+      </div>
+    </div>
+
+    <!-- LOB Cards -->
+    <div class="section-head anim-2">
+      <div>
+        <div class="section-head-title">LOB Release Status</div>
+        <div class="section-head-sub">Click a card to drill into NFT statistics</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="switchModule('releases')">View All Releases →</button>
+    </div>
+
+    <div class="exec-lob-grid anim-2">
+      <!-- Digital Technology -->
+      <div class="exec-lob-card" onclick="switchModule('releases')">
+        <div class="elc-top">
+          <div class="elc-header">
+            <div>
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--lob-dt)"></div>
+                <div class="elc-lob">Digital Technology</div>
+              </div>
+              <div class="elc-release">API Modernisation v4.1 · PERF-1</div>
+            </div>
+            <span class="badge badge-amber">⚠ At Risk</span>
+          </div>
+          <div class="elc-kpis">
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--lob-dt)">247</div><div class="elc-kpi-label">Req.</div></div>
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--green)">348</div><div class="elc-kpi-label">Test Cases</div></div>
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--amber)">18</div><div class="elc-kpi-label">Defects</div></div>
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--green)">83%</div><div class="elc-kpi-label">Pass Rate</div></div>
+          </div>
+          <div class="elc-bars">
+            <div class="elc-bar-row">
+              <div class="elc-bar-label">Requirements</div>
+              <div class="elc-bar-track"><div class="elc-bar-fill" style="width:78%;background:var(--lob-dt)"></div></div>
+              <div class="elc-bar-pct">78%</div>
+            </div>
+            <div class="elc-bar-row">
+              <div class="elc-bar-label">Test Cases</div>
+              <div class="elc-bar-track"><div class="elc-bar-fill" style="width:61%;background:var(--amber)"></div></div>
+              <div class="elc-bar-pct">61%</div>
+            </div>
+            <div class="elc-bar-row">
+              <div class="elc-bar-label">Capacity</div>
+              <div class="elc-bar-track"><div class="elc-bar-fill" style="width:54%;background:var(--red)"></div></div>
+              <div class="elc-bar-pct">54%</div>
+            </div>
+          </div>
+        </div>
+        <div class="elc-bottom">
+          <span class="elc-status-text" style="color:var(--amber)">⚠ TC coverage below target — 3 epics at risk</span>
+          <span class="elc-action">View Details →</span>
+        </div>
+      </div>
+
+      <!-- AI & Operations -->
+      <div class="exec-lob-card" onclick="switchModule('releases')">
+        <div class="elc-top">
+          <div class="elc-header">
+            <div>
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--lob-ai)"></div>
+                <div class="elc-lob">AI & Operations</div>
+              </div>
+              <div class="elc-release">ML Pipeline v2.1 · PERF-2</div>
+            </div>
+            <span class="badge badge-green">✓ On Track</span>
+          </div>
+          <div class="elc-kpis">
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--lob-ai)">184</div><div class="elc-kpi-label">Req.</div></div>
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--green)">276</div><div class="elc-kpi-label">Test Cases</div></div>
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--green)">7</div><div class="elc-kpi-label">Defects</div></div>
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--green)">93%</div><div class="elc-kpi-label">Pass Rate</div></div>
+          </div>
+          <div class="elc-bars">
+            <div class="elc-bar-row">
+              <div class="elc-bar-label">Requirements</div>
+              <div class="elc-bar-track"><div class="elc-bar-fill" style="width:91%;background:var(--lob-ai)"></div></div>
+              <div class="elc-bar-pct">91%</div>
+            </div>
+            <div class="elc-bar-row">
+              <div class="elc-bar-label">Test Cases</div>
+              <div class="elc-bar-track"><div class="elc-bar-fill" style="width:89%;background:var(--green)"></div></div>
+              <div class="elc-bar-pct">89%</div>
+            </div>
+            <div class="elc-bar-row">
+              <div class="elc-bar-label">Capacity</div>
+              <div class="elc-bar-track"><div class="elc-bar-fill" style="width:76%;background:var(--green)"></div></div>
+              <div class="elc-bar-pct">76%</div>
+            </div>
+          </div>
+        </div>
+        <div class="elc-bottom">
+          <span class="elc-status-text" style="color:var(--green)">✅ UAT sign-off recommended by AI analysis</span>
+          <span class="elc-action">View Details →</span>
+        </div>
+      </div>
+
+      <!-- Payments -->
+      <div class="exec-lob-card" onclick="switchModule('releases')">
+        <div class="elc-top">
+          <div class="elc-header">
+            <div>
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--lob-pay)"></div>
+                <div class="elc-lob">Payments</div>
+              </div>
+              <div class="elc-release">Payment Gateway v3.2 · STAGING</div>
+            </div>
+            <span class="badge badge-red">✕ Critical</span>
+          </div>
+          <div class="elc-kpis">
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--lob-pay)">312</div><div class="elc-kpi-label">Req.</div></div>
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--amber)">420</div><div class="elc-kpi-label">Test Cases</div></div>
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--red)">31</div><div class="elc-kpi-label">Defects</div></div>
+            <div class="elc-kpi"><div class="elc-kpi-val" style="color:var(--amber)">76%</div><div class="elc-kpi-label">Pass Rate</div></div>
+          </div>
+          <div class="elc-bars">
+            <div class="elc-bar-row">
+              <div class="elc-bar-label">Requirements</div>
+              <div class="elc-bar-track"><div class="elc-bar-fill" style="width:82%;background:var(--lob-pay)"></div></div>
+              <div class="elc-bar-pct">82%</div>
+            </div>
+            <div class="elc-bar-row">
+              <div class="elc-bar-label">Test Cases</div>
+              <div class="elc-bar-track"><div class="elc-bar-fill" style="width:71%;background:var(--amber)"></div></div>
+              <div class="elc-bar-pct">71%</div>
+            </div>
+            <div class="elc-bar-row">
+              <div class="elc-bar-label">Capacity</div>
+              <div class="elc-bar-track"><div class="elc-bar-fill" style="width:63%;background:var(--red)"></div></div>
+              <div class="elc-bar-pct">63%</div>
+            </div>
+          </div>
+        </div>
+        <div class="elc-bottom">
+          <span class="elc-status-text" style="color:var(--red)">🚨 3 P1 defects unresolved — release at risk</span>
+          <span class="elc-action">View Details →</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Release Timeline -->
+    <div class="section-head anim-3">
+      <div>
+        <div class="section-head-title">Release Roadmap · Q2 2026</div>
+        <div class="section-head-sub">Jira Epic milestones · hover for details</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="badge badge-green">● Done</span>
+        <span class="badge badge-blue">● In Progress</span>
+        <span class="badge badge-amber">● At Risk</span>
+        <span class="badge badge-red">● Blocked</span>
+        <span class="badge badge-grey">● Upcoming</span>
+      </div>
+    </div>
+
+    <div class="timeline-card anim-3" style="overflow-x:auto">
+      <div class="tl-grid">
+        <!-- Header -->
+        <div class="tl-head-cell">LOB / Release</div>
+        <div class="tl-head-cell">Jan</div>
+        <div class="tl-head-cell">Feb</div>
+        <div class="tl-head-cell today">Mar ◀ Now</div>
+        <div class="tl-head-cell">Apr</div>
+        <div class="tl-head-cell">May</div>
+        <div class="tl-head-cell">Jun</div>
+        <div class="tl-head-cell">Jul</div>
+        <div class="tl-head-cell">Aug</div>
+        <!-- DT Row -->
+        <div class="tl-row-cell">
+          <div class="tl-lob-info">
+            <div class="tl-lob-stripe" style="background:var(--lob-dt)"></div>
+            <div><div class="tl-lob-name">Digital Tech</div><div class="tl-lob-rel">API Mod v4.1</div></div>
+          </div>
+        </div>
+        <div class="tl-row-cell"><div class="ms ms-done" data-tip="Req. freeze completed Jan 15">✓ Req. Freeze</div></div>
+        <div class="tl-row-cell"><div class="ms ms-done" data-tip="NFT started Feb 3">✓ NFT Start</div></div>
+        <div class="tl-row-cell"><div class="ms ms-risk" data-tip="61% complete — at risk">⚠ TC Exec</div></div>
+        <div class="tl-row-cell"><div class="ms ms-prog" data-tip="Defect fix sprint running">◉ Defect Fix</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">UAT</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">Release</div></div>
+        <div class="tl-row-cell"></div>
+        <div class="tl-row-cell"></div>
+        <!-- AI Row -->
+        <div class="tl-row-cell">
+          <div class="tl-lob-info">
+            <div class="tl-lob-stripe" style="background:var(--lob-ai)"></div>
+            <div><div class="tl-lob-name">AI & Ops</div><div class="tl-lob-rel">ML Pipeline v2.1</div></div>
+          </div>
+        </div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ Req. Freeze</div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ NFT Start</div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ TC Exec</div></div>
+        <div class="tl-row-cell"><div class="ms ms-prog">◉ Regression</div></div>
+        <div class="tl-row-cell"><div class="ms ms-prog">◉ UAT</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">Release</div></div>
+        <div class="tl-row-cell"></div>
+        <div class="tl-row-cell"></div>
+        <!-- Payments Row -->
+        <div class="tl-row-cell">
+          <div class="tl-lob-info">
+            <div class="tl-lob-stripe" style="background:var(--lob-pay)"></div>
+            <div><div class="tl-lob-name">Payments</div><div class="tl-lob-rel">Gateway v3.2</div></div>
+          </div>
+        </div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ Req. Freeze</div></div>
+        <div class="tl-row-cell"><div class="ms ms-done">✓ NFT Start</div></div>
+        <div class="tl-row-cell"><div class="ms ms-block" data-tip="3 P1 defects blocking">✕ Blocked</div></div>
+        <div class="tl-row-cell"><div class="ms ms-risk">⚠ TC Exec</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">UAT</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">Release</div></div>
+        <div class="tl-row-cell"></div>
+        <div class="tl-row-cell"></div>
+        <!-- UPI Row -->
+        <div class="tl-row-cell">
+          <div class="tl-lob-info">
+            <div class="tl-lob-stripe" style="background:var(--lob-pay)"></div>
+            <div><div class="tl-lob-name">Payments</div><div class="tl-lob-rel">UPI Integ v1.0</div></div>
+          </div>
+        </div>
+        <div class="tl-row-cell"></div>
+        <div class="tl-row-cell"></div>
+        <div class="tl-row-cell"></div>
+        <div class="tl-row-cell"><div class="ms ms-next">Req. Freeze</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">NFT Start</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">TC Exec</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">UAT</div></div>
+        <div class="tl-row-cell"><div class="ms ms-next">Release</div></div>
+      </div>
+    </div>
+
+    <!-- Capacity + Kanban Row -->
+    <div class="two-col anim-4 mb-6">
+      <!-- Capacity -->
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">⚡ Capacity Tested</div><div class="card-sub">% of target load validated per test case</div></div>
+          <span class="badge badge-amber">Threshold: ≥80%</span>
+        </div>
+        <div class="card-body">
+          <div class="cap-grid">
+            <div class="cap-item">
+              <div class="cap-ring">
+                <svg viewBox="0 0 64 64" width="64" height="64">
+                  <circle class="ring-bg" cx="32" cy="32" r="27"/>
+                  <circle class="ring-fill" cx="32" cy="32" r="27" stroke="#2563eb" stroke-dasharray="169.6" stroke-dashoffset="37"/>
+                </svg>
+                <div class="ring-pct" style="color:#2563eb">78%</div>
+              </div>
+              <div class="cap-name">Login & Auth</div>
+              <div class="cap-sub">DT · 78k/100k VU</div>
+            </div>
+            <div class="cap-item">
+              <div class="cap-ring">
+                <svg viewBox="0 0 64 64" width="64" height="64">
+                  <circle class="ring-bg" cx="32" cy="32" r="27"/>
+                  <circle class="ring-fill" cx="32" cy="32" r="27" stroke="#dc2626" stroke-dasharray="169.6" stroke-dashoffset="76"/>
+                </svg>
+                <div class="ring-pct" style="color:#dc2626">55%</div>
+              </div>
+              <div class="cap-name">API Gateway</div>
+              <div class="cap-sub">DT · 55k/100k</div>
+            </div>
+            <div class="cap-item">
+              <div class="cap-ring">
+                <svg viewBox="0 0 64 64" width="64" height="64">
+                  <circle class="ring-bg" cx="32" cy="32" r="27"/>
+                  <circle class="ring-fill" cx="32" cy="32" r="27" stroke="#059669" stroke-dasharray="169.6" stroke-dashoffset="42"/>
+                </svg>
+                <div class="ring-pct" style="color:#059669">75%</div>
+              </div>
+              <div class="cap-name">ML Inference</div>
+              <div class="cap-sub">AI · 75k/100k</div>
+            </div>
+            <div class="cap-item">
+              <div class="cap-ring">
+                <svg viewBox="0 0 64 64" width="64" height="64">
+                  <circle class="ring-bg" cx="32" cy="32" r="27"/>
+                  <circle class="ring-fill" cx="32" cy="32" r="27" stroke="#dc2626" stroke-dasharray="169.6" stroke-dashoffset="61"/>
+                </svg>
+                <div class="ring-pct" style="color:#dc2626">64%</div>
+              </div>
+              <div class="cap-name">Payment TXN</div>
+              <div class="cap-sub">PAY · 64k/100k</div>
+            </div>
+            <div class="cap-item">
+              <div class="cap-ring">
+                <svg viewBox="0 0 64 64" width="64" height="64">
+                  <circle class="ring-bg" cx="32" cy="32" r="27"/>
+                  <circle class="ring-fill" cx="32" cy="32" r="27" stroke="#059669" stroke-dasharray="169.6" stroke-dashoffset="20"/>
+                </svg>
+                <div class="ring-pct" style="color:#059669">88%</div>
+              </div>
+              <div class="cap-name">Settlement</div>
+              <div class="cap-sub">PAY · 88k/100k</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">📊 Defect Trend — All LOBs</div><div class="card-sub">Weekly opened vs closed</div></div>
+        </div>
+        <div class="card-body">
+          <div class="chart-wrap-md"><canvas id="chart-defect-trend"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Charts -->
+    <div class="three-col anim-5 mb-6">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Test Execution Status</div><div class="card-sub">All LOBs combined</div></div>
+        <div class="card-body"><div class="chart-wrap-sm"><canvas id="chart-exec-donut"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Requirements Coverage</div><div class="card-sub">By LOB</div></div>
+        <div class="card-body"><div class="chart-wrap-sm"><canvas id="chart-req-bar"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Defect Severity Mix</div><div class="card-sub">Open defects</div></div>
+        <div class="card-body"><div class="chart-wrap-sm"><canvas id="chart-sev-donut"></canvas></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+  PAGE 2 — RELEASE TRACKER
+══════════════════════════════════════════ -->
+<div class="page" id="page-releases">
+  <div class="page-hdr">
+    <div>
+      <div class="breadcrumb">CQE Platform <span class="breadcrumb-sep">›</span> <span>Release Tracker</span></div>
+      <div class="page-title">Release Tracker</div>
+      <div class="page-subtitle">Track all releases, timelines, applications & environments · 12 releases this quarter</div>
+    </div>
+    <div class="page-hdr-actions">
+      <button class="btn btn-secondary btn-sm">⬇ Export</button>
+      <button class="btn btn-primary" onclick="openModal()">＋ Add Release</button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" placeholder="Search releases, epics, applications...">
+    </div>
+    <div class="filter-chip-wrap">
+      <button class="fchip active">All</button>
+      <button class="fchip">Active</button>
+      <button class="fchip">At Risk</button>
+      <button class="fchip">Completed</button>
+    </div>
+    <button class="btn btn-secondary btn-sm" style="margin-left:auto">⚙ Columns</button>
+  </div>
+
+  <div class="content-pad">
+    <div class="info-note">
+      <span>ℹ</span>
+      <span>Team Leads can add releases with full timeline, environment, and application mapping. MDs have read-only view. <strong>Role: Director</strong> — switch to Lead role to enable editing.</span>
+    </div>
+
+    <div class="release-list">
+
+      <!-- Release 1 -->
+      <div class="release-item">
+        <div class="ri-header" onclick="toggleRelease(this)">
+          <div class="ri-meta">
+            <div class="ri-name">API Modernisation v4.1</div>
+            <div class="ri-details">
+              <div class="ri-lob-dot"><div class="ri-lob-color" style="background:var(--lob-dt)"></div>Digital Technology</div>
+              <span style="color:#e2e7f0">·</span>
+              <div class="ri-env">PERF-1</div>
+              <span style="color:#e2e7f0">·</span>
+              <span class="badge badge-amber" style="font-size:10px">⚠ At Risk</span>
+            </div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Target Date</div>
+            <div class="ri-stat-val" style="font-size:13px;font-family:var(--f-mono);color:var(--amber)">15 Jun 2026</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">TC Pass %</div>
+            <div class="ri-stat-val" style="color:var(--amber)">83%</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Open Defects</div>
+            <div class="ri-stat-val" style="color:var(--red)">18</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Progress</div>
+            <div style="margin-top:4px">
+              <div class="progress-wrap">
+                <div class="progress-bar"><div class="progress-fill" style="width:61%;background:var(--amber)"></div></div>
+                <div class="progress-pct">61%</div>
+              </div>
+            </div>
+          </div>
+          <button class="ri-expand-btn">▾</button>
+        </div>
+        <div class="ri-body open">
+          <div class="two-col" style="gap:24px">
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--c-text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Applications Impacted</div>
+              <div class="app-chips">
+                <div class="app-chip critical">API Gateway ⚠</div>
+                <div class="app-chip">Auth Service</div>
+                <div class="app-chip medium">User Management ⚠</div>
+                <div class="app-chip">Notification Svc</div>
+                <div class="app-chip">Config Service</div>
+                <div class="app-chip">Audit Logger</div>
+              </div>
+              <div style="margin-top:16px;font-size:12px;font-weight:700;color:var(--c-text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Environment</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <div class="env-badge" style="background:#dbeafe;color:#1e40af">🔷 PERF-1 (Primary)</div>
+                <div class="env-badge" style="background:#f1f5f9;color:#475569">📋 PERF-2 (Failover)</div>
+              </div>
+              <div style="margin-top:16px;font-size:12px;font-weight:700;color:var(--c-text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Jira Epics</div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                  <span style="font-family:var(--f-mono);font-size:11px;color:var(--blue)">DT-EPX-01</span>
+                  <span style="color:var(--c-text2)">API Gateway Refactor</span>
+                  <span class="badge badge-amber" style="margin-left:auto;font-size:10px">In Progress</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                  <span style="font-family:var(--f-mono);font-size:11px;color:var(--blue)">DT-EPX-02</span>
+                  <span style="color:var(--c-text2)">Auth Service v2</span>
+                  <span class="badge badge-green" style="margin-left:auto;font-size:10px">Done</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                  <span style="font-family:var(--f-mono);font-size:11px;color:var(--blue)">DT-EPX-03</span>
+                  <span style="color:var(--c-text2)">User Management Migration</span>
+                  <span class="badge badge-red" style="margin-left:auto;font-size:10px">At Risk</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--c-text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">NFT Metrics Summary</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+                <div style="background:var(--c-bg);border-radius:8px;padding:12px;border:1px solid var(--c-border)">
+                  <div style="font-size:10px;color:var(--c-text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Test Cases</div>
+                  <div style="font-size:18px;font-weight:800;margin-top:3px">348 <span style="font-size:12px;color:var(--c-text3)">total</span></div>
+                  <div style="font-size:11px;margin-top:2px"><span style="color:var(--green)">213 Pass</span> · <span style="color:var(--red)">42 Fail</span> · <span style="color:var(--c-text3)">93 NR</span></div>
+                </div>
+                <div style="background:var(--c-bg);border-radius:8px;padding:12px;border:1px solid var(--c-border)">
+                  <div style="font-size:10px;color:var(--c-text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Scenarios</div>
+                  <div style="font-size:18px;font-weight:800;margin-top:3px">124 <span style="font-size:12px;color:var(--c-text3)">total</span></div>
+                  <div style="font-size:11px;margin-top:2px"><span style="color:var(--green)">91 Pass</span> · <span style="color:var(--red)">19 Fail</span> · <span style="color:var(--c-text3)">14 NR</span></div>
+                </div>
+              </div>
+              <div style="font-size:12px;font-weight:700;color:var(--c-text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Timeline</div>
+              <div class="timeline-dots">
+                <div class="tl-event"><div class="tl-event-time">15 Jan 2026</div><strong>Requirements Freeze</strong> — 247 requirements baselined</div>
+                <div class="tl-event"><div class="tl-event-time">03 Feb 2026</div><strong>NFT Cycle Started</strong> — PERF-1 provisioned</div>
+                <div class="tl-event"><div class="tl-event-time">10 Mar 2026</div><strong>Week 10 Checkpoint</strong> — 61% TC executed, risk raised</div>
+                <div class="tl-event" style="color:var(--amber)"><div class="tl-event-time">Target: 15 Jun 2026</div><strong>Release Date</strong> — At risk of delay</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Release 2 -->
+      <div class="release-item">
+        <div class="ri-header" onclick="toggleRelease(this)">
+          <div class="ri-meta">
+            <div class="ri-name">ML Pipeline v2.1</div>
+            <div class="ri-details">
+              <div class="ri-lob-dot"><div class="ri-lob-color" style="background:var(--lob-ai)"></div>AI & Operations</div>
+              <span style="color:#e2e7f0">·</span>
+              <div class="ri-env">PERF-2</div>
+              <span style="color:#e2e7f0">·</span>
+              <span class="badge badge-green" style="font-size:10px">✓ On Track</span>
+            </div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Target Date</div>
+            <div class="ri-stat-val" style="font-size:13px;font-family:var(--f-mono);color:var(--green)">30 May 2026</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">TC Pass %</div>
+            <div class="ri-stat-val" style="color:var(--green)">93%</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Open Defects</div>
+            <div class="ri-stat-val" style="color:var(--green)">7</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Progress</div>
+            <div style="margin-top:4px">
+              <div class="progress-wrap">
+                <div class="progress-bar"><div class="progress-fill" style="width:89%;background:var(--green)"></div></div>
+                <div class="progress-pct">89%</div>
+              </div>
+            </div>
+          </div>
+          <button class="ri-expand-btn">▾</button>
+        </div>
+        <div class="ri-body">
+          <p style="color:var(--c-text3);font-size:13px">Expand to view ML Pipeline v2.1 detail — applications, environments, epics, NFT metrics and timeline.</p>
+        </div>
+      </div>
+
+      <!-- Release 3 -->
+      <div class="release-item">
+        <div class="ri-header" onclick="toggleRelease(this)">
+          <div class="ri-meta">
+            <div class="ri-name">Payment Gateway v3.2</div>
+            <div class="ri-details">
+              <div class="ri-lob-dot"><div class="ri-lob-color" style="background:var(--lob-pay)"></div>Payments</div>
+              <span style="color:#e2e7f0">·</span>
+              <div class="ri-env">STAGING</div>
+              <span style="color:#e2e7f0">·</span>
+              <span class="badge badge-red" style="font-size:10px">✕ Critical</span>
+            </div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Target Date</div>
+            <div class="ri-stat-val" style="font-size:13px;font-family:var(--f-mono);color:var(--red)">10 Jun 2026</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">TC Pass %</div>
+            <div class="ri-stat-val" style="color:var(--red)">76%</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Open Defects</div>
+            <div class="ri-stat-val" style="color:var(--red)">31</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Progress</div>
+            <div style="margin-top:4px">
+              <div class="progress-wrap">
+                <div class="progress-bar"><div class="progress-fill" style="width:71%;background:var(--red)"></div></div>
+                <div class="progress-pct">71%</div>
+              </div>
+            </div>
+          </div>
+          <button class="ri-expand-btn">▾</button>
+        </div>
+        <div class="ri-body">
+          <p style="color:var(--c-text3);font-size:13px">Expand to view Payment Gateway v3.2 detail — 3 P1 defects blocking release, 420 test cases, 5 applications impacted.</p>
+        </div>
+      </div>
+
+      <!-- Release 4 — Upcoming -->
+      <div class="release-item" style="opacity:0.7">
+        <div class="ri-header" onclick="toggleRelease(this)">
+          <div class="ri-meta">
+            <div class="ri-name">UPI Integration v1.0</div>
+            <div class="ri-details">
+              <div class="ri-lob-dot"><div class="ri-lob-color" style="background:var(--lob-pay)"></div>Payments</div>
+              <span style="color:#e2e7f0">·</span>
+              <div class="ri-env">TBD</div>
+              <span style="color:#e2e7f0">·</span>
+              <span class="badge badge-grey" style="font-size:10px">◷ Upcoming</span>
+            </div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Target Date</div>
+            <div class="ri-stat-val" style="font-size:13px;font-family:var(--f-mono);color:var(--c-text3)">15 Aug 2026</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">TC Pass %</div>
+            <div class="ri-stat-val" style="color:var(--c-text3)">—</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Open Defects</div>
+            <div class="ri-stat-val" style="color:var(--c-text3)">—</div>
+          </div>
+          <div class="ri-stat-cell">
+            <div class="ri-stat-label">Progress</div>
+            <div style="margin-top:4px">
+              <div class="progress-wrap">
+                <div class="progress-bar"><div class="progress-fill" style="width:0%;background:var(--c-text3)"></div></div>
+                <div class="progress-pct">0%</div>
+              </div>
+            </div>
+          </div>
+          <button class="ri-expand-btn">▾</button>
+        </div>
+        <div class="ri-body">
+          <p style="color:var(--c-text3);font-size:13px">UPI Integration not yet started. Requires environment selection and application mapping before NFT cycles begin.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Kanban Section -->
+    <div class="section-head" style="margin-top:28px">
+      <div>
+        <div class="section-head-title">📌 Sprint Kanban — All Releases</div>
+        <div class="section-head-sub">Task health across all active Jira boards</div>
+      </div>
+      <div class="fchip active">All LOBs</div>
+    </div>
+
+    <div class="kanban-wrap mb-6">
+      <div class="kb-col">
+        <div class="kb-col-head backlog">Backlog <span class="kb-count">8</span></div>
+        <div class="kb-card"><div class="kb-card-id">DT-1201</div><div class="kb-card-title">Load test NFT env setup for API v4.1</div><div class="kb-card-foot"><span class="kb-type kt-task">Task</span><div class="kb-assignee" style="background:var(--lob-dt)">RK</div></div></div>
+        <div class="kb-card"><div class="kb-card-id">PAY-2850</div><div class="kb-card-title">UPI regression test suite creation</div><div class="kb-card-foot"><span class="kb-type kt-story">Story</span><div class="kb-assignee" style="background:var(--lob-pay)">AS</div></div></div>
+        <div class="kb-card"><div class="kb-card-id">AI-449</div><div class="kb-card-title">Chaos testing scenario design</div><div class="kb-card-foot"><span class="kb-type kt-epic">Epic</span><div class="kb-assignee" style="background:var(--lob-ai)">PK</div></div></div>
+      </div>
+      <div class="kb-col">
+        <div class="kb-col-head inprog">In Progress <span class="kb-count">11</span></div>
+        <div class="kb-card"><div class="kb-card-id">DT-1192</div><div class="kb-card-title">API latency spike fix at 80% load</div><div class="kb-card-foot"><span class="kb-type kt-bug">Bug</span><div class="kb-assignee" style="background:#7c3aed">VN</div></div></div>
+        <div class="kb-card"><div class="kb-card-id">PAY-2841</div><div class="kb-card-title">Payment timeout under 5k concurrent</div><div class="kb-card-foot"><span class="kb-type kt-bug">Bug</span><div class="kb-assignee" style="background:var(--lob-pay)">MR</div></div></div>
+        <div class="kb-card"><div class="kb-card-id">AI-445</div><div class="kb-card-title">P99 inference threshold tuning</div><div class="kb-card-foot"><span class="kb-type kt-task">Task</span><div class="kb-assignee" style="background:var(--lob-ai)">SK</div></div></div>
+      </div>
+      <div class="kb-col">
+        <div class="kb-col-head blocked">Blocked <span class="kb-count">14</span></div>
+        <div class="kb-card blocked-card"><div class="kb-card-id">PAY-2838</div><div class="kb-card-title">Duplicate txn on network retry — pending infra</div><div class="kb-card-foot"><span class="kb-type kt-bug">Bug</span><div class="kb-assignee" style="background:var(--red)">PP</div></div></div>
+        <div class="kb-card blocked-card"><div class="kb-card-id">DT-1187</div><div class="kb-card-title">Token refresh race condition fix</div><div class="kb-card-foot"><span class="kb-type kt-bug">Bug</span><div class="kb-assignee" style="background:var(--lob-dt)">AR</div></div></div>
+        <div class="kb-card blocked-card"><div class="kb-card-id">PAY-2821</div><div class="kb-card-title">3DS auth failing Rupay — cert issue</div><div class="kb-card-foot"><span class="kb-type kt-bug">Bug</span><div class="kb-assignee" style="background:var(--lob-pay)">SB</div></div></div>
+      </div>
+      <div class="kb-col">
+        <div class="kb-col-head done">Done <span class="kb-count">32</span></div>
+        <div class="kb-card"><div class="kb-card-id">AI-441</div><div class="kb-card-title">ML inference optimization complete</div><div class="kb-card-foot"><span class="kb-type kt-bug">Bug</span><div class="kb-assignee" style="background:var(--green)">NK</div></div></div>
+        <div class="kb-card"><div class="kb-card-id">DT-1180</div><div class="kb-card-title">DB connection pool configuration</div><div class="kb-card-foot"><span class="kb-type kt-task">Task</span><div class="kb-assignee" style="background:var(--lob-dt)">RJ</div></div></div>
+        <div class="kb-card"><div class="kb-card-id">PAY-2810</div><div class="kb-card-title">Full load test suite executed</div><div class="kb-card-foot"><span class="kb-type kt-story">Story</span><div class="kb-assignee" style="background:var(--lob-pay)">KL</div></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+  PAGE 3 — TESTING GAPS
+══════════════════════════════════════════ -->
+<div class="page" id="page-gaps">
+  <div class="page-hdr">
+    <div>
+      <div class="breadcrumb">CQE Platform <span class="breadcrumb-sep">›</span> <span>Testing Gaps</span></div>
+      <div class="page-title">Testing Gaps Analysis</div>
+      <div class="page-subtitle">Identify untested areas, coverage holes and stale Zephyr test cases · Updated from Zephyr 30 min ago</div>
+    </div>
+    <div class="page-hdr-actions">
+      <button class="btn btn-secondary btn-sm">⬇ Gap Report</button>
+      <button class="btn btn-primary btn-sm">+ Create Test Cases</button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" placeholder="Search by module, epic, component...">
+    </div>
+    <div class="filter-chip-wrap">
+      <button class="fchip active">All LOBs</button>
+      <button class="fchip">Digital Tech</button>
+      <button class="fchip">AI & Ops</button>
+      <button class="fchip">Payments</button>
+    </div>
+  </div>
+
+  <div class="content-pad">
+    <!-- Heatmap -->
+    <div class="section-head">
+      <div>
+        <div class="section-head-title">Coverage Heatmap</div>
+        <div class="section-head-sub">% test coverage per functional area · red = critical gap</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;font-size:11px;color:var(--c-text3)">
+        <div style="width:12px;height:12px;background:#dcfce7;border-radius:3px"></div>High (80%+)
+        <div style="width:12px;height:12px;background:#fde68a;border-radius:3px"></div>Medium (50–79%)
+        <div style="width:12px;height:12px;background:#fecaca;border-radius:3px"></div>Low (&lt;50%)
+      </div>
+    </div>
+
+    <div class="card mb-6">
+      <div class="card-body" style="overflow-x:auto">
+        <div class="gap-heat-grid">
+          <div></div>
+          <div class="heat-col-head">Auth & Login</div>
+          <div class="heat-col-head">API Layer</div>
+          <div class="heat-col-head">Database</div>
+          <div class="heat-col-head">Messaging</div>
+          <div class="heat-col-head">Payments</div>
+          <div class="heat-col-head">Reporting</div>
+
+          <div class="heat-label" style="color:var(--lob-dt);font-weight:700">Digital Tech</div>
+          <div class="heat-cell h-2" data-tip="Auth: 88% coverage">88%</div>
+          <div class="heat-cell h-4" data-tip="API Layer: 54% — CRITICAL GAP">54%</div>
+          <div class="heat-cell h-2" data-tip="Database: 81% coverage">81%</div>
+          <div class="heat-cell h-3" data-tip="Messaging: 67% coverage">67%</div>
+          <div class="heat-cell h-0" data-tip="Payments: N/A for this LOB">N/A</div>
+          <div class="heat-cell h-4" data-tip="Reporting: 58% coverage">58%</div>
+
+          <div class="heat-label" style="color:var(--lob-ai);font-weight:700">AI & Ops</div>
+          <div class="heat-cell h-2" data-tip="Auth: 82%">82%</div>
+          <div class="heat-cell h-2" data-tip="API Layer: 79%">79%</div>
+          <div class="heat-cell h-1" data-tip="Database: 91%">91%</div>
+          <div class="heat-cell h-3" data-tip="Messaging: 71%">71%</div>
+          <div class="heat-cell h-0">N/A</div>
+          <div class="heat-cell h-3" data-tip="Reporting: 65%">65%</div>
+
+          <div class="heat-label" style="color:var(--lob-pay);font-weight:700">Payments</div>
+          <div class="heat-cell h-3" data-tip="Auth: 72%">72%</div>
+          <div class="heat-cell h-3" data-tip="API: 69%">69%</div>
+          <div class="heat-cell h-4" data-tip="Database: 55% — GAP">55%</div>
+          <div class="heat-cell h-2" data-tip="Messaging: 80%">80%</div>
+          <div class="heat-cell h-5" data-tip="Payments Core: 41% — CRITICAL">41%</div>
+          <div class="heat-cell h-5" data-tip="Reporting: 44% — CRITICAL">44%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gap table -->
+    <div class="section-head">
+      <div>
+        <div class="section-head-title">Critical Gaps — Immediate Action Required</div>
+        <div class="section-head-sub">Areas with &lt;60% coverage or missing test cases</div>
+      </div>
+      <span class="badge badge-red">8 Critical Gaps</span>
+    </div>
+
+    <div class="card gap-table-card mb-6">
+      <div class="tbl-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Component / Module</th>
+              <th>LOB</th>
+              <th>Epic</th>
+              <th>Coverage</th>
+              <th>Missing TCs</th>
+              <th>Gap Type</th>
+              <th>Risk</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-main">Payment Core Processing</td>
+              <td><span style="color:var(--lob-pay);font-weight:600">Payments</span></td>
+              <td class="td-mono">PAY-EPX-04</td>
+              <td>
+                <div class="progress-wrap">
+                  <div class="progress-bar" style="min-width:60px"><div class="progress-fill" style="width:41%;background:var(--red)"></div></div>
+                  <div class="progress-pct">41%</div>
+                </div>
+              </td>
+              <td style="font-weight:700;color:var(--red)">37 TCs</td>
+              <td><span class="badge badge-red">No Coverage</span></td>
+              <td><span class="badge badge-red">Critical</span></td>
+              <td><button class="btn btn-primary btn-xs">Create TCs</button></td>
+            </tr>
+            <tr>
+              <td class="td-main">API Gateway Load Handling</td>
+              <td><span style="color:var(--lob-dt);font-weight:600">Digital Tech</span></td>
+              <td class="td-mono">DT-EPX-01</td>
+              <td>
+                <div class="progress-wrap">
+                  <div class="progress-bar" style="min-width:60px"><div class="progress-fill" style="width:54%;background:var(--red)"></div></div>
+                  <div class="progress-pct">54%</div>
+                </div>
+              </td>
+              <td style="font-weight:700;color:var(--red)">21 TCs</td>
+              <td><span class="badge badge-amber">Partial</span></td>
+              <td><span class="badge badge-red">Critical</span></td>
+              <td><button class="btn btn-primary btn-xs">Create TCs</button></td>
+            </tr>
+            <tr>
+              <td class="td-main">Payments Reporting Module</td>
+              <td><span style="color:var(--lob-pay);font-weight:600">Payments</span></td>
+              <td class="td-mono">PAY-EPX-07</td>
+              <td>
+                <div class="progress-wrap">
+                  <div class="progress-bar" style="min-width:60px"><div class="progress-fill" style="width:44%;background:var(--red)"></div></div>
+                  <div class="progress-pct">44%</div>
+                </div>
+              </td>
+              <td style="font-weight:700;color:var(--amber)">18 TCs</td>
+              <td><span class="badge badge-amber">Stale Tests</span></td>
+              <td><span class="badge badge-amber">High</span></td>
+              <td><button class="btn btn-secondary btn-xs">Review</button></td>
+            </tr>
+            <tr>
+              <td class="td-main">DB Layer — Payments Txn</td>
+              <td><span style="color:var(--lob-pay);font-weight:600">Payments</span></td>
+              <td class="td-mono">PAY-EPX-03</td>
+              <td>
+                <div class="progress-wrap">
+                  <div class="progress-bar" style="min-width:60px"><div class="progress-fill" style="width:55%;background:var(--amber)"></div></div>
+                  <div class="progress-pct">55%</div>
+                </div>
+              </td>
+              <td style="font-weight:700;color:var(--amber)">14 TCs</td>
+              <td><span class="badge badge-blue">Not Executed</span></td>
+              <td><span class="badge badge-amber">High</span></td>
+              <td><button class="btn btn-secondary btn-xs">Schedule</button></td>
+            </tr>
+            <tr>
+              <td class="td-main">Messaging Layer — DT</td>
+              <td><span style="color:var(--lob-dt);font-weight:600">Digital Tech</span></td>
+              <td class="td-mono">DT-EPX-04</td>
+              <td>
+                <div class="progress-wrap">
+                  <div class="progress-bar" style="min-width:60px"><div class="progress-fill" style="width:67%;background:var(--amber)"></div></div>
+                  <div class="progress-pct">67%</div>
+                </div>
+              </td>
+              <td style="font-weight:700;color:var(--c-text3)">9 TCs</td>
+              <td><span class="badge badge-amber">Partial</span></td>
+              <td><span class="badge badge-blue">Medium</span></td>
+              <td><button class="btn btn-secondary btn-xs">Review</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Coverage charts row -->
+    <div class="three-col mb-6">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Coverage by LOB</div></div>
+        <div class="card-body"><div class="chart-wrap-sm"><canvas id="chart-gap-lob"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Gap Type Distribution</div></div>
+        <div class="card-body"><div class="chart-wrap-sm"><canvas id="chart-gap-type"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Coverage Trend (8 weeks)</div></div>
+        <div class="card-body"><div class="chart-wrap-sm"><canvas id="chart-gap-trend"></canvas></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+  PAGE 4 — PRODUCTION ISSUES
+══════════════════════════════════════════ -->
+<div class="page" id="page-production">
+  <div class="page-hdr">
+    <div>
+      <div class="breadcrumb">CQE Platform <span class="breadcrumb-sep">›</span> <span>Production Issues</span></div>
+      <div class="page-title">Production Issues</div>
+      <div class="page-subtitle">Live incident tracking correlated with NFT test failures · 6 active incidents</div>
+    </div>
+    <div class="page-hdr-actions">
+      <button class="btn btn-secondary btn-sm">📊 RCA Report</button>
+      <button class="btn btn-danger">🚨 Raise P1</button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" placeholder="Search incidents, Jira IDs, components...">
+    </div>
+    <div class="filter-chip-wrap">
+      <button class="fchip active">All</button>
+      <button class="fchip">Critical</button>
+      <button class="fchip">High</button>
+      <button class="fchip">Resolved</button>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <span style="font-size:12px;color:var(--c-text3)">Last refreshed: 2 min ago</span>
+      <button class="btn btn-secondary btn-sm">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div class="content-pad">
+    <!-- Stat strip -->
+    <div class="pi-stats-strip anim-1">
+      <div class="pi-stat">
+        <div class="pi-stat-icon">🔥</div>
+        <div class="pi-stat-val" style="color:var(--red)">6</div>
+        <div class="pi-stat-label">Active Incidents</div>
+      </div>
+      <div class="pi-stat">
+        <div class="pi-stat-icon">🚨</div>
+        <div class="pi-stat-val" style="color:var(--red)">3</div>
+        <div class="pi-stat-label">P1 Critical</div>
+      </div>
+      <div class="pi-stat">
+        <div class="pi-stat-icon">⏱</div>
+        <div class="pi-stat-val" style="color:var(--amber)">4.2h</div>
+        <div class="pi-stat-label">Avg MTTR</div>
+      </div>
+      <div class="pi-stat">
+        <div class="pi-stat-icon">🔗</div>
+        <div class="pi-stat-val" style="color:var(--blue)">4</div>
+        <div class="pi-stat-label">Linked to NFT Gaps</div>
+      </div>
+      <div class="pi-stat">
+        <div class="pi-stat-icon">✅</div>
+        <div class="pi-stat-val" style="color:var(--green)">18</div>
+        <div class="pi-stat-label">Resolved This Month</div>
+      </div>
+    </div>
+
+    <div class="col-7-5 anim-2 mb-6">
+      <!-- Incidents list -->
+      <div>
+        <div class="section-head">
+          <div class="section-head-title">Active Incidents</div>
+          <span class="badge badge-red">6 Open</span>
+        </div>
+
+        <div class="incident-card critical">
+          <div>
+            <div class="inc-id">INC-PAY-2841 · Jira: PAY-2841</div>
+            <div class="inc-title">Payment timeout under 5k concurrent users</div>
+            <div class="inc-meta">
+              <div class="inc-meta-item">🏢 Payments</div>
+              <div class="inc-meta-item">📍 Payment Gateway v3.2</div>
+              <div class="inc-meta-item">⏱ Open 18h</div>
+              <div class="inc-meta-item">🔗 NFT Linked: <span style="color:var(--blue)">TC-PAY-0441</span></div>
+            </div>
+          </div>
+          <div class="inc-actions">
+            <span class="badge badge-red">P1 · Critical</span>
+            <button class="btn btn-secondary btn-xs">View →</button>
+          </div>
+        </div>
+
+        <div class="incident-card critical">
+          <div>
+            <div class="inc-id">INC-PAY-2838 · Jira: PAY-2838</div>
+            <div class="inc-title">Duplicate transaction on network retry</div>
+            <div class="inc-meta">
+              <div class="inc-meta-item">🏢 Payments</div>
+              <div class="inc-meta-item">📍 Payment Gateway v3.2</div>
+              <div class="inc-meta-item">⏱ Open 31h</div>
+              <div class="inc-meta-item">🔗 NFT Gap: <span style="color:var(--red)">Not covered</span></div>
+            </div>
+          </div>
+          <div class="inc-actions">
+            <span class="badge badge-red">P1 · Critical</span>
+            <button class="btn btn-secondary btn-xs">View →</button>
+          </div>
+        </div>
+
+        <div class="incident-card critical">
+          <div>
+            <div class="inc-id">INC-PAY-2821 · Jira: PAY-2821</div>
+            <div class="inc-title">3DS authentication failing for Rupay cards</div>
+            <div class="inc-meta">
+              <div class="inc-meta-item">🏢 Payments</div>
+              <div class="inc-meta-item">📍 Auth Service</div>
+              <div class="inc-meta-item">⏱ Open 5h</div>
+              <div class="inc-meta-item">🔗 NFT Linked: <span style="color:var(--blue)">TC-PAY-0312</span></div>
+            </div>
+          </div>
+          <div class="inc-actions">
+            <span class="badge badge-red">P1 · Critical</span>
+            <button class="btn btn-secondary btn-xs">View →</button>
+          </div>
+        </div>
+
+        <div class="incident-card high">
+          <div>
+            <div class="inc-id">INC-DT-1192 · Jira: DT-1192</div>
+            <div class="inc-title">API latency spike observed at 80% load threshold</div>
+            <div class="inc-meta">
+              <div class="inc-meta-item">🏢 Digital Technology</div>
+              <div class="inc-meta-item">📍 API Gateway</div>
+              <div class="inc-meta-item">⏱ Open 22h</div>
+              <div class="inc-meta-item">🔗 NFT Linked: <span style="color:var(--blue)">TC-DT-0198</span></div>
+            </div>
+          </div>
+          <div class="inc-actions">
+            <span class="badge badge-amber">P2 · High</span>
+            <button class="btn btn-secondary btn-xs">View →</button>
+          </div>
+        </div>
+
+        <div class="incident-card high">
+          <div>
+            <div class="inc-id">INC-DT-1187 · Jira: DT-1187</div>
+            <div class="inc-title">Token refresh race condition under concurrent sessions</div>
+            <div class="inc-meta">
+              <div class="inc-meta-item">🏢 Digital Technology</div>
+              <div class="inc-meta-item">📍 Auth Service</div>
+              <div class="inc-meta-item">⏱ Open 14h</div>
+              <div class="inc-meta-item">🔗 NFT Gap: <span style="color:var(--amber)">Partial coverage</span></div>
+            </div>
+          </div>
+          <div class="inc-actions">
+            <span class="badge badge-amber">P2 · High</span>
+            <button class="btn btn-secondary btn-xs">View →</button>
+          </div>
+        </div>
+
+        <div class="incident-card resolved">
+          <div>
+            <div class="inc-id">INC-AI-441 · Jira: AI-441 · ✅ Resolved</div>
+            <div class="inc-title">ML inference P99 exceeded 2s threshold</div>
+            <div class="inc-meta">
+              <div class="inc-meta-item">🏢 AI & Operations</div>
+              <div class="inc-meta-item">📍 ML Pipeline</div>
+              <div class="inc-meta-item">⏱ Resolved in 3.1h</div>
+            </div>
+          </div>
+          <div class="inc-actions">
+            <span class="badge badge-green">Resolved</span>
+            <button class="btn btn-secondary btn-xs">RCA →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: trend + summary -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Incident Trend</div><div class="card-sub">P1+P2 last 8 weeks</div></div>
+          <div class="card-body"><div class="chart-wrap-md"><canvas id="chart-inc-trend"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">NFT → Prod Correlation</div><div class="card-sub">Issues linked to test gaps</div></div>
+          <div class="card-body">
+            <div style="font-size:13px;color:var(--c-text2);line-height:1.7;margin-bottom:12px">
+              <strong style="color:var(--red)">4 of 6 active incidents</strong> were preceded by failing or uncovered Zephyr test cases — highlighting direct NFT → Production correlation.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+                <span>Linked to failing TCs</span><span class="badge badge-red">2 incidents</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+                <span>Linked to test gaps</span><span class="badge badge-amber">2 incidents</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+                <span>No TC coverage</span><span class="badge badge-red">1 incident</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+                <span>Unrelated to NFT</span><span class="badge badge-grey">1 incident</span>
+              </div>
+            </div>
+            <div class="h-divider"></div>
+            <div class="chart-wrap-sm"><canvas id="chart-nft-corr"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ══════════════════════════════════════════
+     ADD RELEASE MODAL
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🚀 Add New Release</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Release Name *</label>
+          <input class="form-control" placeholder="e.g. Payment Gateway v3.3" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Line of Business *</label>
+          <select class="form-control">
+            <option value="">Select LOB...</option>
+            <option>Digital Technology</option>
+            <option>AI & Operations</option>
+            <option>Payments</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Release Version *</label>
+          <input class="form-control" placeholder="e.g. v1.0.0" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">NFT Start Date *</label>
+          <input class="form-control" type="date" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Target Release Date *</label>
+          <input class="form-control" type="date" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Environment *</label>
+          <select class="form-control">
+            <option value="">Select environment...</option>
+            <option>PERF-1</option>
+            <option>PERF-2</option>
+            <option>STAGING</option>
+            <option>PERF-3</option>
+            <option>DR-ENV</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jira Epic / Project Key *</label>
+          <input class="form-control" placeholder="e.g. PAY-EPX-08" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Zephyr Test Cycle</label>
+          <input class="form-control" placeholder="e.g. ZCY-2026-Q2-PAY" />
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Applications Impacted</label>
+          <div class="form-hint" style="margin-bottom:8px">Select all applications included in this release scope</div>
+          <div class="app-selector">
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">API Gateway</div>
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">Auth Service</div>
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">Payment Core</div>
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">User Management</div>
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">Notification Svc</div>
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">Config Service</div>
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">ML Pipeline</div>
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">Settlement Engine</div>
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">Audit Logger</div>
+            <div class="app-sel-chip" onclick="this.classList.toggle('selected')">Reporting Service</div>
+          </div>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Release Notes / Scope</label>
+          <textarea class="form-control" rows="3" placeholder="Brief description of what's included in this release..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Release Manager</label>
+          <input class="form-control" placeholder="Name or email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Risk Level</label>
+          <select class="form-control">
+            <option>Low</option>
+            <option selected>Medium</option>
+            <option>High</option>
+            <option>Critical</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary">Create Release</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════ -->
+<script>
+// ─ Module & Sidebar switching
+function switchModule(mod) {
+  document.querySelectorAll('.tn-module').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('[id^="sb-"]').forEach(s => s.style.display = 'none');
+
+  const btnMap = { dashboard: 0, releases: 1, gaps: 2, production: 3 };
+  document.querySelectorAll('.tn-module')[btnMap[mod]].classList.add('active');
+  document.getElementById('page-' + mod).classList.add('active');
+  document.getElementById('sb-' + mod).style.display = '';
+
+  // Init charts for newly visible pages
+  setTimeout(() => {
+    if (mod === 'dashboard') initDashboardCharts();
+    if (mod === 'gaps') initGapCharts();
+    if (mod === 'production') initProdCharts();
+  }, 80);
+}
+
+// ─ Role switcher
+const roles = {
+  md:   { label: 'Director', sub: 'Read-only', bg: 'linear-gradient(135deg,#7c3aed,#2563eb)', init: 'MD' },
+  lead: { label: 'Team Lead', sub: 'Can edit', bg: 'linear-gradient(135deg,#059669,#34d399)', init: 'TL' },
+  eng:  { label: 'Perf. Engineer', sub: 'Test results', bg: 'linear-gradient(135deg,#d97706,#fbbf24)', init: 'PE' }
+};
+function setRole(r) {
+  const d = roles[r];
+  document.getElementById('roleName').textContent = d.label;
+  document.getElementById('roleTag').textContent = d.sub;
+  document.getElementById('roleAvatar').textContent = d.init;
+  document.getElementById('roleAvatar').style.background = d.bg;
+  document.querySelectorAll('.role-option').forEach(o => o.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  toggleRoleDropdown();
+}
+function toggleRoleDropdown() {
+  document.getElementById('roleDropdown').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.tn-role-pill') && !e.target.closest('.role-dropdown')) {
+    document.getElementById('roleDropdown').classList.remove('open');
+  }
+});
+
+// ─ Modal
+function openModal() {
+  document.getElementById('addModal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('addModal').classList.remove('open');
+}
+document.getElementById('addModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('addModal')) closeModal();
+});
+
+// ─ Release expand
+function toggleRelease(header) {
+  const body = header.nextElementSibling;
+  const btn = header.querySelector('.ri-expand-btn');
+  body.classList.toggle('open');
+  btn.textContent = body.classList.contains('open') ? '▴' : '▾';
+}
+
+// ─ Filter chips (toggle)
+document.querySelectorAll('.fchip').forEach(chip => {
+  chip.addEventListener('click', function() {
+    this.closest('.filter-chip-wrap')?.querySelectorAll('.fchip').forEach(c => c.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// ─ Chart helpers
+const C = Chart;
+const chartDefs = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  animation: { duration: 600, easing: 'easeInOutQuart' }
+};
+function mkChart(id, config) {
+  const el = document.getElementById(id);
+  if (!el || el._c) return;
+  el._c = new C(el, config);
+}
+
+const weeks = ['W6','W7','W8','W9','W10','W11','W12','W13'];
+const gridColor = '#f1f5f9';
+const tickColor = '#94a3b8';
+const axisOpts = {
+  x: { ticks: { color: tickColor, font: { size: 10, family: 'Plus Jakarta Sans' } }, grid: { display: false } },
+  y: { ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor } }
+};
+
+function initDashboardCharts() {
+  mkChart('chart-defect-trend', {
+    type: 'bar', data: {
+      labels: weeks,
+      datasets: [
+        { label: 'Opened', data: [12,15,18,14,16,13,18,17], backgroundColor: '#fecaca', borderRadius: 4 },
+        { label: 'Closed', data: [8,10,12,13,11,14,12,11], backgroundColor: '#bbf7d0', borderRadius: 4 }
+      ]
+    },
+    options: { ...chartDefs, plugins: { legend: { display: true, labels: { color: tickColor, font: { size: 11 }, boxWidth: 10 } } }, scales: axisOpts }
+  });
+  mkChart('chart-exec-donut', {
+    type: 'doughnut', data: {
+      labels: ['Pass', 'Fail', 'Not Run'],
+      datasets: [{ data: [708, 140, 238], backgroundColor: ['#bbf7d0','#fecaca','#e2e8f0'], borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: { ...chartDefs, cutout: '68%', plugins: { legend: { display: true, position: 'right', labels: { color: tickColor, font: { size: 11 }, boxWidth: 10, padding: 10 } } } }
+  });
+  mkChart('chart-req-bar', {
+    type: 'bar', data: {
+      labels: ['Digital Tech', 'AI & Ops', 'Payments'],
+      datasets: [
+        { label: 'Covered', data: [78, 91, 82], backgroundColor: ['#bfdbfe','#ddd6fe','#bbf7d0'], borderRadius: 5 },
+        { label: 'Target', data: [100,100,100], backgroundColor: '#f1f5f9', borderRadius: 5 }
+      ]
+    },
+    options: { ...chartDefs, plugins: { legend: { display: true, labels: { color: tickColor, font: { size: 11 }, boxWidth: 10 } } }, scales: { ...axisOpts, y: { ...axisOpts.y, max: 110 } } }
+  });
+  mkChart('chart-sev-donut', {
+    type: 'doughnut', data: {
+      labels: ['Critical','High','Medium','Low'],
+      datasets: [{ data: [6,22,20,8], backgroundColor: ['#fecaca','#fde68a','#bfdbfe','#d1fae5'], borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: { ...chartDefs, cutout: '68%', plugins: { legend: { display: true, position: 'right', labels: { color: tickColor, font: { size: 11 }, boxWidth: 10, padding: 10 } } } }
+  });
+}
+
+function initGapCharts() {
+  mkChart('chart-gap-lob', {
+    type: 'bar', data: {
+      labels: ['Digital Tech', 'AI & Ops', 'Payments'],
+      datasets: [{ label: 'Avg Coverage %', data: [70, 82, 60], backgroundColor: ['#bfdbfe','#ddd6fe','#bbf7d0'], borderRadius: 6 }]
+    },
+    options: { ...chartDefs, scales: { ...axisOpts, y: { ...axisOpts.y, max: 100 } }, plugins: { legend: { display: false } } }
+  });
+  mkChart('chart-gap-type', {
+    type: 'doughnut', data: {
+      labels: ['No Coverage','Partial','Not Executed','Stale'],
+      datasets: [{ data: [8,15,31,12], backgroundColor: ['#fecaca','#fde68a','#bfdbfe','#e2e8f0'], borderWidth: 0, hoverOffset: 3 }]
+    },
+    options: { ...chartDefs, cutout: '62%', plugins: { legend: { display: true, position: 'right', labels: { color: tickColor, font: { size: 10 }, boxWidth: 9, padding: 8 } } } }
+  });
+  mkChart('chart-gap-trend', {
+    type: 'line', data: {
+      labels: weeks,
+      datasets: [{
+        label: 'Avg Coverage', data: [54,57,60,62,65,67,68,70],
+        borderColor: '#2563eb', backgroundColor: '#dbeafe55',
+        tension: 0.4, fill: true, pointRadius: 3, borderWidth: 2
+      }]
+    },
+    options: { ...chartDefs, scales: { ...axisOpts, y: { ...axisOpts.y, min: 50, max: 100 } }, plugins: { legend: { display: false } } }
+  });
+}
+
+function initProdCharts() {
+  mkChart('chart-inc-trend', {
+    type: 'bar', data: {
+      labels: weeks,
+      datasets: [
+        { label: 'P1', data: [1,2,1,3,2,1,2,3], backgroundColor: '#fecaca', borderRadius: 4 },
+        { label: 'P2', data: [3,2,4,2,3,2,3,3], backgroundColor: '#fde68a', borderRadius: 4 }
+      ]
+    },
+    options: { ...chartDefs, plugins: { legend: { display: true, labels: { color: tickColor, font: { size: 11 }, boxWidth: 10 } } }, scales: axisOpts }
+  });
+  mkChart('chart-nft-corr', {
+    type: 'doughnut', data: {
+      labels: ['Linked to failing TCs','Test gap','No coverage','Unrelated'],
+      datasets: [{ data: [2,2,1,1], backgroundColor: ['#fecaca','#fde68a','#f87171','#e2e8f0'], borderWidth: 0, hoverOffset: 3 }]
+    },
+    options: { ...chartDefs, cutout: '60%', plugins: { legend: { display: true, position: 'bottom', labels: { color: tickColor, font: { size: 10 }, boxWidth: 9, padding: 8 } } } }
+  });
+}
+
+// Init on load
+window.addEventListener('load', () => {
+  initDashboardCharts();
+  // Live clock
+  setInterval(() => {
+    const now = new Date();
+    const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  }, 30000);
+});
+</script>
+</body>
+</html>
