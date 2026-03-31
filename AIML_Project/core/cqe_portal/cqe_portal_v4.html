@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CQE Intelligence Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --sb:#0f1623; --sb2:#151d2e; --sbb:rgba(255,255,255,.06); --sbt:#7a8fa8; --sbh:#c4d4e8; --sba:rgba(59,130,246,.13); --sbac:#60a5fa;
+  --sbw:56px; /* collapsed */ --sbw-open:220px; --tbh:52px;
+  --bg:#eef1f8; --surf:#fff; --bdr:#e1e7f0; --bdr2:#f0f3f9;
+  --t1:#111827; --t2:#374151; --t3:#6b7280; --t4:#9ca3af;
+  --sh:0 1px 3px rgba(0,0,0,.05),0 4px 14px rgba(0,0,0,.04);
+  --shm:0 4px 20px rgba(0,0,0,.09),0 1px 4px rgba(0,0,0,.04);
+  --shl:0 8px 32px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.05);
+  --blue:#2563eb; --blue-d:#1d4ed8; --blue-lt:#dbeafe;
+  --grn:#059669; --grn-lt:#d1fae5; --grn-d:#047857;
+  --amb:#d97706; --amb-lt:#fef3c7; --amb-d:#b45309;
+  --red:#dc2626; --red-d:#b91c1c; --red-lt:#fee2e2;
+  --pur:#7c3aed; --pur-lt:#ede9fe;
+  --ldt:#2563eb; --lai:#7c3aed; --lpay:#059669;
+  /* health */
+  --hc-bg:#fff1f2; --hc-bdr:#fecdd3; --hc-txt:#be123c;
+  --hr-bg:#fffbeb; --hr-bdr:#fde68a; --hr-txt:#b45309;
+  --ho-bg:#f0fdf4; --ho-bdr:#bbf7d0; --ho-txt:#15803d;
+  --hu-bg:#f8fafc; --hu-bdr:#e2e8f0; --hu-txt:#64748b;
+  /* swimlane */
+  --lane-h:52px;
+  --r:10px; --rl:14px; --rx:18px;
+  --f:'Plus Jakarta Sans',sans-serif; --fm:'JetBrains Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--f);background:var(--bg);color:var(--t1);display:flex;height:100vh;overflow:hidden}
+
+/* ════ ICON SIDEBAR ════ */
+.icon-sb{width:var(--sbw);flex-shrink:0;background:var(--sb);border-right:1px solid var(--sbb);display:flex;flex-direction:column;align-items:center;padding:0;z-index:300;transition:width .2s ease}
+.icon-sb:hover,.icon-sb.open{width:var(--sbw-open)}
+.isb-logo{width:100%;padding:14px 0;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--sbb);gap:0;overflow:hidden;min-height:52px}
+.isb-logo-icon{width:28px;height:28px;background:linear-gradient(135deg,#3b82f6,#60a5fa);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;box-shadow:0 0 12px rgba(59,130,246,.35)}
+.isb-logo-text{font-size:12.5px;font-weight:800;color:#e8eef8;letter-spacing:-.3px;opacity:0;width:0;overflow:hidden;transition:all .2s;white-space:nowrap;margin-left:0}
+.icon-sb:hover .isb-logo-text,.icon-sb.open .isb-logo-text{opacity:1;width:120px;margin-left:9px}
+.isb-nav{flex:1;width:100%;padding:10px 0;overflow-y:auto;overflow-x:hidden}
+.isb-item{display:flex;align-items:center;width:100%;padding:9px 0;cursor:pointer;transition:all .15s;border-left:2px solid transparent;position:relative;overflow:hidden;gap:0}
+.isb-item:hover{background:rgba(255,255,255,.04);border-left-color:rgba(255,255,255,.1)}
+.isb-item.active{background:var(--sba);border-left-color:var(--sbac)}
+.isb-icon{width:var(--sbw);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.isb-label{font-size:12.5px;font-weight:600;color:var(--sbt);white-space:nowrap;opacity:0;width:0;transition:all .2s;overflow:hidden}
+.icon-sb:hover .isb-label,.icon-sb.open .isb-label{opacity:1;width:140px}
+.isb-item.active .isb-label{color:var(--sbac)}
+.isb-item:hover .isb-label{color:var(--sbh)}
+.isb-badge{position:absolute;top:7px;right:6px;background:var(--red);color:#fff;font-size:9px;font-weight:800;border-radius:4px;padding:1px 4px;opacity:0;transition:opacity .2s}
+.icon-sb:hover .isb-badge,.icon-sb.open .isb-badge{opacity:1}
+.isb-div{height:1px;background:var(--sbb);margin:6px 12px}
+.isb-lob-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin:0 calc((var(--sbw) - 7px)/2)}
+.icon-sb:hover .isb-lob-dot,.icon-sb.open .isb-lob-dot{margin:0 0 0 calc((var(--sbw) - 7px)/2)}
+.isb-footer{padding:12px 0;border-top:1px solid var(--sbb);width:100%;display:flex;flex-direction:column;align-items:center;gap:8px}
+.isb-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;cursor:pointer;transition:all .15s}
+.isb-avatar:hover{transform:scale(1.08)}
+
+/* ════ BODY ════ */
+.app-body{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* ════ TOP NAV ════ */
+.topnav{height:var(--tbh);background:var(--sb);border-bottom:1px solid var(--sbb);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;z-index:200}
+.tn-bc{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sbt)}
+.tn-bc span{color:var(--sbh);font-weight:600}
+.tn-bc-sep{color:var(--sbb);font-size:10px}
+.tn-title{font-size:14px;font-weight:800;color:#e8eef8;letter-spacing:-.3px;margin-right:4px}
+.tn-mid{flex:1;display:flex;align-items:center;gap:8px}
+.tn-view-tabs{display:flex;gap:2px;background:rgba(255,255,255,.05);border:1px solid var(--sbb);border-radius:8px;padding:3px}
+.tvt{padding:5px 13px;border-radius:6px;font-size:12px;font-weight:600;color:var(--sbt);cursor:pointer;transition:all .15s;border:none;background:none;font-family:var(--f)}
+.tvt:hover{color:var(--sbh)}
+.tvt.active{background:rgba(59,130,246,.18);color:#93c5fd;border:1px solid rgba(59,130,246,.25)}
+.tn-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.tn-live{display:flex;align-items:center;gap:5px;font-size:10.5px;font-family:var(--fm);color:var(--sbt);background:rgba(255,255,255,.04);border:1px solid var(--sbb);padding:4px 10px;border-radius:6px}
+.ldot{width:5px;height:5px;border-radius:50%;background:#22c55e;box-shadow:0 0 5px rgba(34,197,94,.6);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.tn-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:var(--f);transition:all .15s}
+.tbp{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+.tbp:hover{background:var(--blue-d);transform:translateY(-1px)}
+.tbs{background:rgba(255,255,255,.06);color:var(--sbh);border:1px solid var(--sbb)}
+.tbs:hover{background:rgba(255,255,255,.1);color:#fff}
+
+/* ════ CONTENT ════ */
+.content{flex:1;overflow-y:auto;overflow-x:hidden}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.1);border-radius:2px}
+
+/* ════ SUMMARY STRIP ════ */
+.summary-strip{background:var(--sb);border-bottom:1px solid var(--sbb);padding:0 20px;display:flex;align-items:stretch;gap:0;flex-shrink:0}
+.ss-item{display:flex;align-items:center;gap:10px;padding:10px 18px;border-right:1px solid var(--sbb);cursor:default}
+.ss-item:last-child{border-right:none;margin-left:auto}
+.ss-icon{font-size:16px}
+.ss-val{font-size:18px;font-weight:800;line-height:1;letter-spacing:-.5px}
+.ss-label{font-size:10px;color:var(--sbt);font-weight:500;margin-top:1px}
+
+/* ════ SWIMLANE CONTAINER ════ */
+.swimlanes-wrap{padding:18px 20px 24px}
+
+/* LOB Header / Lane */
+.lane{margin-bottom:20px}
+.lane-header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rl) var(--rl) 0 0;border-bottom:none;position:relative;cursor:pointer;user-select:none}
+.lane-header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.lane.dt .lane-header::after{background:linear-gradient(90deg,var(--ldt),#60a5fa)}
+.lane.ai .lane-header::after{background:linear-gradient(90deg,var(--lai),#a78bfa)}
+.lane.pay .lane-header::after{background:linear-gradient(90deg,var(--lpay),#34d399)}
+.lane-icon{font-size:16px}
+.lane-lob-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.lane-lob-name{font-size:14px;font-weight:800;color:var(--t1)}
+.lane-lob-sub{font-size:11px;color:var(--t3);font-weight:500}
+.lane-stats{display:flex;align-items:center;gap:16px;margin-left:auto}
+.ls-stat{text-align:center}
+.ls-val{font-size:15px;font-weight:800;line-height:1;letter-spacing:-.3px}
+.ls-lbl{font-size:9.5px;color:var(--t3);font-weight:500;margin-top:1px}
+.lane-release-count{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--t3);background:var(--bg);border:1px solid var(--bdr);border-radius:20px;padding:3px 11px}
+.lrc-dot{width:5px;height:5px;border-radius:50%}
+.lane-toggle{margin-left:8px;font-size:13px;color:var(--t4);transition:transform .2s}
+.lane-toggle.open{transform:rotate(180deg)}
+
+/* Scrollable release row */
+.lane-track{background:var(--surf);border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--rl) var(--rl);overflow:hidden}
+.lane-scroll{display:flex;gap:0;overflow-x:auto;padding:14px 16px;gap:12px;scroll-snap-type:x mandatory}
+.lane-scroll::-webkit-scrollbar{height:3px}
+.lane-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.08);border-radius:2px}
+
+/* ════ RELEASE CARD ════ */
+.rc{flex-shrink:0;width:280px;scroll-snap-align:start;border-radius:var(--r);border:1px solid var(--bdr);background:var(--bg);overflow:hidden;transition:all .2s;cursor:pointer;position:relative}
+.rc:hover{box-shadow:var(--shm);transform:translateY(-2px)}
+
+/* Health color bar top */
+.rc-bar{height:3px;width:100%}
+.rc.critical .rc-bar{background:linear-gradient(90deg,var(--red),#f87171)}
+.rc.atrisk .rc-bar{background:linear-gradient(90deg,var(--amb),#fbbf24)}
+.rc.ontrack .rc-bar{background:linear-gradient(90deg,var(--grn),#34d399)}
+.rc.upcoming .rc-bar{background:linear-gradient(90deg,#94a3b8,#cbd5e1)}
+
+/* Health accent on left edge */
+.rc-inner{border-left:3px solid}
+.rc.critical .rc-inner{border-left-color:var(--red)}
+.rc.atrisk .rc-inner{border-left-color:var(--amb)}
+.rc.ontrack .rc-inner{border-left-color:var(--grn)}
+.rc.upcoming .rc-inner{border-left-color:#94a3b8}
+
+.rc-head{padding:11px 13px 9px;border-bottom:1px solid var(--bdr)}
+.rc-top-row{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px}
+.rc-name{font-size:13px;font-weight:800;color:var(--t1);line-height:1.3;flex:1}
+.rc-health{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0}
+.rc.critical .rc-health{background:var(--hc-bg);color:var(--hc-txt);border:1px solid var(--hc-bdr)}
+.rc.atrisk .rc-health{background:var(--hr-bg);color:var(--hr-txt);border:1px solid var(--hr-bdr)}
+.rc.ontrack .rc-health{background:var(--ho-bg);color:var(--ho-txt);border:1px solid var(--ho-bdr)}
+.rc.upcoming .rc-health{background:var(--hu-bg);color:var(--hu-txt);border:1px solid var(--hu-bdr)}
+
+.rc-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.rc-env{font-size:10px;font-family:var(--fm);font-weight:600;color:var(--t3);background:var(--surf);border:1px solid var(--bdr);border-radius:4px;padding:1px 6px}
+.rc-date{font-size:10px;font-family:var(--fm);color:var(--t4)}
+.rc-apps{font-size:10px;color:var(--t4);display:flex;align-items:center;gap:3px}
+
+/* Stats row */
+.rc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 13px;gap:0;border-bottom:1px solid var(--bdr)}
+.rc-stat{text-align:center;position:relative}
+.rc-stat:not(:last-child)::after{content:'';position:absolute;right:0;top:10%;bottom:10%;width:1px;background:var(--bdr)}
+.rc-stat-val{font-size:17px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.rc-stat-lbl{font-size:9.5px;color:var(--t4);margin-top:2px;font-weight:500}
+
+/* Progress bar */
+.rc-prog{padding:9px 13px;border-bottom:1px solid var(--bdr)}
+.rc-prog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.rc-prog-label{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.4px}
+.rc-prog-pct{font-size:11px;font-family:var(--fm);font-weight:700}
+.rc-prog-track{height:5px;background:var(--bdr);border-radius:3px;overflow:hidden}
+.rc-prog-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.rc.critical .rc-prog-fill{background:var(--red)}
+.rc.atrisk .rc-prog-fill{background:var(--amb)}
+.rc.ontrack .rc-prog-fill{background:var(--grn)}
+.rc.upcoming .rc-prog-fill{background:#94a3b8}
+
+/* AI insight 1-liner */
+.rc-ai{padding:8px 13px 11px;display:flex;align-items:flex-start;gap:6px;cursor:pointer}
+.rc-ai-spark{font-size:11px;flex-shrink:0;margin-top:1px;opacity:.7}
+.rc-ai-text{font-size:11px;line-height:1.4;flex:1}
+.rc.critical .rc-ai-text{color:#9f1239}
+.rc.atrisk .rc-ai-text{color:#92400e}
+.rc.ontrack .rc-ai-text{color:#065f46}
+.rc.upcoming .rc-ai-text{color:var(--t3)}
+.rc-ai strong{font-weight:700}
+.rc-ai-expand{font-size:9.5px;color:var(--t4);display:block;margin-top:3px;font-weight:600}
+
+/* RC expanded drawer */
+.rc-drawer{display:none;border-top:1px solid var(--bdr);padding:12px 13px;background:var(--surf);font-size:11.5px;color:var(--t2);line-height:1.5}
+.rc-drawer.open{display:block;animation:slideDown .18s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.rc-drawer-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.rcd-fact{background:var(--bg);border-radius:6px;padding:7px 9px;border:1px solid var(--bdr)}
+.rcd-lbl{font-size:9px;color:var(--t4);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:1px}
+.rcd-val{font-size:13px;font-weight:800;color:var(--t1)}
+.rc-steps{display:flex;flex-direction:column;gap:5px}
+.rc-step{display:flex;align-items:flex-start;gap:6px;font-size:11px;color:var(--t2)}
+.rc-step-n{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:800;color:#fff;flex-shrink:0;margin-top:1px}
+.rc.critical .rc-step-n{background:var(--red)}
+.rc.atrisk .rc-step-n{background:var(--amb)}
+.rc.ontrack .rc-step-n{background:var(--grn)}
+.rc-action-btn{display:inline-flex;align-items:center;gap:4px;margin-top:9px;font-size:11px;font-weight:700;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;font-family:var(--f);width:100%;justify-content:center;transition:all .15s}
+.rc.critical .rc-action-btn{background:var(--red);color:#fff}
+.rc.atrisk .rc-action-btn{background:var(--amb);color:#fff}
+.rc.ontrack .rc-action-btn{background:var(--grn);color:#fff}
+.rc.upcoming .rc-action-btn{background:var(--bdr);color:var(--t2)}
+.rc-action-btn:hover{opacity:.88;transform:translateY(-1px)}
+
+/* Add release placeholder card */
+.rc-add{flex-shrink:0;width:200px;border-radius:var(--r);border:2px dashed var(--bdr);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all .15s;padding:20px;min-height:160px}
+.rc-add:hover{border-color:var(--blue);background:var(--blue-lt)}
+.rc-add-icon{font-size:22px;color:var(--t4)}
+.rc-add:hover .rc-add-icon{color:var(--blue)}
+.rc-add-text{font-size:12px;font-weight:600;color:var(--t4);text-align:center}
+.rc-add:hover .rc-add-text{color:var(--blue)}
+
+/* ════ HEALTH LEGEND BAR ════ */
+.health-bar{background:var(--surf);border-bottom:1px solid var(--bdr);padding:8px 20px;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.hb-title{font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-right:4px}
+.hb-item{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--t2)}
+.hb-dot{width:8px;height:8px;border-radius:50%}
+.hb-sep{width:1px;height:14px;background:var(--bdr);margin:0 2px}
+.hb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.sort-label{font-size:11px;color:var(--t3);font-weight:500}
+.sort-val{font-size:11.5px;font-weight:700;color:var(--blue)}
+
+/* ════ COMPACT STATS BAR AT TOP ════ */
+.global-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--bdr);border-bottom:1px solid var(--bdr);flex-shrink:0}
+.gs-item{background:var(--surf);padding:10px 16px;display:flex;flex-direction:column}
+.gs-val{font-size:20px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.gs-lbl{font-size:10px;color:var(--t4);font-weight:500;margin-top:2px}
+.gs-delta{font-size:10.5px;font-weight:600;margin-top:3px}
+
+/* ════ MODAL ════ */
+.overlay{position:fixed;inset:0;background:rgba(10,16,30,.55);backdrop-filter:blur(4px);z-index:500;display:none;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rx);box-shadow:0 20px 60px rgba(0,0,0,.18);width:580px;max-height:82vh;overflow-y:auto;animation:mIn .2s ease}
+@keyframes mIn{from{opacity:0;transform:translateY(-10px) scale(.98)}to{opacity:1;transform:none}}
+.mhdr{padding:16px 20px 13px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.mtitle{font-size:15px;font-weight:800}
+.mx{background:none;border:none;font-size:16px;color:var(--t3);cursor:pointer;padding:3px 7px;border-radius:5px}
+.mx:hover{background:var(--bg);color:var(--t1)}
+.mbody{padding:20px}
+.mfoot{padding:12px 20px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:7px;background:#fafbfe}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.full{grid-column:1/-1}
+.flbl{font-size:11.5px;font-weight:700;color:var(--t2)}
+.finp{padding:7px 10px;border-radius:7px;border:1px solid var(--bdr);background:var(--surf);font-size:12.5px;font-family:var(--f);color:var(--t1);outline:none;transition:border-color .15s;width:100%}
+.finp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.07)}
+.acs{display:flex;flex-wrap:wrap;gap:5px;margin-top:3px}
+.ac{padding:3px 10px;border-radius:5px;font-size:11.5px;font-weight:600;border:1px solid var(--bdr);background:var(--bg);color:var(--t2);cursor:pointer;transition:all .12s}
+.ac:hover{border-color:var(--blue);color:var(--blue)}
+.ac.on{background:var(--blue-lt);border-color:#bfdbfe;color:#1e40af}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:7px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;font-family:var(--f);transition:all .15s}
+.bp{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.2)}.bp:hover{background:var(--blue-d)}
+.bs{background:var(--surf);color:var(--t2);border:1px solid var(--bdr)}.bs:hover{background:var(--bg)}
+
+/* ════ TOOLTIP on rc-health status badge hover ════ */
+.rc-health[data-tip]{position:relative;cursor:help}
+.rc-health[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 5px);right:0;background:#1a2236;color:#e8edf5;font-size:10.5px;font-family:var(--f);padding:5px 9px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:99;font-weight:500}
+.rc-health[data-tip]:hover::after{opacity:1}
+
+/* ════ ANIMATIONS ════ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.a1{animation:fadeUp .35s .04s ease both}
+.a2{animation:fadeUp .35s .10s ease both}
+.a3{animation:fadeUp .35s .16s ease both}
+.a4{animation:fadeUp .35s .22s ease both}
+
+/* ════ PAGE SHELL ════ */
+.page{display:none;flex-direction:column;height:100%}
+.page.active{display:flex}
+</style>
+</head>
+<body>
+
+<!-- ════ ICON SIDEBAR ════ -->
+<aside class="icon-sb" id="iconSb">
+  <div class="isb-logo">
+    <div class="isb-logo-icon">⬡</div>
+    <div class="isb-logo-text">CQE Intelligence</div>
+  </div>
+  <nav class="isb-nav">
+    <div class="isb-item active" onclick="goTo('dashboard',this)">
+      <div class="isb-icon">⬡</div>
+      <span class="isb-label">Dashboard</span>
+    </div>
+    <div class="isb-item" onclick="goTo('releases',this)">
+      <div class="isb-icon">🚀</div>
+      <span class="isb-label">Release Tracker</span>
+    </div>
+    <div class="isb-item" onclick="goTo('gaps',this)">
+      <div class="isb-icon">🔍</div>
+      <span class="isb-label">Testing Gaps</span>
+    </div>
+    <div class="isb-item" onclick="goTo('prod',this)">
+      <div class="isb-icon">🔥</div>
+      <span class="isb-label">Production Issues</span>
+      <span class="isb-badge">6</span>
+    </div>
+    <div class="isb-div"></div>
+    <div class="isb-item" onclick="goTo('cicd',this)">
+      <div class="isb-icon">⚙️</div>
+      <span class="isb-label">CI/CD Tracking</span>
+    </div>
+    <div class="isb-item" onclick="goTo('analysis',this)">
+      <div class="isb-icon">📊</div>
+      <span class="isb-label">Result Analysis</span>
+    </div>
+    <div class="isb-div"></div>
+    <div style="padding:6px 0 3px;width:100%">
+      <div style="font-size:8.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#2e4060;text-align:center;overflow:hidden;opacity:0;transition:opacity .2s" class="sb-sec-lbl">LOBs</div>
+    </div>
+    <div class="isb-item" onclick="filterLOB('dt',this)" style="gap:0">
+      <div class="isb-lob-dot" style="background:var(--ldt)"></div>
+      <span class="isb-label">Digital Technology</span>
+    </div>
+    <div class="isb-item" onclick="filterLOB('ai',this)" style="gap:0">
+      <div class="isb-lob-dot" style="background:var(--lai)"></div>
+      <span class="isb-label">AI & Operations</span>
+    </div>
+    <div class="isb-item" onclick="filterLOB('pay',this)" style="gap:0">
+      <div class="isb-lob-dot" style="background:var(--lpay)"></div>
+      <span class="isb-label">Payments</span>
+    </div>
+  </nav>
+  <div class="isb-footer">
+    <div class="isb-avatar" style="background:linear-gradient(135deg,#7c3aed,#2563eb)" onclick="cycleRole()" title="Switch role">MD</div>
+  </div>
+</aside>
+
+<!-- ════ MAIN BODY ════ -->
+<div class="app-body">
+
+<!-- ════ PAGE: DASHBOARD ════ -->
+<div class="page active" id="page-dashboard">
+
+  <!-- Top Nav -->
+  <div class="topnav">
+    <div class="tn-bc">CQE Platform <span class="tn-bc-sep">›</span> <span>Executive Dashboard</span></div>
+    <div class="tn-mid">
+      <div class="tn-view-tabs">
+        <button class="tvt active" onclick="setView('swimlane',this)">Swimlane</button>
+        <button class="tvt" onclick="setView('timeline',this)">Timeline</button>
+        <button class="tvt" onclick="setView('table',this)">Table</button>
+      </div>
+    </div>
+    <div class="tn-right">
+      <div class="tn-live"><div class="ldot"></div>Live · Jira + Zephyr · <span id="clockDisplay" style="margin-left:2px">—</span></div>
+      <button class="tn-btn tbs">⬇ Export</button>
+      <button class="tn-btn tbs">📧 Report</button>
+      <button class="tn-btn tbp" onclick="openModal()">＋ Add Release</button>
+    </div>
+  </div>
+
+  <!-- Global Stats Bar -->
+  <div class="global-stats a1">
+    <div class="gs-item">
+      <div class="gs-val" style="color:var(--blue)">14</div>
+      <div class="gs-lbl">Active Releases</div>
+      <div class="gs-delta" style="color:var(--grn)">↑ 3 new this Q</div>
+    </div>
+    <div class="gs-item">
+      <div class="gs-val" style="color:var(--red)">4</div>
+      <div class="gs-lbl">Critical / At Risk</div>
+      <div class="gs-delta" style="color:var(--red)">▲ Needs action</div>
+    </div>
+    <div class="gs-item">
+      <div class="gs-val" style="color:var(--grn)">83%</div>
+      <div class="gs-lbl">Avg Pass Rate</div>
+      <div class="gs-delta" style="color:var(--grn)">↑ 6% vs last sprint</div>
+    </div>
+    <div class="gs-item">
+      <div class="gs-val" style="color:var(--red)">56</div>
+      <div class="gs-lbl">Open Defects</div>
+      <div class="gs-delta" style="color:var(--red)">6 Critical P1</div>
+    </div>
+    <div class="gs-item">
+      <div class="gs-val" style="color:var(--amb)">64%</div>
+      <div class="gs-lbl">Avg Capacity</div>
+      <div class="gs-delta" style="color:var(--amb)">↓ Below 80% gate</div>
+    </div>
+    <div class="gs-item">
+      <div class="gs-val" style="color:var(--blue)">3</div>
+      <div class="gs-lbl">Pending Sign-offs</div>
+      <div class="gs-delta" style="color:var(--blue)">UAT decisions needed</div>
+    </div>
+  </div>
+
+  <!-- Health Legend + Sort -->
+  <div class="health-bar a1">
+    <span class="hb-title">Health Key</span>
+    <div class="hb-item"><div class="hb-dot" style="background:var(--red)"></div>Critical</div>
+    <div class="hb-item"><div class="hb-dot" style="background:var(--amb)"></div>At Risk</div>
+    <div class="hb-item"><div class="hb-dot" style="background:var(--grn)"></div>On Track</div>
+    <div class="hb-item"><div class="hb-dot" style="background:#94a3b8"></div>Upcoming</div>
+    <div class="hb-sep"></div>
+    <div class="hb-item" style="font-size:11px;color:var(--t3)">✦ = AI flagged action</div>
+    <div class="hb-right">
+      <span class="sort-label">Sorted by:</span>
+      <span class="sort-val">Health Status (Critical first)</span>
+      <div class="hb-sep"></div>
+      <button onclick="openModal()" style="background:none;border:none;font-size:11.5px;font-weight:700;color:var(--blue);cursor:pointer;font-family:var(--f)">＋ Add Release</button>
+    </div>
+  </div>
+
+  <!-- Swimlanes -->
+  <div class="content">
+    <div class="swimlanes-wrap">
+
+      <!-- ══ LANE: DIGITAL TECHNOLOGY ══ -->
+      <div class="lane dt a2" id="lane-dt">
+        <div class="lane-header" onclick="toggleLane('dt')">
+          <div class="lane-lob-dot" style="background:var(--ldt)"></div>
+          <div>
+            <div class="lane-lob-name">Digital Technology</div>
+            <div class="lane-lob-sub">4 active releases · PERF-1, PERF-2, STAGING</div>
+          </div>
+          <div class="lane-stats">
+            <div class="ls-stat"><div class="ls-val" style="color:var(--red)">1</div><div class="ls-lbl">Critical</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--amb)">1</div><div class="ls-lbl">At Risk</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--grn)">2</div><div class="ls-lbl">On Track</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--blue)">26</div><div class="ls-lbl">Open Defects</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--grn)">86%</div><div class="ls-lbl">Avg Pass</div></div>
+          </div>
+          <div class="lane-release-count">
+            <div class="lrc-dot" style="background:var(--ldt)"></div>
+            4 Releases
+          </div>
+          <div class="lane-toggle open" id="toggle-dt">▾</div>
+        </div>
+        <div class="lane-track" id="track-dt">
+          <div class="lane-scroll">
+
+            <!-- RC 1: CRITICAL -->
+            <div class="rc critical" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">API Modernisation v4.1</div>
+                    <div class="rc-health" data-tip="3 P1 defects · 61% TC execution">✕ Critical</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">PERF-1</span>
+                    <span class="rc-date">📅 15 Jun 2026</span>
+                    <span class="rc-apps">🔧 6 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--amb)">83%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--red)">18</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--red)">3</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--red)">61%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:61%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>Release slips 12 days</strong> without P1 resolution by Apr 1.</div>
+                    <span class="rc-ai-expand">Tap for 3-step action plan ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-drawer-grid">
+                    <div class="rcd-fact"><div class="rcd-lbl">Projected Date</div><div class="rcd-val" style="color:var(--red)">27 Jun 2026</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Decision Window</div><div class="rcd-val" style="color:var(--red)">48h</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">P1 Blockers</div><div class="rcd-val">DT-1187, DT-1192</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">TC Gap</div><div class="rcd-val" style="color:var(--amb)">46 uncovered</div></div>
+                  </div>
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Convene P1 war-room today — assign 3 engineers to DT-1192 (currently 1).</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>Reassign 2 testers from AI&Ops (completed) to cover 46 untested TCs in DT-EPX-01.</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>If P1s unresolved by Apr 3 → formally notify stakeholders of June 27 revised date.</div>
+                  </div>
+                  <button class="rc-action-btn">🚨 Escalate to Engineering Lead</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RC 2: AT RISK -->
+            <div class="rc atrisk" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">Auth & Identity v2.3</div>
+                    <div class="rc-health" data-tip="Capacity tested at 58% — below 80% gate">⚠ At Risk</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">PERF-2</span>
+                    <span class="rc-date">📅 30 Jun 2026</span>
+                    <span class="rc-apps">🔧 3 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">89%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--amb)">9</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--amb)">0</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--amb)">74%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:74%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>Capacity at 58%</strong> — below gate. Month-end load will exceed tested limits.</div>
+                    <span class="rc-ai-expand">Tap for action plan ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-drawer-grid">
+                    <div class="rcd-fact"><div class="rcd-lbl">Capacity Tested</div><div class="rcd-val" style="color:var(--amb)">58%</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Gate Threshold</div><div class="rcd-val">≥80%</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Env Slot Available</div><div class="rcd-val" style="color:var(--grn)">PERF-2 Apr 8</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Est. Re-run Time</div><div class="rcd-val">2 days</div></div>
+                  </div>
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Book PERF-2 Apr 8–9 for capacity re-run targeting 85k VU.</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>Do not proceed to UAT until capacity gate ≥80% confirmed.</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>TC execution can continue in parallel — target 90% by Apr 12.</div>
+                  </div>
+                  <button class="rc-action-btn">⚡ Schedule Capacity Re-run</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RC 3: ON TRACK -->
+            <div class="rc ontrack" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">Notification Service v1.8</div>
+                    <div class="rc-health">✓ On Track</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">STAGING</span>
+                    <span class="rc-date">📅 15 May 2026</span>
+                    <span class="rc-apps">🔧 2 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">94%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">3</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">0</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--grn)">92%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:92%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>UAT sign-off conditions met.</strong> All P1/P2 defects resolved. Ready.</div>
+                    <span class="rc-ai-expand">Tap for next steps ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-drawer-grid">
+                    <div class="rcd-fact"><div class="rcd-lbl">Gate Status</div><div class="rcd-val" style="color:var(--grn)">✓ Passed</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Remaining Risk</div><div class="rcd-val">Low</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Open Defects</div><div class="rcd-val" style="color:var(--grn)">3 (P3 only)</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Deploy Window</div><div class="rcd-val">May 13–14</div></div>
+                  </div>
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Issue UAT entry approval to business today.</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>Schedule production deploy for May 13 (low traffic window confirmed).</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>Release STAGING slot from May 1 — DT team can reuse for Auth v2.3.</div>
+                  </div>
+                  <button class="rc-action-btn">✅ Approve UAT Sign-off</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RC 4: ON TRACK -->
+            <div class="rc ontrack" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">Config Service v3.0</div>
+                    <div class="rc-health">✓ On Track</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">PERF-2</span>
+                    <span class="rc-date">📅 20 May 2026</span>
+                    <span class="rc-apps">🔧 2 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">91%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">4</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">0</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--grn)">88%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:88%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>On schedule.</strong> Minor: 4 P3 defects open — no release blockers.</div>
+                    <span class="rc-ai-expand">Tap for details ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Clear remaining 12% TCs in next sprint — all in low-risk config read paths.</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>P3 defects can ship — schedule fix for v3.1 maintenance release.</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>No escalation required. Proceed to release as planned May 20.</div>
+                  </div>
+                  <button class="rc-action-btn">📋 No Action — Proceed as Planned</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Add release card -->
+            <div class="rc-add" onclick="openModal()">
+              <div class="rc-add-icon">＋</div>
+              <div class="rc-add-text">Add Release<br>to Digital Tech</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ LANE: AI & OPERATIONS ══ -->
+      <div class="lane ai a3" id="lane-ai">
+        <div class="lane-header" onclick="toggleLane('ai')">
+          <div class="lane-lob-dot" style="background:var(--lai)"></div>
+          <div>
+            <div class="lane-lob-name">AI & Operations</div>
+            <div class="lane-lob-sub">3 active releases · PERF-2, STAGING, PERF-3</div>
+          </div>
+          <div class="lane-stats">
+            <div class="ls-stat"><div class="ls-val" style="color:var(--red)">0</div><div class="ls-lbl">Critical</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--amb)">1</div><div class="ls-lbl">At Risk</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--grn)">2</div><div class="ls-lbl">On Track</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--grn)">9</div><div class="ls-lbl">Open Defects</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--grn)">91%</div><div class="ls-lbl">Avg Pass</div></div>
+          </div>
+          <div class="lane-release-count">
+            <div class="lrc-dot" style="background:var(--lai)"></div>
+            3 Releases
+          </div>
+          <div class="lane-toggle open" id="toggle-ai">▾</div>
+        </div>
+        <div class="lane-track" id="track-ai">
+          <div class="lane-scroll">
+
+            <!-- RC: AT RISK -->
+            <div class="rc atrisk" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">ML Feature Store v1.2</div>
+                    <div class="rc-health" data-tip="Messaging layer at 71% coverage — gap">⚠ At Risk</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">PERF-3</span>
+                    <span class="rc-date">📅 10 Jul 2026</span>
+                    <span class="rc-apps">🔧 4 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--amb)">85%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--amb)">11</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">0</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--amb)">70%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:70%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>Kafka consumer gap</strong> uncovered. Medium risk — seen in 2 recent incidents.</div>
+                    <span class="rc-ai-expand">Tap for action plan ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Add 5 Kafka consumer lag TCs to W14 sprint — assign to AI team lead.</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>85% pass rate is borderline — 2 additional P2 fixes needed before UAT entry.</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>July 10 date is safe if above completed by Apr 20.</div>
+                  </div>
+                  <button class="rc-action-btn">⚠ Assign Kafka TCs to W14</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RC: ON TRACK -->
+            <div class="rc ontrack" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">ML Pipeline v2.1</div>
+                    <div class="rc-health">✓ On Track</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">PERF-2</span>
+                    <span class="rc-date">📅 30 May 2026</span>
+                    <span class="rc-apps">🔧 3 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">93%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">7</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">0</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--grn)">89%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:89%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>UAT-ready today.</strong> All gates passed. Approve sign-off and deploy May 28–30.</div>
+                    <span class="rc-ai-expand">Tap to confirm steps ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Send UAT approval to business stakeholders and BAU team today.</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>Schedule production deployment: May 28–30 (confirmed low-traffic window).</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>Release PERF-2 from May 1 — available for DT Auth re-run.</div>
+                  </div>
+                  <button class="rc-action-btn">✅ Approve UAT & Schedule Deploy</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RC: ON TRACK -->
+            <div class="rc ontrack" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">Ops Automation v4.0</div>
+                    <div class="rc-health">✓ On Track</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">STAGING</span>
+                    <span class="rc-date">📅 25 Jun 2026</span>
+                    <span class="rc-apps">🔧 5 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">90%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">6</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">0</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--grn)">82%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:82%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>Healthy progress.</strong> Remaining 18% TCs are low-risk regression — no blockers.</div>
+                    <span class="rc-ai-expand">Tap for details ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Complete remaining 18% regression TCs in W14 — assign to 1 engineer (est. 3 days).</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>No changes needed — proceed to UAT on schedule June 10.</div>
+                  </div>
+                  <button class="rc-action-btn">📋 Continue as Planned</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="rc-add" onclick="openModal()">
+              <div class="rc-add-icon">＋</div>
+              <div class="rc-add-text">Add Release<br>to AI & Operations</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ LANE: PAYMENTS ══ -->
+      <div class="lane pay a4" id="lane-pay">
+        <div class="lane-header" onclick="toggleLane('pay')">
+          <div class="lane-lob-dot" style="background:var(--lpay)"></div>
+          <div>
+            <div class="lane-lob-name">Payments</div>
+            <div class="lane-lob-sub">5 active releases · STAGING, PERF-1, PERF-3</div>
+          </div>
+          <div class="lane-stats">
+            <div class="ls-stat"><div class="ls-val" style="color:var(--red)">2</div><div class="ls-lbl">Critical</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--amb)">1</div><div class="ls-lbl">At Risk</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--grn)">1</div><div class="ls-lbl">On Track</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--red)">41</div><div class="ls-lbl">Open Defects</div></div>
+            <div class="ls-stat"><div class="ls-val" style="color:var(--amb)">77%</div><div class="ls-lbl">Avg Pass</div></div>
+          </div>
+          <div class="lane-release-count">
+            <div class="lrc-dot" style="background:var(--lpay)"></div>
+            5 Releases
+          </div>
+          <div class="lane-toggle open" id="toggle-pay">▾</div>
+        </div>
+        <div class="lane-track" id="track-pay">
+          <div class="lane-scroll">
+
+            <!-- RC: CRITICAL -->
+            <div class="rc critical" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">Payment Gateway v3.2</div>
+                    <div class="rc-health" data-tip="3 P1 defects open · Release date at risk">✕ Critical</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">STAGING</span>
+                    <span class="rc-date">📅 10 Jun 2026</span>
+                    <span class="rc-apps">🔧 5 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--amb)">76%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--red)">31</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--red)">3</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--red)">71%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:71%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>Jun 10 not achievable.</strong> Defer Rupay 3DS to v3.3 to restore feasibility.</div>
+                    <span class="rc-ai-expand">Tap for 3-step rescue plan ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-drawer-grid">
+                    <div class="rcd-fact"><div class="rcd-lbl">Original Date</div><div class="rcd-val">10 Jun 2026</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Projected Date</div><div class="rcd-val" style="color:var(--red)">24 Jun 2026</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Deferral Option</div><div class="rcd-val" style="color:var(--grn)">PAY-2821 → v3.3</div></div>
+                    <div class="rcd-fact"><div class="rcd-lbl">Decision By</div><div class="rcd-val" style="color:var(--red)">Apr 1 EOD</div></div>
+                  </div>
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div><strong>Today:</strong> P1 war-room — PAY-2838 (dup txn) needs 3 engineers, currently has 1.</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>Get business sign-off to defer Rupay 3DS (PAY-2821) to v3.3 — impacts 2% of transactions.</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>If deferral approved + PAY-2838 closed by Apr 5 → June 10 is recoverable.</div>
+                  </div>
+                  <button class="rc-action-btn">🚨 Invoke Release Risk Protocol</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RC: CRITICAL -->
+            <div class="rc critical" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">Settlement Engine v2.0</div>
+                    <div class="rc-health" data-tip="DB layer at 55% coverage · blocking UAT">✕ Critical</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">PERF-1</span>
+                    <span class="rc-date">📅 20 Jun 2026</span>
+                    <span class="rc-apps">🔧 4 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--red)">72%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--red)">22</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--red)">2</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--red)">58%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:58%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>DB isolation gap (55%)</strong> is blocking UAT. Transaction rollback untested.</div>
+                    <span class="rc-ai-expand">Tap for action plan ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Create 14 DB isolation TCs immediately — transaction rollback and MVCC conflict scenarios.</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>Block UAT entry until DB coverage reaches ≥75% — enforce in Jira gate.</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>June 20 date at risk — escalate to Payments lead for resource augmentation.</div>
+                  </div>
+                  <button class="rc-action-btn">🚨 Escalate — Block UAT Gate</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RC: AT RISK -->
+            <div class="rc atrisk" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">Reconciliation v1.4</div>
+                    <div class="rc-health" data-tip="Reporting coverage at 44% — compliance risk">⚠ At Risk</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">PERF-3</span>
+                    <span class="rc-date">📅 15 Jul 2026</span>
+                    <span class="rc-apps">🔧 3 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--amb)">81%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--amb)">14</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">0</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--amb)">68%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:68%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>Reporting at 44% coverage</strong> — regulatory compliance risk. Escalate.</div>
+                    <span class="rc-ai-expand">Tap for plan ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Escalate to compliance team — 18 reporting TCs needed before release audit.</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>July 15 date is safe if TCs created and executed by May 20.</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>Assign 1 dedicated tester to reporting module from Payments pool.</div>
+                  </div>
+                  <button class="rc-action-btn">⚠ Escalate to Compliance Team</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RC: ON TRACK -->
+            <div class="rc ontrack" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">UPI Payments v2.1</div>
+                    <div class="rc-health">✓ On Track</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env">PERF-3</span>
+                    <span class="rc-date">📅 10 Aug 2026</span>
+                    <span class="rc-apps">🔧 3 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">88%</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">5</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--grn)">0</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--grn)">85%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:85%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>Healthy — Aug 10 on track.</strong> Capacity tested at 83%, above gate threshold.</div>
+                    <span class="rc-ai-expand">Tap for details ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Continue current pace — complete remaining 15% TCs by May 15.</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>No blockers — proceed to capacity validation phase on schedule.</div>
+                  </div>
+                  <button class="rc-action-btn">📋 Continue as Planned</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- RC: UPCOMING -->
+            <div class="rc upcoming" onclick="toggleRC(this)">
+              <div class="rc-bar"></div>
+              <div class="rc-inner">
+                <div class="rc-head">
+                  <div class="rc-top-row">
+                    <div class="rc-name">FX Trading Module v1.0</div>
+                    <div class="rc-health">◷ Upcoming</div>
+                  </div>
+                  <div class="rc-meta">
+                    <span class="rc-env" style="color:var(--t4);border-style:dashed">TBD</span>
+                    <span class="rc-date">📅 01 Sep 2026</span>
+                    <span class="rc-apps">🔧 6 apps</span>
+                  </div>
+                </div>
+                <div class="rc-stats">
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--t4)">—</div>
+                    <div class="rc-stat-lbl">Pass Rate</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--t4)">—</div>
+                    <div class="rc-stat-lbl">Defects</div>
+                  </div>
+                  <div class="rc-stat">
+                    <div class="rc-stat-val" style="color:var(--t4)">—</div>
+                    <div class="rc-stat-lbl">P1 Open</div>
+                  </div>
+                </div>
+                <div class="rc-prog">
+                  <div class="rc-prog-head">
+                    <span class="rc-prog-label">TC Execution</span>
+                    <span class="rc-prog-pct" style="color:var(--t4)">0%</span>
+                  </div>
+                  <div class="rc-prog-track"><div class="rc-prog-fill" style="width:0%"></div></div>
+                </div>
+                <div class="rc-ai">
+                  <span class="rc-ai-spark">✦</span>
+                  <div>
+                    <div class="rc-ai-text"><strong>Not started.</strong> Requires environment selection and scope sign-off before NFT can begin.</div>
+                    <span class="rc-ai-expand">Tap to set up ▾</span>
+                  </div>
+                </div>
+                <div class="rc-drawer">
+                  <div class="rc-steps">
+                    <div class="rc-step"><div class="rc-step-n">1</div>Assign environment (recommend PERF-1 — available from Jul 1).</div>
+                    <div class="rc-step"><div class="rc-step-n">2</div>Map applications and Jira epics before NFT planning session.</div>
+                    <div class="rc-step"><div class="rc-step-n">3</div>Create Zephyr test cycle — minimum 4 weeks before NFT start date.</div>
+                  </div>
+                  <button class="rc-action-btn" style="background:var(--blue);color:#fff">📋 Configure This Release</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="rc-add" onclick="openModal()">
+              <div class="rc-add-icon">＋</div>
+              <div class="rc-add-text">Add Release<br>to Payments</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div><!-- end page-dashboard -->
+
+<!-- Other pages placeholder -->
+<div class="page" id="page-releases">
+  <div class="topnav"><div class="tn-bc">CQE Platform <span class="tn-bc-sep">›</span> <span>Release Tracker</span></div><div class="tn-right"><button class="tn-btn tbp" onclick="openModal()">＋ Add Release</button></div></div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg)">
+    <div style="text-align:center;color:var(--t3)"><div style="font-size:32px;margin-bottom:12px">🚀</div><div style="font-size:16px;font-weight:700;color:var(--t2)">Release Tracker</div><div style="font-size:13px;margin-top:6px">Full release management view — coming in next iteration</div><button onclick="goTo('dashboard',null)" style="margin-top:16px;background:var(--blue);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;font-family:var(--f);cursor:pointer;font-size:13px">← Back to Dashboard</button></div>
+  </div>
+</div>
+<div class="page" id="page-gaps">
+  <div class="topnav"><div class="tn-bc">CQE Platform <span class="tn-bc-sep">›</span> <span>Testing Gaps</span></div></div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg)">
+    <div style="text-align:center;color:var(--t3)"><div style="font-size:32px;margin-bottom:12px">🔍</div><div style="font-size:16px;font-weight:700;color:var(--t2)">Testing Gaps</div><div style="font-size:13px;margin-top:6px">Coverage heatmap and gap analysis — available in full build</div><button onclick="goTo('dashboard',null)" style="margin-top:16px;background:var(--blue);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;font-family:var(--f);cursor:pointer;font-size:13px">← Back to Dashboard</button></div>
+  </div>
+</div>
+<div class="page" id="page-prod">
+  <div class="topnav"><div class="tn-bc">CQE Platform <span class="tn-bc-sep">›</span> <span>Production Issues</span></div><div class="tn-right"><button class="tn-btn" style="background:var(--red);color:#fff;border:none;">🚨 Raise P1</button></div></div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg)">
+    <div style="text-align:center;color:var(--t3)"><div style="font-size:32px;margin-bottom:12px">🔥</div><div style="font-size:16px;font-weight:700;color:var(--t2)">Production Issues</div><div style="font-size:13px;margin-top:6px">Live incident tracking with AI RCA — available in full build</div><button onclick="goTo('dashboard',null)" style="margin-top:16px;background:var(--blue);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;font-family:var(--f);cursor:pointer;font-size:13px">← Back to Dashboard</button></div>
+  </div>
+</div>
+<div class="page" id="page-cicd">
+  <div class="topnav"><div class="tn-bc">CQE Platform <span class="tn-bc-sep">›</span> <span>CI/CD Tracking</span></div></div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg)">
+    <div style="text-align:center;color:var(--t3)"><div style="font-size:32px;margin-bottom:12px">⚙️</div><div style="font-size:16px;font-weight:700;color:var(--t2)">CI/CD Tracking</div><div style="font-size:13px;margin-top:6px">Pipeline status and deployment tracking — coming soon</div><button onclick="goTo('dashboard',null)" style="margin-top:16px;background:var(--blue);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;font-family:var(--f);cursor:pointer;font-size:13px">← Back to Dashboard</button></div>
+  </div>
+</div>
+<div class="page" id="page-analysis">
+  <div class="topnav"><div class="tn-bc">CQE Platform <span class="tn-bc-sep">›</span> <span>Result Analysis</span></div></div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg)">
+    <div style="text-align:center;color:var(--t3)"><div style="font-size:32px;margin-bottom:12px">📊</div><div style="font-size:16px;font-weight:700;color:var(--t2)">Result Analysis</div><div style="font-size:13px;margin-top:6px">NFT result drill-down and trend analysis — coming soon</div><button onclick="goTo('dashboard',null)" style="margin-top:16px;background:var(--blue);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;font-family:var(--f);cursor:pointer;font-size:13px">← Back to Dashboard</button></div>
+  </div>
+</div>
+
+</div><!-- end app-body -->
+
+<!-- MODAL -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <div class="mhdr"><div class="mtitle">🚀 Add New Release</div><button class="mx" onclick="closeModal()">✕</button></div>
+    <div class="mbody">
+      <div class="fg2">
+        <div class="fg full"><div class="flbl">Release Name *</div><input class="finp" placeholder="e.g. Payment Gateway v3.3"></div>
+        <div class="fg"><div class="flbl">Line of Business *</div><select class="finp"><option value="">Select LOB...</option><option>Digital Technology</option><option>AI & Operations</option><option>Payments</option></select></div>
+        <div class="fg"><div class="flbl">Version *</div><input class="finp" placeholder="e.g. v3.3.0"></div>
+        <div class="fg"><div class="flbl">NFT Start Date *</div><input type="date" class="finp"></div>
+        <div class="fg"><div class="flbl">Target Release Date *</div><input type="date" class="finp"></div>
+        <div class="fg"><div class="flbl">Environment *</div><select class="finp"><option value="">Select...</option><option>PERF-1</option><option>PERF-2</option><option>PERF-3</option><option>STAGING</option></select></div>
+        <div class="fg"><div class="flbl">Jira Epic Key</div><input class="finp" placeholder="e.g. PAY-EPX-08"></div>
+        <div class="fg"><div class="flbl">Zephyr Cycle</div><input class="finp" placeholder="e.g. ZCY-2026-Q2-PAY"></div>
+        <div class="fg full"><div class="flbl">Applications Impacted</div>
+          <div class="acs">
+            <div class="ac" onclick="this.classList.toggle('on')">API Gateway</div>
+            <div class="ac" onclick="this.classList.toggle('on')">Auth Service</div>
+            <div class="ac" onclick="this.classList.toggle('on')">Payment Core</div>
+            <div class="ac" onclick="this.classList.toggle('on')">User Management</div>
+            <div class="ac" onclick="this.classList.toggle('on')">Notification Svc</div>
+            <div class="ac" onclick="this.classList.toggle('on')">Config Service</div>
+            <div class="ac" onclick="this.classList.toggle('on')">ML Pipeline</div>
+            <div class="ac" onclick="this.classList.toggle('on')">Settlement Engine</div>
+            <div class="ac" onclick="this.classList.toggle('on')">Audit Logger</div>
+            <div class="ac" onclick="this.classList.toggle('on')">Reporting Service</div>
+          </div>
+        </div>
+        <div class="fg full"><div class="flbl">Scope Notes</div><textarea class="finp" rows="2" placeholder="Brief description..." style="resize:none"></textarea></div>
+        <div class="fg"><div class="flbl">Release Manager</div><input class="finp" placeholder="Name or email"></div>
+        <div class="fg"><div class="flbl">Risk Level</div><select class="finp"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn bs" onclick="closeModal()">Cancel</button><button class="btn bp">Create Release</button></div>
+  </div>
+</div>
+
+<script>
+// ─ Page nav
+const pages=['dashboard','releases','gaps','prod','cicd','analysis'];
+function goTo(id,el){
+  pages.forEach(p=>{
+    const pg=document.getElementById('page-'+p);
+    if(pg) pg.classList.toggle('active',p===id);
+  });
+  document.querySelectorAll('.isb-item').forEach(i=>i.classList.remove('active'));
+  if(el) el.classList.add('active');
+}
+
+// ─ Lane collapse
+function toggleLane(id){
+  const track=document.getElementById('track-'+id);
+  const toggle=document.getElementById('toggle-'+id);
+  const open=track.style.display==='none';
+  track.style.display=open?'':'none';
+  toggle.classList.toggle('open',open);
+  toggle.style.transform=open?'':'rotate(-90deg)';
+}
+
+// ─ Release card expand
+function toggleRC(card){
+  const drawer=card.querySelector('.rc-drawer');
+  const expBtn=card.querySelector('.rc-ai-expand');
+  if(!drawer)return;
+  const isOpen=drawer.classList.toggle('open');
+  if(expBtn) expBtn.textContent=isOpen?'Tap to collapse ▴':'Tap for plan ▾';
+}
+
+// ─ View tabs
+function setView(v,btn){
+  document.querySelectorAll('.tvt').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // swimlane is the current view — others noted as coming soon
+  if(v!=='swimlane'){
+    btn.classList.remove('active');
+    document.querySelectorAll('.tvt')[0].classList.add('active');
+    const toast=document.createElement('div');
+    toast.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a2236;color:#e8eef8;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+    toast.textContent=(v==='timeline'?'Timeline':'Table')+' view — available in full development build';
+    document.body.appendChild(toast);
+    setTimeout(()=>toast.remove(),2400);
+  }
+}
+
+// ─ LOB filter
+function filterLOB(lob,el){
+  document.querySelectorAll('.isb-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  ['dt','ai','pay'].forEach(id=>{
+    const lane=document.getElementById('lane-'+id);
+    if(lane) lane.style.display=(id===lob||lob==='all')?'block':'none';
+  });
+  // reset after 1s for demo
+  setTimeout(()=>{
+    ['dt','ai','pay'].forEach(id=>{
+      const lane=document.getElementById('lane-'+id);
+      if(lane) lane.style.display='block';
+    });
+  },2000);
+}
+
+// ─ Role cycle
+const rolesList=[
+  {i:'MD',bg:'linear-gradient(135deg,#7c3aed,#2563eb)',tip:'Director — Read Only'},
+  {i:'TL',bg:'linear-gradient(135deg,#059669,#34d399)',tip:'Team Lead — Edit Access'},
+  {i:'PE',bg:'linear-gradient(135deg,#d97706,#fbbf24)',tip:'Perf. Engineer — Test Data'}
+];
+let roleIdx=0;
+function cycleRole(){
+  roleIdx=(roleIdx+1)%rolesList.length;
+  const r=rolesList[roleIdx];
+  const av=document.querySelector('.isb-footer .isb-avatar');
+  av.textContent=r.i; av.style.background=r.bg; av.title=r.tip;
+  const toast=document.createElement('div');
+  toast.style.cssText='position:fixed;bottom:24px;left:80px;background:#1a2236;color:#e8eef8;padding:9px 16px;border-radius:8px;font-size:12.5px;font-weight:600;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+  toast.textContent='Switched to: '+r.tip;
+  document.body.appendChild(toast);
+  setTimeout(()=>toast.remove(),2000);
+}
+
+// ─ Modal
+function openModal(){document.getElementById('modal').classList.add('open')}
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal()});
+
+// ─ Clock
+function updateClock(){
+  const now=new Date();
+  const h=String(now.getHours()).padStart(2,'0');
+  const m=String(now.getMinutes()).padStart(2,'0');
+  const el=document.getElementById('clockDisplay');
+  if(el) el.textContent=h+':'+m+' IST';
+}
+updateClock();
+setInterval(updateClock,30000);
+
+// ─ Sidebar show labels on hover (CSS handles it, JS just enables toggle)
+document.getElementById('iconSb').addEventListener('mouseenter',function(){this.classList.add('open')});
+document.getElementById('iconSb').addEventListener('mouseleave',function(){this.classList.remove('open')});
+</script>
+</body>
+</html>
