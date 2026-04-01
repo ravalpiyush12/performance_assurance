@@ -1,0 +1,814 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); background: transparent; color: var(--color-text-primary); }
+
+  .app-shell { display: flex; flex-direction: column; min-height: 600px; }
+
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-primary);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #185FA5; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500; color: #E6F1FB;
+  }
+  .logo-text { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
+  .logo-sub { font-size: 11px; color: var(--color-text-secondary); }
+  .top-actions { display: flex; gap: 8px; align-items: center; }
+  .badge-connected {
+    font-size: 11px; padding: 3px 10px; border-radius: 20px;
+    background: #EAF3DE; color: #3B6D11; border: 0.5px solid #97C459;
+  }
+  .badge-warn {
+    font-size: 11px; padding: 3px 10px; border-radius: 20px;
+    background: #FAEEDA; color: #854F0B; border: 0.5px solid #EF9F27;
+  }
+
+  .main-layout { display: flex; flex: 1; }
+
+  .sidebar {
+    width: 220px; min-width: 220px;
+    border-right: 0.5px solid var(--color-border-tertiary);
+    padding: 16px 0;
+    background: var(--color-background-secondary);
+  }
+  .sidebar-section { margin-bottom: 20px; }
+  .sidebar-label {
+    font-size: 10px; letter-spacing: 0.08em; color: var(--color-text-tertiary);
+    padding: 0 16px 6px; text-transform: uppercase; font-weight: 500;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; font-size: 13px; cursor: pointer;
+    color: var(--color-text-secondary); border-left: 2px solid transparent;
+    transition: background 0.15s;
+  }
+  .sidebar-item:hover { background: var(--color-background-primary); color: var(--color-text-primary); }
+  .sidebar-item.active {
+    color: #185FA5; border-left-color: #185FA5;
+    background: var(--color-background-primary);
+  }
+  .sidebar-icon { width: 16px; height: 16px; opacity: 0.7; }
+  .sidebar-count {
+    margin-left: auto; font-size: 10px; background: var(--color-background-tertiary);
+    padding: 1px 6px; border-radius: 10px; color: var(--color-text-tertiary);
+  }
+
+  .content { flex: 1; overflow: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .page-title { font-size: 18px; font-weight: 500; }
+  .page-sub { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
+
+  .btn {
+    font-size: 13px; padding: 7px 16px; border-radius: var(--border-radius-md);
+    border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary);
+    color: var(--color-text-primary); cursor: pointer;
+  }
+  .btn-primary {
+    background: #185FA5; color: #E6F1FB; border-color: #185FA5;
+  }
+
+  .doc-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .doc-type-card {
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    padding: 16px; cursor: pointer; background: var(--color-background-primary);
+    transition: border-color 0.15s;
+  }
+  .doc-type-card:hover { border-color: #378ADD; }
+  .doc-type-card.selected { border: 2px solid #378ADD; }
+  .doc-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; margin-bottom: 10px;
+  }
+  .doc-icon-blue { background: #E6F1FB; color: #185FA5; }
+  .doc-icon-teal { background: #E1F5EE; color: #0F6E56; }
+  .doc-type-name { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .doc-type-desc { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+  .doc-sections { margin-top: 10px; padding-top: 10px; border-top: 0.5px solid var(--color-border-tertiary); }
+  .doc-section-tag {
+    display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px;
+    margin: 2px; background: var(--color-background-secondary); color: var(--color-text-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+  }
+
+  .wizard-stepper { display: flex; align-items: center; gap: 0; }
+  .step {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--color-text-tertiary);
+  }
+  .step.active { color: #185FA5; font-weight: 500; }
+  .step.done { color: var(--color-text-secondary); }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%; border: 0.5px solid var(--color-border-secondary);
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+    background: var(--color-background-primary);
+  }
+  .step.active .step-num { background: #185FA5; color: #E6F1FB; border-color: #185FA5; }
+  .step.done .step-num { background: #EAF3DE; color: #3B6D11; border-color: #97C459; }
+  .step-line { width: 24px; height: 0.5px; background: var(--color-border-tertiary); margin: 0 4px; }
+
+  .panel {
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    background: var(--color-background-primary);
+    overflow: hidden;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+  }
+  .panel-title { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .source-badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 500;
+  }
+  .source-jira { background: #E6F1FB; color: #185FA5; border: 0.5px solid #85B7EB; }
+  .source-zephyr { background: #EEEDFE; color: #534AB7; border: 0.5px solid #AFA9EC; }
+  .source-manual { background: var(--color-background-secondary); color: var(--color-text-secondary); border: 0.5px solid var(--color-border-secondary); }
+
+  .panel-body { padding: 14px 16px; }
+
+  .field-row { margin-bottom: 12px; }
+  .field-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; font-weight: 500; }
+  .field-input {
+    width: 100%; font-size: 13px; padding: 7px 10px;
+    border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md);
+    background: var(--color-background-primary); color: var(--color-text-primary);
+  }
+
+  .data-preview-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 0.5px solid var(--color-border-tertiary);
+    font-size: 12px;
+  }
+  .data-preview-row:last-child { border-bottom: none; }
+  .dp-key { color: var(--color-text-secondary); width: 140px; min-width: 140px; }
+  .dp-val { color: var(--color-text-primary); flex: 1; }
+  .dp-tag {
+    font-size: 10px; padding: 1px 7px; border-radius: 8px;
+    background: var(--color-background-info); color: var(--color-text-info);
+  }
+
+  .checklist { display: flex; flex-direction: column; gap: 8px; }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; }
+  .check-box {
+    width: 14px; height: 14px; border-radius: 3px; margin-top: 1px; min-width: 14px;
+    border: 0.5px solid var(--color-border-secondary); background: var(--color-background-secondary);
+  }
+  .check-box.checked { background: #185FA5; border-color: #185FA5; }
+  .check-label { color: var(--color-text-primary); }
+  .check-sub { font-size: 11px; color: var(--color-text-secondary); margin-top: 1px; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .metric-card {
+    background: var(--color-background-secondary); border-radius: var(--border-radius-md);
+    padding: 10px 12px;
+  }
+  .metric-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; }
+  .metric-value { font-size: 20px; font-weight: 500; }
+  .metric-blue { color: #185FA5; }
+  .metric-green { color: #3B6D11; }
+  .metric-amber { color: #854F0B; }
+  .metric-red { color: #A32D2D; }
+
+  .section-tabs { display: flex; gap: 0; border-bottom: 0.5px solid var(--color-border-tertiary); margin-bottom: 14px; }
+  .tab {
+    font-size: 12px; padding: 8px 14px; cursor: pointer;
+    color: var(--color-text-secondary); border-bottom: 2px solid transparent; margin-bottom: -0.5px;
+  }
+  .tab.active { color: #185FA5; border-bottom-color: #185FA5; font-weight: 500; }
+
+  .nft-req-row {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 8px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px;
+  }
+  .nft-req-row:last-child { border-bottom: none; }
+  .req-type {
+    font-size: 10px; padding: 2px 7px; border-radius: 8px; white-space: nowrap;
+  }
+  .req-response { background: #E6F1FB; color: #185FA5; }
+  .req-throughput { background: #E1F5EE; color: #0F6E56; }
+  .req-capacity { background: #FAEEDA; color: #854F0B; }
+  .req-stability { background: #EEEDFE; color: #534AB7; }
+  .req-text { flex: 1; color: var(--color-text-primary); line-height: 1.5; }
+
+  .activity-row {
+    display: flex; gap: 10px; align-items: center;
+    padding: 7px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px;
+  }
+  .activity-row:last-child { border-bottom: none; }
+  .act-status {
+    width: 7px; height: 7px; border-radius: 50%; min-width: 7px;
+  }
+  .act-done { background: #3B6D11; }
+  .act-progress { background: #185FA5; }
+  .act-todo { background: var(--color-text-tertiary); }
+  .act-name { flex: 1; color: var(--color-text-primary); }
+  .act-type { font-size: 10px; color: var(--color-text-secondary); }
+  .act-assignee {
+    font-size: 10px; background: var(--color-background-secondary);
+    padding: 1px 7px; border-radius: 10px; color: var(--color-text-secondary);
+  }
+
+  .test-scenario-row {
+    display: flex; gap: 10px; align-items: center;
+    padding: 7px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px;
+  }
+  .test-scenario-row:last-child { border-bottom: none; }
+  .ts-status {
+    font-size: 10px; padding: 2px 7px; border-radius: 8px; white-space: nowrap;
+  }
+  .ts-pass { background: #EAF3DE; color: #3B6D11; }
+  .ts-fail { background: #FCEBEB; color: #A32D2D; }
+  .ts-wip { background: #E6F1FB; color: #185FA5; }
+  .ts-not-run { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+  .ts-name { flex: 1; color: var(--color-text-primary); }
+  .ts-cap { font-size: 10px; color: var(--color-text-tertiary); }
+
+  .defect-row {
+    display: flex; gap: 10px; align-items: center;
+    padding: 7px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px;
+  }
+  .defect-row:last-child { border-bottom: none; }
+  .sev-badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 8px; white-space: nowrap; font-weight: 500;
+  }
+  .sev-critical { background: #FCEBEB; color: #A32D2D; }
+  .sev-high { background: #FAEEDA; color: #854F0B; }
+  .sev-medium { background: #E6F1FB; color: #185FA5; }
+  .sev-low { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+  .def-key { color: #185FA5; font-weight: 500; min-width: 80px; }
+  .def-name { flex: 1; color: var(--color-text-primary); }
+  .def-status { font-size: 10px; color: var(--color-text-secondary); }
+
+  .preview-doc {
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg);
+    background: var(--color-background-primary);
+    overflow: hidden;
+  }
+  .doc-toolbar {
+    display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+  }
+  .doc-export-btn {
+    font-size: 11px; padding: 4px 12px; border-radius: var(--border-radius-md);
+    border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary);
+    color: var(--color-text-primary); cursor: pointer; margin-left: auto;
+  }
+  .doc-export-btn.primary { background: #185FA5; color: #E6F1FB; border-color: #185FA5; }
+
+  .doc-preview-area { padding: 20px 24px; font-size: 13px; }
+  .doc-heading { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+  .doc-subheading { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin: 14px 0 8px; }
+  .doc-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+  .doc-meta-item { font-size: 12px; }
+  .doc-meta-key { color: var(--color-text-secondary); }
+  .doc-section-block { margin-bottom: 12px; }
+  .doc-section-title {
+    font-size: 11px; font-weight: 500; color: var(--color-text-secondary);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+    padding-bottom: 4px; border-bottom: 0.5px solid var(--color-border-tertiary);
+  }
+  .doc-body-text { font-size: 12px; color: var(--color-text-secondary); line-height: 1.7; }
+
+  .tabs-outer { display: flex; gap: 2px; margin-bottom: 16px; }
+  .tab-outer {
+    font-size: 13px; padding: 8px 16px; border-radius: var(--border-radius-md);
+    cursor: pointer; color: var(--color-text-secondary); background: transparent;
+    border: 0.5px solid transparent;
+  }
+  .tab-outer.active {
+    background: var(--color-background-primary);
+    border-color: var(--color-border-secondary);
+    color: var(--color-text-primary); font-weight: 500;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .info-box {
+    padding: 10px 14px; border-radius: var(--border-radius-md);
+    border: 0.5px solid var(--color-border-tertiary); font-size: 12px;
+    color: var(--color-text-secondary); background: var(--color-background-secondary);
+    line-height: 1.6;
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+</style>
+
+<div class="app-shell">
+  <div class="top-bar">
+    <div class="logo">
+      <div class="logo-mark">PT</div>
+      <div>
+        <div class="logo-text">NFT Document Generator</div>
+        <div class="logo-sub">CQE Performance Engineering</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="badge-connected">Jira connected</span>
+      <span class="badge-connected">Zephyr connected</span>
+      <span class="badge-warn">AppDynamics offline</span>
+    </div>
+  </div>
+
+  <div class="main-layout">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Generate</div>
+        <div class="sidebar-item active" onclick="showView('wizard')">
+          <svg class="sidebar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5h6M5 11h4"/></svg>
+          New document
+        </div>
+        <div class="sidebar-item" onclick="showView('drafts')">
+          <svg class="sidebar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M3 12V4a1 1 0 011-1h5l3 3v5"/><path d="M9 3v3h3"/></svg>
+          Drafts
+          <span class="sidebar-count">3</span>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">History</div>
+        <div class="sidebar-item" onclick="showView('history')">
+          <svg class="sidebar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="8" r="5"/><path d="M8 5v3l2 2"/></svg>
+          Past documents
+          <span class="sidebar-count">12</span>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Settings</div>
+        <div class="sidebar-item" onclick="showView('sources')">
+          <svg class="sidebar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2a6 6 0 100 12A6 6 0 008 2z"/><path d="M8 5v3l2 1"/></svg>
+          Data sources
+        </div>
+        <div class="sidebar-item" onclick="showView('templates')">
+          <svg class="sidebar-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+          Templates
+        </div>
+      </div>
+    </div>
+
+    <div class="content" id="main-content">
+
+      <!-- WIZARD VIEW -->
+      <div class="view active" id="view-wizard">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Generate performance document</div>
+            <div class="page-sub">Pull data from Jira and Zephyr to build a Test Plan or Closure report</div>
+          </div>
+        </div>
+
+        <div id="wizard-step-1">
+          <div style="margin-bottom:14px;">
+            <div class="wizard-stepper">
+              <div class="step active"><div class="step-num">1</div> Document type</div>
+              <div class="step-line"></div>
+              <div class="step"><div class="step-num">2</div> Source config</div>
+              <div class="step-line"></div>
+              <div class="step"><div class="step-num">3</div> Data preview</div>
+              <div class="step-line"></div>
+              <div class="step"><div class="step-num">4</div> Generate</div>
+            </div>
+          </div>
+
+          <div class="doc-type-grid">
+            <div class="doc-type-card selected" id="card-plan" onclick="selectDoc('plan')">
+              <div class="doc-icon doc-icon-blue">📋</div>
+              <div class="doc-type-name">Test Plan</div>
+              <div class="doc-type-desc">Comprehensive NFT strategy document covering scope, approach, tools, schedule and acceptance criteria.</div>
+              <div class="doc-sections">
+                <span class="doc-section-tag">NFR Summary</span>
+                <span class="doc-section-tag">NFT Strategy</span>
+                <span class="doc-section-tag">Test scope</span>
+                <span class="doc-section-tag">Activity plan</span>
+                <span class="doc-section-tag">Test scenarios</span>
+                <span class="doc-section-tag">Entry/Exit criteria</span>
+                <span class="doc-section-tag">Tool config</span>
+              </div>
+            </div>
+            <div class="doc-type-card" id="card-closure" onclick="selectDoc('closure')">
+              <div class="doc-icon doc-icon-teal">✅</div>
+              <div class="doc-type-name">Test Closure Report</div>
+              <div class="doc-type-desc">Post-execution summary with results, defect analysis, NFR traceability, and sign-off recommendation.</div>
+              <div class="doc-sections">
+                <span class="doc-section-tag">Executive summary</span>
+                <span class="doc-section-tag">Test results</span>
+                <span class="doc-section-tag">Defect analysis</span>
+                <span class="doc-section-tag">NFR traceability</span>
+                <span class="doc-section-tag">Activity closure</span>
+                <span class="doc-section-tag">Risks & observations</span>
+                <span class="doc-section-tag">Sign-off</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+            <button class="btn btn-primary" onclick="gotoStep(2)">Continue →</button>
+          </div>
+        </div>
+
+        <div id="wizard-step-2" style="display:none;">
+          <div style="margin-bottom:14px;">
+            <div class="wizard-stepper">
+              <div class="step done"><div class="step-num">✓</div> Document type</div>
+              <div class="step-line"></div>
+              <div class="step active"><div class="step-num">2</div> Source config</div>
+              <div class="step-line"></div>
+              <div class="step"><div class="step-num">3</div> Data preview</div>
+              <div class="step-line"></div>
+              <div class="step"><div class="step-num">4</div> Generate</div>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <span class="source-badge source-jira">JIRA</span> Epic configuration
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="field-row">
+                  <div class="field-label">Jira Epic key</div>
+                  <input class="field-input" value="PERF-1042" />
+                </div>
+                <div class="field-row">
+                  <div class="field-label">Release / Fix version</div>
+                  <input class="field-input" value="24.3.0" />
+                </div>
+                <div class="field-row">
+                  <div class="field-label">Environment filter</div>
+                  <input class="field-input" value="PTE" />
+                </div>
+                <div class="field-row">
+                  <div class="field-label">Pull from epic</div>
+                  <div class="checklist">
+                    <div class="check-item">
+                      <div class="check-box checked"></div>
+                      <div><div class="check-label">NFR description from Epic</div></div>
+                    </div>
+                    <div class="check-item">
+                      <div class="check-box checked"></div>
+                      <div><div class="check-label">NFT Strategy from comments</div></div>
+                    </div>
+                    <div class="check-item">
+                      <div class="check-box checked"></div>
+                      <div><div class="check-label">Linked tasks (test activities)</div></div>
+                    </div>
+                    <div class="check-item">
+                      <div class="check-box checked"></div>
+                      <div><div class="check-label">Defects (PTE, fix version)</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <span class="source-badge source-zephyr">ZEPHYR</span> Test cycle config
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="field-row">
+                  <div class="field-label">Zephyr project key</div>
+                  <input class="field-input" value="NFT" />
+                </div>
+                <div class="field-row">
+                  <div class="field-label">Test cycle / folder</div>
+                  <input class="field-input" value="Release 24.3.0 — Load" />
+                </div>
+                <div class="field-row">
+                  <div class="field-label">Pull from Zephyr</div>
+                  <div class="checklist">
+                    <div class="check-item">
+                      <div class="check-box checked"></div>
+                      <div><div class="check-label">Test cases + scenarios</div></div>
+                    </div>
+                    <div class="check-item">
+                      <div class="check-box checked"></div>
+                      <div><div class="check-label">Execution status per scenario</div></div>
+                    </div>
+                    <div class="check-item">
+                      <div class="check-box checked"></div>
+                      <div><div class="check-label">Capability coverage mapping</div></div>
+                    </div>
+                    <div class="check-item">
+                      <div class="check-box"></div>
+                      <div><div class="check-label">Step-level execution details</div></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="field-label">Test types to include</div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+                    <span class="doc-section-tag" style="cursor:pointer;background:#E6F1FB;color:#185FA5;border-color:#85B7EB;">Load</span>
+                    <span class="doc-section-tag" style="cursor:pointer;background:#E6F1FB;color:#185FA5;border-color:#85B7EB;">Endurance</span>
+                    <span class="doc-section-tag" style="cursor:pointer;">Stress</span>
+                    <span class="doc-section-tag" style="cursor:pointer;">Spike</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;margin-top:14px;">
+            <button class="btn" onclick="gotoStep(1)">← Back</button>
+            <button class="btn btn-primary" onclick="gotoStep(3)">Fetch data →</button>
+          </div>
+        </div>
+
+        <div id="wizard-step-3" style="display:none;">
+          <div style="margin-bottom:14px;">
+            <div class="wizard-stepper">
+              <div class="step done"><div class="step-num">✓</div> Document type</div>
+              <div class="step-line"></div>
+              <div class="step done"><div class="step-num">✓</div> Source config</div>
+              <div class="step-line"></div>
+              <div class="step active"><div class="step-num">3</div> Data preview</div>
+              <div class="step-line"></div>
+              <div class="step"><div class="step-num">4</div> Generate</div>
+            </div>
+          </div>
+
+          <div class="summary-grid" style="margin-bottom:14px;">
+            <div class="metric-card"><div class="metric-label">NFRs pulled</div><div class="metric-value metric-blue">8</div></div>
+            <div class="metric-card"><div class="metric-label">Activities</div><div class="metric-value metric-blue">14</div></div>
+            <div class="metric-card"><div class="metric-label">Test scenarios</div><div class="metric-value metric-blue">23</div></div>
+            <div class="metric-card"><div class="metric-label">Defects (PTE)</div><div class="metric-value metric-amber">6</div></div>
+          </div>
+
+          <div class="section-tabs">
+            <div class="tab active" onclick="switchTab(this,'nfr')">NFRs & Strategy</div>
+            <div class="tab" onclick="switchTab(this,'activities')">Activities</div>
+            <div class="tab" onclick="switchTab(this,'scenarios')">Test scenarios</div>
+            <div class="tab" onclick="switchTab(this,'defects')">Defects</div>
+          </div>
+
+          <div id="tab-nfr">
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title"><span class="source-badge source-jira">JIRA</span> Epic PERF-1042 — Non-functional requirements</div>
+              </div>
+              <div class="panel-body">
+                <div class="nft-req-row">
+                  <span class="req-type req-response">Response time</span>
+                  <div class="req-text">95th percentile response time for Checkout API must be ≤ 2000ms under 500 concurrent users.</div>
+                </div>
+                <div class="nft-req-row">
+                  <span class="req-type req-throughput">Throughput</span>
+                  <div class="req-text">System must sustain 800 TPS on the Order Processing service with less than 0.5% error rate.</div>
+                </div>
+                <div class="nft-req-row">
+                  <span class="req-type req-capacity">Capacity</span>
+                  <div class="req-text">Peak load of 1200 concurrent sessions during campaign periods with graceful degradation above threshold.</div>
+                </div>
+                <div class="nft-req-row">
+                  <span class="req-type req-stability">Stability</span>
+                  <div class="req-text">8-hour endurance test with no memory leaks; heap usage must remain below 75% throughout.</div>
+                </div>
+              </div>
+            </div>
+            <div class="panel" style="margin-top:10px;">
+              <div class="panel-header">
+                <div class="panel-title"><span class="source-badge source-jira">JIRA</span> NFT Strategy — from Epic comments</div>
+              </div>
+              <div class="panel-body">
+                <div class="info-box">Baseline load test with 500 VUs ramping over 10 min, sustain for 30 min. Endurance run at 300 VUs for 8 hours. Stress test stepping up to 1500 VUs to identify break point. All tests to be executed against PTE environment on release branch 24.3.0. Entry criteria: NFT environment provisioned and smoke test passed. Tools: Performance Center 24.1, AppDynamics for APM, Oracle AWR for DB analysis.</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-activities" style="display:none;">
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title"><span class="source-badge source-jira">JIRA</span> Linked tasks to PERF-1042</div>
+              </div>
+              <div class="panel-body">
+                <div class="activity-row"><div class="act-status act-done"></div><div class="act-name">NFT test design — Checkout flow scenarios</div><div class="act-type">Test design</div><div class="act-assignee">A.Kumar</div></div>
+                <div class="activity-row"><div class="act-status act-done"></div><div class="act-name">NFT test design — Order Processing scenarios</div><div class="act-type">Test design</div><div class="act-assignee">P.Sharma</div></div>
+                <div class="activity-row"><div class="act-status act-done"></div><div class="act-name">PC script parameterization and correlation</div><div class="act-type">Streamlining</div><div class="act-assignee">A.Kumar</div></div>
+                <div class="activity-row"><div class="act-status act-progress"></div><div class="act-name">Load test execution — Release 24.3.0</div><div class="act-type">Execution</div><div class="act-assignee">P.Sharma</div></div>
+                <div class="activity-row"><div class="act-status act-progress"></div><div class="act-name">AppDynamics analysis — response time breakdown</div><div class="act-type">Analysis</div><div class="act-assignee">R.Singh</div></div>
+                <div class="activity-row"><div class="act-status act-todo"></div><div class="act-name">Oracle AWR report analysis — load test cycle</div><div class="act-type">Analysis</div><div class="act-assignee">R.Singh</div></div>
+                <div class="activity-row"><div class="act-status act-todo"></div><div class="act-name">Performance test closure report</div><div class="act-type">Reporting</div><div class="act-assignee">A.Kumar</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-scenarios" style="display:none;">
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title"><span class="source-badge source-zephyr">ZEPHYR</span> Test scenarios — Release 24.3.0 Load</div>
+              </div>
+              <div class="panel-body">
+                <div class="test-scenario-row"><span class="ts-status ts-pass">Pass</span><div class="ts-name">Load — Checkout 500 VU ramp + sustain</div><div class="ts-cap">Response time · Throughput</div></div>
+                <div class="test-scenario-row"><span class="ts-status ts-pass">Pass</span><div class="ts-name">Load — Search API 500 VU steady state</div><div class="ts-cap">Throughput · Error rate</div></div>
+                <div class="test-scenario-row"><span class="ts-status ts-fail">Fail</span><div class="ts-name">Load — Order Processing 800 TPS</div><div class="ts-cap">Throughput · Response time</div></div>
+                <div class="test-scenario-row"><span class="ts-status ts-wip">In progress</span><div class="ts-name">Endurance — 300 VU 8-hour run</div><div class="ts-cap">Stability · Memory</div></div>
+                <div class="test-scenario-row"><span class="ts-status ts-not-run">Not run</span><div class="ts-name">Stress — Checkout ramp to 1500 VU</div><div class="ts-cap">Capacity · Break point</div></div>
+                <div class="test-scenario-row"><span class="ts-status ts-not-run">Not run</span><div class="ts-name">Stress — DB connection pool exhaustion</div><div class="ts-cap">Capacity · Stability</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-defects" style="display:none;">
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title"><span class="source-badge source-jira">JIRA</span> Defects — PTE · Fix version 24.3.0</div>
+              </div>
+              <div class="panel-body">
+                <div class="defect-row"><div class="def-key">PERF-1089</div><span class="sev-badge sev-critical">Critical</span><div class="def-name">Order Processing P95 exceeds 5200ms at 600 VU</div><div class="def-status">Open</div></div>
+                <div class="defect-row"><div class="def-key">PERF-1091</div><span class="sev-badge sev-high">High</span><div class="def-name">Thread contention in Payment service under load</div><div class="def-status">In review</div></div>
+                <div class="defect-row"><div class="def-key">PERF-1094</div><span class="sev-badge sev-high">High</span><div class="def-name">DB connection timeout at 700 concurrent users</div><div class="def-status">Open</div></div>
+                <div class="defect-row"><div class="def-key">PERF-1097</div><span class="sev-badge sev-medium">Medium</span><div class="def-name">Heap growth of 15% over 4-hour endurance window</div><div class="def-status">Open</div></div>
+                <div class="defect-row"><div class="def-key">PERF-1098</div><span class="sev-badge sev-medium">Medium</span><div class="def-name">Search API error rate spikes to 1.2% at 450 VU</div><div class="def-status">Fixed</div></div>
+                <div class="defect-row"><div class="def-key">PERF-1101</div><span class="sev-badge sev-low">Low</span><div class="def-name">Slow SQL on ORDER_ITEMS table — missing index</div><div class="def-status">Fixed</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;margin-top:14px;">
+            <button class="btn" onclick="gotoStep(2)">← Back</button>
+            <button class="btn btn-primary" onclick="gotoStep(4)">Generate document →</button>
+          </div>
+        </div>
+
+        <div id="wizard-step-4" style="display:none;">
+          <div style="margin-bottom:14px;">
+            <div class="wizard-stepper">
+              <div class="step done"><div class="step-num">✓</div> Document type</div>
+              <div class="step-line"></div>
+              <div class="step done"><div class="step-num">✓</div> Source config</div>
+              <div class="step-line"></div>
+              <div class="step done"><div class="step-num">✓</div> Data preview</div>
+              <div class="step-line"></div>
+              <div class="step active"><div class="step-num">4</div> Generate</div>
+            </div>
+          </div>
+
+          <div class="preview-doc">
+            <div class="doc-toolbar">
+              <span style="font-size:12px;color:var(--color-text-secondary);">Preview — Test Plan · PERF-1042 · v24.3.0</span>
+              <button class="doc-export-btn">Export DOCX</button>
+              <button class="doc-export-btn">Export PDF</button>
+              <button class="doc-export-btn primary">Save to platform</button>
+            </div>
+            <div class="doc-preview-area">
+              <div class="doc-heading">NFT Test Plan — PERF-1042</div>
+              <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;">Release 24.3.0 · Environment: PTE · Generated: 01 Apr 2026</div>
+
+              <div class="doc-meta-grid">
+                <div class="doc-meta-item"><span class="doc-meta-key">Project: </span>E-Commerce Platform</div>
+                <div class="doc-meta-item"><span class="doc-meta-key">LOB: </span>Checkout & Payments</div>
+                <div class="doc-meta-item"><span class="doc-meta-key">Release: </span>24.3.0</div>
+                <div class="doc-meta-item"><span class="doc-meta-key">Author: </span>CQE Performance Eng.</div>
+              </div>
+
+              <div class="doc-section-block">
+                <div class="doc-section-title">1. Non-functional requirements summary</div>
+                <div class="doc-body-text">8 NFRs identified from PERF-1042 covering response time (P95 ≤ 2000ms at 500 VU), throughput (800 TPS, &lt;0.5% error rate), capacity (1200 peak concurrent sessions) and stability (8h endurance, heap &lt;75%).</div>
+              </div>
+
+              <div class="doc-section-block">
+                <div class="doc-section-title">2. NFT strategy</div>
+                <div class="doc-body-text">Load, Endurance and Stress test types planned. Baseline ramp over 10 minutes, 30-minute sustain. Tools: Performance Center 24.1, AppDynamics, Oracle AWR. Entry criteria: smoke test pass on PTE with 24.3.0 build.</div>
+              </div>
+
+              <div class="doc-section-block">
+                <div class="doc-section-title">3. Activity plan (14 tasks from Jira)</div>
+                <div class="doc-body-text">Tasks categorised: Test Design (2), Streamlining (1), Execution (2), Analysis (2 + 1 pending), Reporting (1). Current completion: 3 done · 2 in progress · 9 pending.</div>
+              </div>
+
+              <div class="doc-section-block">
+                <div class="doc-section-title">4. Test scenarios (Zephyr — 23 scenarios)</div>
+                <div class="doc-body-text">Capabilities covered: Response time, Throughput, Error rate, Stability, Memory, Capacity. Status: 2 Pass · 1 Fail · 1 In progress · 2 Not run (shown above).</div>
+              </div>
+
+              <div class="doc-section-block">
+                <div class="doc-section-title">5. Entry / Exit criteria</div>
+                <div class="doc-body-text">Entry: PTE provisioned, smoke test green, test data ready. Exit: all P0/P1 NFRs met, no Critical/High defects open, closure report signed off.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-start;margin-top:14px;">
+            <button class="btn" onclick="gotoStep(3)">← Back to preview</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOURCES VIEW -->
+      <div class="view" id="view-sources">
+        <div class="page-title" style="margin-bottom:14px;">Data source connections</div>
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title"><span class="source-badge source-jira">JIRA</span> Jira Cloud</div><span class="badge-connected">Connected</span></div>
+            <div class="panel-body">
+              <div class="data-preview-row"><div class="dp-key">Base URL</div><div class="dp-val">https://org.atlassian.net</div></div>
+              <div class="data-preview-row"><div class="dp-key">Auth</div><div class="dp-val">API Token</div></div>
+              <div class="data-preview-row"><div class="dp-key">Epic field pull</div><div class="dp-val">Description + Comments</div></div>
+              <div class="data-preview-row"><div class="dp-key">Task filter</div><div class="dp-val">Linked to Epic, type: Task</div></div>
+              <div class="data-preview-row"><div class="dp-key">Defect filter</div><div class="dp-val">issuetype=Bug, env=PTE</div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title"><span class="source-badge source-zephyr">ZEPHYR</span> Zephyr Scale</div><span class="badge-connected">Connected</span></div>
+            <div class="panel-body">
+              <div class="data-preview-row"><div class="dp-key">Base URL</div><div class="dp-val">https://api.zephyrscale.smartbear.com</div></div>
+              <div class="data-preview-row"><div class="dp-key">Auth</div><div class="dp-val">API Token</div></div>
+              <div class="data-preview-row"><div class="dp-key">Data pull</div><div class="dp-val">Test cases, Executions, Cycles</div></div>
+              <div class="data-preview-row"><div class="dp-key">Status mapping</div><div class="dp-val">Pass / Fail / In progress / Not run</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORY VIEW -->
+      <div class="view" id="view-history">
+        <div class="page-title" style="margin-bottom:14px;">Past documents</div>
+        <div class="panel">
+          <div class="panel-body">
+            <div class="activity-row"><div class="act-status act-done"></div><div class="act-name">Test Closure — PERF-1038 · v24.2.0</div><div class="act-type">Closure</div><div class="act-assignee">15 Mar 2026</div></div>
+            <div class="activity-row"><div class="act-status act-done"></div><div class="act-name">Test Plan — PERF-1038 · v24.2.0</div><div class="act-type">Test Plan</div><div class="act-assignee">28 Feb 2026</div></div>
+            <div class="activity-row"><div class="act-status act-done"></div><div class="act-name">Test Closure — PERF-1021 · v24.1.0</div><div class="act-type">Closure</div><div class="act-assignee">10 Jan 2026</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DRAFTS VIEW -->
+      <div class="view" id="view-drafts">
+        <div class="page-title" style="margin-bottom:14px;">Drafts</div>
+        <div class="panel">
+          <div class="panel-body">
+            <div class="activity-row"><div class="act-status act-progress"></div><div class="act-name">Test Plan — PERF-1042 · v24.3.0</div><div class="act-type">Test Plan</div><div class="act-assignee">In progress</div></div>
+            <div class="activity-row"><div class="act-status act-todo"></div><div class="act-name">Test Closure — PERF-1040 · v24.3.0</div><div class="act-type">Closure</div><div class="act-assignee">Draft</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEMPLATES VIEW -->
+      <div class="view" id="view-templates">
+        <div class="page-title" style="margin-bottom:14px;">Document templates</div>
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Test Plan — standard</div></div>
+            <div class="panel-body">
+              <div class="doc-body-text">Default 7-section template. Sections: NFR summary, NFT strategy, test scope, activity plan, test scenarios, entry/exit criteria, tool configuration.</div>
+              <div style="margin-top:10px;"><span class="doc-section-tag">7 sections</span><span class="doc-section-tag">Jira + Zephyr</span></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Test Closure — standard</div></div>
+            <div class="panel-body">
+              <div class="doc-body-text">Default 7-section template. Sections: executive summary, test results, defect analysis, NFR traceability, activity closure, risks, sign-off.</div>
+              <div style="margin-top:10px;"><span class="doc-section-tag">7 sections</span><span class="doc-section-tag">Jira + Zephyr</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + id).classList.add('active');
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+  }
+
+  function gotoStep(n) {
+    for (let i = 1; i <= 4; i++) {
+      document.getElementById('wizard-step-' + i).style.display = i === n ? 'block' : 'none';
+    }
+  }
+
+  function selectDoc(type) {
+    document.getElementById('card-plan').classList.toggle('selected', type === 'plan');
+    document.getElementById('card-closure').classList.toggle('selected', type === 'closure');
+  }
+
+  function switchTab(el, tab) {
+    document.querySelectorAll('.section-tabs .tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    ['nfr','activities','scenarios','defects'].forEach(t => {
+      const el = document.getElementById('tab-' + t);
+      if (el) el.style.display = t === tab ? 'block' : 'none';
+    });
+  }
+</script>
