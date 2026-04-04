@@ -29,6 +29,7 @@ class Colors:
 class SelfHealingValidator:
     def __init__(self, sample_app_url: str, ai_platform_url: str = None):
         self.sample_app_url = sample_app_url.rstrip('/')
+        self.ai_platform_url = None  # Initialize to None first
         
         # Auto-detect AI platform URL if not provided
         if ai_platform_url:
@@ -36,10 +37,10 @@ class SelfHealingValidator:
         else:
             # Try common ports
             base = sample_app_url.rsplit(':', 1)[0]
-            for port in [30888, 8000, 31000]:
+            for port in [30800, 30888, 8000, 31000]:  # Added 30800 as first option
                 try:
                     test_url = f"{base}:{port}"
-                    response = requests.get(f"{test_url}/health", timeout=2)
+                    response = requests.get(f"{test_url}/api/v1/status", timeout=2)
                     if response.status_code == 200:
                         self.ai_platform_url = test_url
                         break
