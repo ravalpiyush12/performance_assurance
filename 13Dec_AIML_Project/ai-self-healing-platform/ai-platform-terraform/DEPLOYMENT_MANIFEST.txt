@@ -1,0 +1,65 @@
+﻿================================================================
+AI SELF-HEALING PLATFORM - DEPLOYMENT MANIFEST
+================================================================
+
+Generated: 2026-04-05 16:40:40
+Source: G:\F Drive\Piyush Data\Learning\performance_assurance\13Dec_AIML_Project\ai-self-healing-platform
+Target: app-files/
+
+================================================================
+DEPLOYMENT SUMMARY
+================================================================
+
+Total Files: 54
+Total Size: 0.53 MB
+
+Directory Structure:
+----------------------------------------------------------------
+  Folder: .\kubernetes (3 files)
+  Folder: .\kubernetes\backup (0 files)
+  Folder: .\kubernetes\base (9 files)
+  Folder: .\kubernetes\overlays (0 files)
+  Folder: .\kubernetes\overlays\dev (0 files)
+  Folder: .\kubernetes\overlays\prod (0 files)
+  Folder: .\kubernetes\overlays\staging (0 files)
+  Folder: .\src (1 files)
+  Folder: .\src\__pycache__ (1 files)
+  Folder: .\src\api (6 files)
+  Folder: .\src\api\__pycache__ (2 files)
+  Folder: .\src\chaos (2 files)
+  Folder: .\src\ml (2 files)
+  Folder: .\src\ml\__pycache__ (2 files)
+  Folder: .\src\monitoring (2 files)
+  Folder: .\src\monitoring\__pycache__ (2 files)
+  Folder: .\src\optimization (3 files)
+  Folder: .\src\optimization\__pycache__ (3 files)
+  Folder: .\src\orchestrator (3 files)
+  Folder: .\src\orchestrator\__pycache__ (2 files)
+  Folder: .\src\security (3 files)
+  Folder: .\src\security\__pycache__ (3 files)
+
+Key Files:
+----------------------------------------------------------------
+
+  OK: .\Dockerfile (1.9 KB)
+  OK: .\Dockerfile.platform (0.5 KB)
+  OK: .\Dockerfile.sampleapp (0.2 KB)
+  OK: .\requirements.txt (0.7 KB)
+  OK: .\kubernetes\base\configmap.yaml (2.4 KB)
+  OK: .\kubernetes\base\deployment.yaml (6.5 KB)
+  OK: .\kubernetes\base\hpa.yaml (2.3 KB)
+  OK: .\kubernetes\base\ingress.yaml (3.9 KB)
+  OK: .\kubernetes\base\namespace.yaml (0.5 KB)
+  OK: .\kubernetes\base\network-policy.yaml (0 KB)
+  OK: .\kubernetes\base\pod-security-policy.yaml (0 KB)
+  OK: .\kubernetes\base\secret.yaml (0 KB)
+  OK: .\kubernetes\base\service.yaml (1.6 KB)
+  OK: .\kubernetes\ai-platform.yaml (1.9 KB)
+  OK: .\kubernetes\kubernetes-sample.yaml (5.1 KB)
+  OK: .\kubernetes\sample-app.yaml (1.3 KB)
+  OK: .\sample-app.py (8.3 KB)
+
+================================================================
+READY FOR DEPLOYMENT!
+================================================================
+

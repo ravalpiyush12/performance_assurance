@@ -1,0 +1,83 @@
+# Add this resource to your existing main.tf
+# Place it right BEFORE the null_resource.deploy_applications resource
+
+# Upload application files to master
+resource "null_resource" "upload_app_files" {
+  depends_on = [aws_instance.master]
+
+  # Upload app-files directory (your actual project files)
+  provisioner "file" {
+    source      = "${path.module}/app-files/"
+    destination = "/home/ubuntu/ai-platform-temp"
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.ssh_private_key_path)
+      host        = aws_instance.master.public_ip
+      timeout     = "5m"
+    }
+  }
+
+  # Move files to correct location and set permissions
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mkdir -p /home/ubuntu/ai-platform",
+      "sudo cp -r /home/ubuntu/ai-platform-temp/* /home/ubuntu/ai-platform/ 2>/dev/null || true",
+      "sudo chown -R ubuntu:ubuntu /home/ubuntu/ai-platform",
+      "sudo chmod -R 755 /home/ubuntu/ai-platform",
+      "rm -rf /home/ubuntu/ai-platform-temp"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.ssh_private_key_path)
+      host        = aws_instance.master.public_ip
+      timeout     = "5m"
+    }
+  }
+
+  triggers = {
+    always_run = timestamp()
+  }
+}
+
+# Then update the deploy_applications resource to depend on upload_app_files:
+resource "null_resource" "deploy_applications" {
+  depends_on = [
+    aws_instance.master, 
+    aws_instance.worker,
+    null_resource.upload_app_files  # Add this dependency
+  ]
+
+  provisioner "remote-exec" {
+    inline = [
+      "echo 'Waiting for k3s cluster to be ready...'",
+      "timeout 300 bash -c 'until sudo k3s kubectl get nodes | grep -q Ready; do sleep 5; done'",
+      "echo 'Cluster is ready!'",
+      
+      # Wait for worker to join
+      "echo 'Waiting for worker node...'",
+      "timeout 300 bash -c 'until sudo k3s kubectl get nodes | grep -q worker; do sleep 5; done'",
+      "echo 'Worker joined!'",
+      
+      # Deploy everything
+      "cd /home/ubuntu/ai-platform",
+      "chmod +x scripts/deploy-all.sh",
+      "sudo -u ubuntu bash scripts/deploy-all.sh"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.ssh_private_key_path)
+      host        = aws_instance.master.public_ip
+      timeout     = "15m"
+    }
+  }
+
+  triggers = {
+    always_run = timestamp()
+  }
+}
