@@ -56,7 +56,7 @@ spec:
     kind: Deployment
     name: sample-app
   minReplicas: 2
-  maxReplicas: 10
+  maxReplicas: 5
   metrics:
   - type: Resource
     resource:
@@ -64,3 +64,25 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70  
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sample-app-monitor
+  namespace: monitoring-demo
+  labels:
+    app: sample-app
+spec:
+  selector:
+    matchLabels:
+      app: sample-app
+  endpoints:
+  - port: http
+    interval: 15s
+    path: /metrics            

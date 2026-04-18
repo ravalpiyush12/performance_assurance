@@ -68,8 +68,8 @@ Write-Host "`n[4/6] Copying sample app..." -ForegroundColor Yellow
 $sampleFiles = @("sample-app.py", "sample_app.py", "sampleapp.py")
 foreach ($file in $sampleFiles) {
     if (Test-Path "$projectRoot\$file") {
-        Copy-Item "$projectRoot\$file" "app-files\sample-app.py" -Force
-        Write-Host "  SUCCESS: $file copied as sample-app.py" -ForegroundColor Green
+        Copy-Item "$projectRoot\$file" "app-files\sample_app.py" -Force
+        Write-Host "  SUCCESS: $file copied as sample_app.py" -ForegroundColor Green
         break
     }
 }

@@ -1,6 +1,9 @@
 """
-Sample Application with Prometheus Metrics (UPDATED)
+Sample Application with Prometheus Metrics (FIXED)
 This version properly exposes metrics for Prometheus to scrape
+
+FIXES:
+- ✅ CPU metric now returns actual values (added interval=0.1 parameter)
 
 Features:
 - /metrics endpoint (Prometheus format)
@@ -59,9 +62,9 @@ def before_request():
     request.start_time = time.time()
     ACTIVE_REQUESTS.inc()
     
-    # Update system metrics
+    # Update system metrics - FIX: Added interval parameter
     process = psutil.Process(os.getpid())
-    CPU_USAGE.set(process.cpu_percent(interval=0.1))
+    CPU_USAGE.set(process.cpu_percent(interval=0.1))  # ✅ FIXED: Added interval
     mem_info = process.memory_info()
     MEMORY_USAGE.set(mem_info.rss)
     MEMORY_PERCENT.set(process.memory_percent())
@@ -96,7 +99,7 @@ def health():
     return jsonify({
         'status': 'healthy',
         'app': 'sample-application',
-        'version': '1.0',
+        'version': '1.0-fixed',
         'metrics_endpoint': '/metrics'
     })
 
@@ -115,16 +118,17 @@ def compute_intensive():
             hash_result = hashlib.sha256(data).hexdigest()
             result += len(hash_result)
         
-        # Update CPU metric
+        # Update CPU metric - FIX: Added interval parameter
         process = psutil.Process(os.getpid())
-        CPU_USAGE.set(process.cpu_percent())
+        current_cpu = process.cpu_percent(interval=0.1)  # ✅ FIXED: Added interval
+        CPU_USAGE.set(current_cpu)
         
         return jsonify({
             'status': 'success',
             'iterations': iterations,
             'result_length': result,
             'message': 'CPU intensive task completed',
-            'cpu_usage': process.cpu_percent(interval=0.1)
+            'cpu_usage': current_cpu
         })
     except Exception as e:
         ERROR_COUNT.labels(endpoint='compute', error_type=type(e).__name__).inc()
@@ -233,7 +237,7 @@ def cleanup():
     return jsonify({
         'status': 'success',
         'message': 'Memory cleared',
-        'memory_usage_mb': mem_info.rss / (1024 * 1024)
+        'memory_usage_mb': mem_info.rss / (1024 / 1024)
     })
 
 # ==============================================================================
@@ -251,7 +255,8 @@ app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting Sample Application on port {port}")
+    print(f"Starting Sample Application (FIXED) on port {port}")
     print(f"Metrics available at: http://localhost:{port}/metrics")
     print(f"Health check at: http://localhost:{port}/health")
+    print(f"✅ CPU metric fix applied: interval=0.1 parameter added")
     app.run(host='0.0.0.0', port=port, debug=False)

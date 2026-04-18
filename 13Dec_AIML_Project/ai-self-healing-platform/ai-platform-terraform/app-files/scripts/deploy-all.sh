@@ -213,7 +213,7 @@ spec:
     kind: Deployment
     name: sample-app
   minReplicas: 3
-  maxReplicas: 10
+  maxReplicas: 5
   metrics:
   - type: Resource
     resource:

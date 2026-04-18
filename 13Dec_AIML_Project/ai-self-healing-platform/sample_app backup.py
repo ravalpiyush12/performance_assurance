@@ -1,9 +1,6 @@
 """
-Sample Application with Prometheus Metrics (FIXED)
+Sample Application with Prometheus Metrics (UPDATED)
 This version properly exposes metrics for Prometheus to scrape
-
-FIXES:
-- ✅ CPU metric now returns actual values (added interval=0.1 parameter)
 
 Features:
 - /metrics endpoint (Prometheus format)
@@ -21,7 +18,6 @@ import os
 import psutil
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, REGISTRY
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
-import threading  # ← ADD THIS LINE
 from prometheus_client import make_wsgi_app
 
 app = Flask(__name__)
@@ -54,40 +50,6 @@ ERROR_COUNT = Counter('app_errors_total', 'Total number of errors', ['endpoint',
 memory_hog = []
 
 # ==============================================================================
-# BACKGROUND SYSTEM METRICS MONITORING
-# ==============================================================================
-
-def update_system_metrics():
-    """
-    Background thread to continuously update CPU and memory metrics
-    This ensures CPU shows actual usage even during idle periods
-    """
-    print("✅ Starting background system metrics monitoring...")
-    
-    while True:
-        try:
-            process = psutil.Process(os.getpid())
-            
-            # Measure CPU over 1 second interval
-            cpu = process.cpu_percent(interval=1.0)
-            CPU_USAGE.set(cpu)
-            
-            # Update memory metrics
-            mem_info = process.memory_info()
-            MEMORY_USAGE.set(mem_info.rss)
-            MEMORY_PERCENT.set(process.memory_percent())
-            
-        except Exception as e:
-            print(f"❌ Error updating system metrics: {e}")
-        
-        time.sleep(5)  # Update every 5 seconds
-
-def start_background_monitoring():
-    """Start the background metrics monitoring thread"""
-    metrics_thread = threading.Thread(target=update_system_metrics, daemon=True)
-    metrics_thread.start()
-
-# ==============================================================================
 # PROMETHEUS MIDDLEWARE
 # ==============================================================================
 
@@ -97,8 +59,12 @@ def before_request():
     request.start_time = time.time()
     ACTIVE_REQUESTS.inc()
     
-    # CPU/memory now updated by background thread
-    
+    # Update system metrics
+    process = psutil.Process(os.getpid())
+    CPU_USAGE.set(process.cpu_percent(interval=0.1))
+    mem_info = process.memory_info()
+    MEMORY_USAGE.set(mem_info.rss)
+    MEMORY_PERCENT.set(process.memory_percent())
 
 @app.after_request
 def after_request(response):
@@ -130,12 +96,16 @@ def health():
     return jsonify({
         'status': 'healthy',
         'app': 'sample-application',
-        'version': '1.0-fixed',
+        'version': '1.0',
         'metrics_endpoint': '/metrics'
     })
 
 @app.route('/compute')
 def compute_intensive():
+    """
+    CPU intensive endpoint
+    Creates REAL CPU load when hit by JMeter
+    """
     try:
         iterations = random.randint(100000, 500000)
         result = 0
@@ -145,13 +115,16 @@ def compute_intensive():
             hash_result = hashlib.sha256(data).hexdigest()
             result += len(hash_result)
         
-        # CPU now updated by background thread
+        # Update CPU metric
+        process = psutil.Process(os.getpid())
+        CPU_USAGE.set(process.cpu_percent())
         
         return jsonify({
             'status': 'success',
             'iterations': iterations,
             'result_length': result,
-            'message': 'CPU intensive task completed'
+            'message': 'CPU intensive task completed',
+            'cpu_usage': process.cpu_percent(interval=0.1)
         })
     except Exception as e:
         ERROR_COUNT.labels(endpoint='compute', error_type=type(e).__name__).inc()
@@ -260,7 +233,7 @@ def cleanup():
     return jsonify({
         'status': 'success',
         'message': 'Memory cleared',
-        'memory_usage_mb': mem_info.rss / (1024 / 1024)
+        'memory_usage_mb': mem_info.rss / (1024 * 1024)
     })
 
 # ==============================================================================
@@ -277,12 +250,8 @@ app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
 # ==============================================================================
 
 if __name__ == '__main__':
-    # Start background monitoring BEFORE Flask starts
-    start_background_monitoring()
-    
     port = int(os.environ.get('PORT', 5000))
-    print(f"Starting Sample Application (FIXED) on port {port}")
+    print(f"Starting Sample Application on port {port}")
     print(f"Metrics available at: http://localhost:{port}/metrics")
     print(f"Health check at: http://localhost:{port}/health")
-    print(f"✅ Background CPU monitoring enabled")
     app.run(host='0.0.0.0', port=port, debug=False)

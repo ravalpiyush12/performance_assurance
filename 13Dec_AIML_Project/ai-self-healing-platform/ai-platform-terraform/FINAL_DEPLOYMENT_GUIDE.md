@@ -338,3 +338,33 @@ terraform apply
 All your actual code will be used, with automatic fixes applied during deployment.
 
 Good luck with your MTech presentation! 🎓
+
+
+
+
+
+CPU Load:
+faulty command
+for i in {1..50}; do (for j in {1..200}; do curl -s http://localhost:30080/compute > /dev/null 2>&1; done) & done; wait && echo "Done! Check dashboard: http://$(curl -s http://checkip.amazonaws.com):30800"
+
+Latest
+timeout 60s bash -c 'for i in {1..50}; do (for j in {1..200}; do curl -s http://localhost:30080/compute > /dev/null 2>&1; done) & done; wait'
+
+
+To rebuild:
+cd /home/ubuntu/ai-platform
+sudo docker build -t ai-platform:v17 .
+sudo docker save ai-platform:v17 | sudo k3s ctr images import -
+sudo k3s kubectl rollout restart deployment/ai-platform -n monitoring-demo
+
+**3. Dashboard not loading:**
+```bash
+# Check pod logs
+sudo k3s kubectl logs -l app=ai-platform -n monitoring-demo --tail=100
+
+# Check if running
+sudo k3s kubectl get pods -n monitoring-demo
+k3s kubectl get pods -n monitoring-demo -o wide
+
+# Check status
+curl -s http://localhost:30800/api/v1/status | jq '{health_score, active_alerts, current_metrics}'

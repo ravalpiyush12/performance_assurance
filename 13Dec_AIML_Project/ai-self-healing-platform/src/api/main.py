@@ -209,7 +209,7 @@ app.add_middleware(
 security = HTTPBearer(auto_error=False)
 
 # Initialize components
-anomaly_detector = AnomalyDetector(contamination=0.1, window_size=100)
+anomaly_detector = AnomalyDetector(contamination=0.05, window_size=100)
 performance_predictor = PerformancePredictor()
 healing_orchestrator = SelfHealingOrchestrator(cloud_provider=CloudProvider.LOCAL)
 
@@ -371,12 +371,23 @@ async def collect_metrics_from_prometheus():
             requests_per_sec = max(0.0, requests_per_sec)
             
             # Create metric
+            error_query = 'sum(rate(app_errors_total[5m]))'
+            try:
+                error_result = prometheus_client.custom_query(query=error_query)
+                if error_result and len(error_result) > 0:
+                    error_rate = float(error_result[0]['value'][1]) * 100  # Convert to percentage
+                else:
+                    error_rate = 0.0
+            except Exception as e:
+                logger.warning(f"Could not fetch error rate: {e}")
+                error_rate = 0.0
+
             metric = {
                 'timestamp': datetime.now().isoformat(),
                 'cpu_usage': round(cpu_usage, 2),
                 'memory_usage': round(memory_percent, 2),
                 'response_time': round(response_time, 2),
-                'error_rate': 0.0,
+                'error_rate': round(error_rate, 2),  # ✅ FIXED!
                 'requests_per_sec': round(requests_per_sec, 2),
                 'disk_io': 1000.0,
                 'network_throughput': 500.0,

@@ -209,7 +209,7 @@ app.add_middleware(
 security = HTTPBearer(auto_error=False)
 
 # Initialize components
-anomaly_detector = AnomalyDetector(contamination=0.1, window_size=100)
+anomaly_detector = AnomalyDetector(contamination=0.05, window_size=100)
 performance_predictor = PerformancePredictor()
 healing_orchestrator = SelfHealingOrchestrator(cloud_provider=CloudProvider.LOCAL)
 
@@ -275,13 +275,14 @@ class SystemStatus(BaseModel):
     prometheus_enabled: bool = False
     kubernetes_enabled: bool = False
     target_app: Optional[str] = None
+    current_metrics: Optional[Dict] = None  # ← ADD THIS LINE
 
 # =============================================================================
 # PROMETHEUS INTEGRATION
 # =============================================================================
 
 async def collect_metrics_from_prometheus():
-    """Collect REAL metrics from Prometheus"""
+    """Collect REAL metrics from Prometheus - FIXED METRIC NAMES"""
     if not prometheus_client:
         return
     
@@ -289,86 +290,79 @@ async def collect_metrics_from_prometheus():
     
     while True:
         try:
-            # CPU usage
-            cpu_query = f'''
-                sum(
-                    irate(container_cpu_usage_seconds_total{{
-                        namespace="{TARGET_NAMESPACE}",
-                        pod=~"{TARGET_APP}-.*",
-                        cpu="total"
-                    }}[2m])
-                ) * 100
-            '''
+            # ✅ CORRECT metric names that sample-app actually exposes
             
-            # Memory usage
-            mem_query = f'''
-                sum(
-                    container_memory_working_set_bytes{{
-                        namespace="{TARGET_NAMESPACE}",
-                        pod=~"{TARGET_APP}-.*"
-                    }}
-                ) / 1024 / 1024
-            '''
+            # CPU usage - Average across all pods
+            cpu_query = 'avg(app_cpu_usage_percent)'
             
-            # HTTP request rate
-            req_rate_query = f'''
-                sum(
-                    irate(http_requests_total{{
-                        namespace="{TARGET_NAMESPACE}",
-                        pod=~"{TARGET_APP}-.*"
-                    }}[2m])
-                )
-            '''
+            # Memory usage - Average across all pods
+            mem_query = 'avg(app_memory_usage_percent)'
             
-            # Latency
-            latency_query = f'''
+            # Request rate - CORRECTED NAME: http_requests_total (not app_requests_total)
+            req_rate_query = 'sum(rate(http_requests_total[2m]))'
+            
+            # Request count - CORRECTED NAME
+            req_count_query = 'sum(rate(http_request_duration_seconds_count[2m]))'
+            
+            # Latency - CORRECTED NAME
+            latency_query = '''
                 (
-                    sum(
-                        irate(http_request_duration_seconds_sum{{
-                            namespace="{TARGET_NAMESPACE}",
-                            pod=~"{TARGET_APP}-.*"
-                        }}[2m])
-                    )
+                    sum(rate(http_request_duration_seconds_sum[2m]))
                     /
-                    sum(
-                        irate(http_request_duration_seconds_count{{
-                            namespace="{TARGET_NAMESPACE}",
-                            pod=~"{TARGET_APP}-.*"
-                        }}[2m])
-                    )
+                    sum(rate(http_request_duration_seconds_count[2m]))
                 ) * 1000
             '''
+            
+            # Error rate
+            error_query = 'sum(rate(app_errors_total[5m])) * 100'
             
             # Execute queries
             cpu_result = prometheus_client.custom_query(query=cpu_query)
             mem_result = prometheus_client.custom_query(query=mem_query)
             req_rate_result = prometheus_client.custom_query(query=req_rate_query)
+            req_count_result = prometheus_client.custom_query(query=req_count_query)
             latency_result = prometheus_client.custom_query(query=latency_query)
+            error_result = prometheus_client.custom_query(query=error_query)
             
-            # Extract values with NaN handling
+            # Extract values
             cpu_usage = float(cpu_result[0]['value'][1]) if cpu_result and len(cpu_result) > 0 else 0.0
-            memory_mb = float(mem_result[0]['value'][1]) if mem_result and len(mem_result) > 0 else 0.0
-            memory_percent = (memory_mb / 512) * 100
+            memory_percent = float(mem_result[0]['value'][1]) if mem_result and len(mem_result) > 0 else 0.0
             requests_per_sec = float(req_rate_result[0]['value'][1]) if req_rate_result and len(req_rate_result) > 0 else 0.0
             
-            # Latency with NaN handling
-            if latency_result and len(latency_result) > 0:
-                raw_latency = latency_result[0]['value'][1]
-                try:
-                    response_time = float(raw_latency)
-                    import math
-                    if math.isnan(response_time) or math.isinf(response_time):
+            # Check if we have actual request traffic
+            req_count = float(req_count_result[0]['value'][1]) if req_count_result and len(req_count_result) > 0 else 0.0
+            
+            # Latency calculation with NaN handling
+            if req_count > 0.01:  # We have traffic
+                if latency_result and len(latency_result) > 0:
+                    try:
+                        raw_latency = latency_result[0]['value'][1]
+                        response_time = float(raw_latency)
+                        import math
+                        if math.isnan(response_time) or math.isinf(response_time):
+                            response_time = 0.0
+                        else:
+                            response_time = max(1.0, response_time)
+                    except (ValueError, TypeError):
                         response_time = 0.0
-                except (ValueError, TypeError):
+                else:
                     response_time = 0.0
             else:
+                # No traffic - show 0
                 response_time = 0.0
             
+            # Error rate
+            if error_result and len(error_result) > 0:
+                error_rate = float(error_result[0]['value'][1])
+            else:
+                error_rate = 0.0
+            
             # Ensure valid values
-            cpu_usage = max(0.0, cpu_usage)
+            cpu_usage = max(0.0, min(100.0, cpu_usage))
             memory_percent = max(0.0, min(100.0, memory_percent))
-            response_time = max(0.0, response_time)
+            response_time = max(0.0, min(10000.0, response_time))
             requests_per_sec = max(0.0, requests_per_sec)
+            error_rate = max(0.0, min(100.0, error_rate))
             
             # Create metric
             metric = {
@@ -376,7 +370,7 @@ async def collect_metrics_from_prometheus():
                 'cpu_usage': round(cpu_usage, 2),
                 'memory_usage': round(memory_percent, 2),
                 'response_time': round(response_time, 2),
-                'error_rate': 0.0,
+                'error_rate': round(error_rate, 2),
                 'requests_per_sec': round(requests_per_sec, 2),
                 'disk_io': 1000.0,
                 'network_throughput': 500.0,
@@ -387,8 +381,8 @@ async def collect_metrics_from_prometheus():
             metrics_history.append(metric)
             
             logger.info(
-                f"📊 Prometheus → CPU={cpu_usage:.1f}% Memory={memory_mb:.1f}MB "
-                f"Latency={response_time:.0f}ms RPS={requests_per_sec:.1f}"
+                f"📊 Prometheus → CPU={cpu_usage:.1f}% Memory={memory_percent:.1f}% "
+                f"Latency={response_time:.0f}ms RPS={requests_per_sec:.1f} Errors={error_rate:.2f}%"
             )
             
             await asyncio.sleep(15)
@@ -497,44 +491,53 @@ def auto_resolve_old_alerts():
 def calculate_health_score() -> float:
     global successful_healings_count, last_healing_timestamp
     
-    if len(metrics_history) == 0:
-        return 100.0
-    
-    latest_metric = list(metrics_history)[-1]
-    health = 100.0
-    
-    cpu = latest_metric['cpu_usage']
-    memory = latest_metric['memory_usage']
-    error_rate = latest_metric['error_rate']
-    response_time = latest_metric['response_time']
-    
-    if cpu > 85:
-        health -= (cpu - 85) * 0.3
-    if memory > 90:
-        health -= (memory - 90) * 0.3
-    if error_rate > 5:
-        health -= (error_rate - 5) * 2
-    if response_time > 1000:
-        health -= (response_time - 1000) * 0.01
-    
-    active_alert_count = len(active_alerts)
-    if active_alert_count > 0:
-        health -= active_alert_count * 1
-    
-    if successful_healings_count > 0:
-        recovery_bonus = min(10, successful_healings_count * 0.5)
-        health += recovery_bonus
-    
-    if last_healing_timestamp:
-        time_since_healing = (datetime.now() - last_healing_timestamp).total_seconds()
-        if time_since_healing < 60:
-            recent_healing_bonus = (60 - time_since_healing) / 6
-            health += recent_healing_bonus
-    
-    if active_alert_count == 0:
-        health += 5
-    
-    return max(0.0, min(100.0, round(health, 1)))
+    try: 
+        if len(metrics_history) == 0:
+            return 100.0
+        
+        latest_metric = list(metrics_history)[-1]
+        health = 100.0
+        
+        cpu = latest_metric['cpu_usage']
+        memory = latest_metric['memory_usage']
+        error_rate = latest_metric['error_rate']
+        response_time = latest_metric['response_time']
+
+        # ✅ ADD: Cap CPU at 100% (fixes 360% issue)
+        cpu = min(float(cpu), 100.0) if cpu else 0.0
+        memory = float(memory) if memory else 0.0
+        
+        if cpu > 85:
+            health -= (cpu - 85) * 0.3
+        if memory > 90:
+            health -= (memory - 90) * 0.3
+        if error_rate > 5:
+            health -= (error_rate - 5) * 2
+        if response_time > 1000:
+            health -= (response_time - 1000) * 0.01
+        
+        active_alert_count = len(active_alerts)
+        if active_alert_count > 0:
+            health -= active_alert_count * 1
+        
+        if successful_healings_count > 0:
+            recovery_bonus = min(10, successful_healings_count * 0.5)
+            health += recovery_bonus
+        
+        if last_healing_timestamp:
+            time_since_healing = (datetime.now() - last_healing_timestamp).total_seconds()
+            if time_since_healing < 60:
+                recent_healing_bonus = (60 - time_since_healing) / 6
+                health += recent_healing_bonus
+        
+        if active_alert_count == 0:
+            health += 5
+        
+        return max(0.0, min(100.0, round(health, 1)))
+
+    except Exception as e:  # ✅ ADD ERROR HANDLING
+        logger.error(f"❌ Error calculating health score: {e}")
+        return 50.0  # Return safe default
 
 # =============================================================================
 # AUTHENTICATION
@@ -1186,6 +1189,11 @@ async def get_system_status(current_user: Optional[User] = Depends(get_current_u
     metrics_collected = len(metrics_history)
     training_threshold = getattr(anomaly_detector, 'training_threshold', 20)
     training_progress = min(100.0, (metrics_collected / training_threshold) * 100)
+
+    # ✅ ADD THIS: Get current metrics
+    current_metric = None
+    if len(metrics_history) > 0:
+        current_metric = dict(metrics_history[-1])
     
     return SystemStatus(
         health_score=calculate_health_score(),
@@ -1203,7 +1211,8 @@ async def get_system_status(current_user: Optional[User] = Depends(get_current_u
         auto_metrics=APP_MODE == "development",
         prometheus_enabled=prometheus_client is not None,
         kubernetes_enabled=kubernetes_client is not None,
-        target_app=TARGET_APP if APP_MODE == "production" else None
+        target_app=TARGET_APP if APP_MODE == "production" else None,
+        current_metrics=current_metric  # ✅ ADD THIS LINE
     )
 
 @app.get("/api/v1/metrics")
