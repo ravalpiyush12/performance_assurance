@@ -339,8 +339,41 @@ All your actual code will be used, with automatic fixes applied during deploymen
 
 Good luck with your MTech presentation! 🎓
 
+******************************
+cd /home/ubuntu/ai-platform/src/orchestrator
+nano self_healing.py
+Edit the file
+Save (Ctrl+O, Enter, Ctrl+X)
 
 
+then
+cd /home/ubuntu/ai-platform
+
+# Rebuild
+sudo docker build -t ai-platform:v17 .
+sudo docker save ai-platform:v17 | sudo k3s ctr images import -
+
+# Restart
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+sudo k3s kubectl rollout restart deployment/ai-platform -n monitoring-demo
+sudo k3s kubectl rollout status deployment/ai-platform -n monitoring-demo --timeout=120s
+
+# Wait for platform to stabilize
+sleep 60
+
+# Generate some CPU load
+echo "Generating CPU load..."
+for i in {1..30}; do 
+    curl -s http://localhost:30080/compute > /dev/null 2>&1 & 
+done
+
+# Wait 30 seconds for detection
+sleep 30
+
+# Check logs
+sudo k3s kubectl logs -l app=ai-platform -n monitoring-demo --tail=100 | grep -E "KUBERNETES SCALING|Executing action: scale_up"
+
+*******************************
 
 
 CPU Load:
@@ -361,10 +394,28 @@ sudo k3s kubectl rollout restart deployment/ai-platform -n monitoring-demo
 ```bash
 # Check pod logs
 sudo k3s kubectl logs -l app=ai-platform -n monitoring-demo --tail=100
+sudo k3s kubectl logs -l app=ai-platform -n monitoring-demo --tail=500 | grep "Executing action:"
+sudo k3s kubectl logs -l app=ai-platform -n monitoring-demo --tail=500 | grep "Prometheus"
 
 # Check if running
 sudo k3s kubectl get pods -n monitoring-demo
 k3s kubectl get pods -n monitoring-demo -o wide
 
+
 # Check status
 curl -s http://localhost:30800/api/v1/status | jq '{health_score, active_alerts, current_metrics}'
+
+# Check HPA
+sudo k3s kubectl get hpa -n monitoring-demo
+
+sudo k3s kubectl logs app=ai-platform -n monitoring-demo --tail=100 | grep "Kubernetes client initialized"
+
+
+
+#to show scale up via HPA
+cd /home/ubuntu/ai-platform
+chmod +x test-scale-up.sh
+./test-scale-up.sh
+
+
+#then show them pod count is increased to 5.

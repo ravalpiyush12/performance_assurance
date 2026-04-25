@@ -1,15 +1,5 @@
 """
 Self-Healing Orchestration Engine - Production Version with K8s Integration
-COMPLETE FIXED VERSION - All UI display issues resolved
-
-Features:
-- Real Kubernetes pod scaling
-- Intelligent action selection
-- Enhanced UI descriptions
-- Action history tracking
-- Cooldown management
-
-Save as: src/orchestrator/self_healing.py
 """
 
 import asyncio
@@ -73,34 +63,21 @@ class RemediationAction:
         self.kubernetes_action = False
         
     def to_dict(self) -> Dict:
-        """Convert action to dictionary for API/UI - FIXED VERSION"""
+        """Convert action to dictionary for API/UI"""
         result = {
             'action_id': self.action_id,
             'action_type': self.action_type.value,
-            'target_resource': self.target,
-            'status': self.status,
+            'target_resource': self.target,  # ← This becomes "Target: api-gateway"
+            'status': self.status,           # ← This should be "completed" not "failed"
             'timestamp': self.timestamp.isoformat(),
             'execution_time_seconds': self.execution_time,
             'error_message': self.error_message,
             'kubernetes_action': self.kubernetes_action
         }
         
-        # Add human-readable description
-        if self.kubernetes_action:
-            # Kubernetes actions with replica info
-            if 'new_replicas' in self.params and 'previous_replicas' in self.params:
-                result['description'] = f"Scaled {self.target}: {self.params['previous_replicas']} → {self.params['new_replicas']} pods"
-            elif 'replicas' in self.params:
-                result['description'] = f"Scaling {self.target} (+{self.params['replicas']} pods)"
-            else:
-                result['description'] = f"Kubernetes action on {self.target}"
-        else:
-            # Non-Kubernetes actions
-            reason = self.params.get('reason', '')
-            if reason:
-                result['description'] = f"{self.action_type.value.replace('_', ' ').title()} ({reason})"
-            else:
-                result['description'] = f"{self.action_type.value.replace('_', ' ').title()} on {self.target}"
+        # Add K8s-specific details if available
+        if self.kubernetes_action and 'new_replicas' in self.params:
+            result['replicas_info'] = f"{self.params.get('previous_replicas', '?')} → {self.params.get('new_replicas', '?')}"
         
         return result
 
@@ -161,78 +138,68 @@ class SelfHealingOrchestrator:
         
         # CPU-based scaling (REAL KUBERNETES ACTION)
         if anomaly_type == 'CPU_USAGE':
-            cpu_val = metrics.get('cpu_usage', 0)
-            if cpu_val > 80:
+            if metrics.get('cpu_usage', 0) > 80:
                 action = RemediationAction(
                     ActionType.SCALE_UP,
                     target=TARGET_APP,
                     params={
-                        'replicas': 1,  # Add 1 pod at a time
+                        'replicas': 2,
                         'reason': 'high_cpu',
-                        'cpu_threshold': cpu_val,
-                        'description': f"Scale up due to CPU={cpu_val:.1f}%"
+                        'cpu_threshold': metrics.get('cpu_usage')
                     }
                 )
                 action.kubernetes_action = True
         
         # Memory-based scaling (REAL KUBERNETES ACTION)
         elif anomaly_type == 'MEMORY_USAGE':
-            mem_val = metrics.get('memory_usage', 0)
-            if mem_val > 85:
+            if metrics.get('memory_usage', 0) > 85:
                 action = RemediationAction(
                     ActionType.SCALE_UP,
                     target=TARGET_APP,
                     params={
-                        'replicas': 1,
+                        'replicas': 2,
                         'reason': 'high_memory',
-                        'memory_threshold': mem_val,
-                        'description': f"Scale up due to Memory={mem_val:.1f}%"
+                        'memory_threshold': metrics.get('memory_usage')
                     }
                 )
                 action.kubernetes_action = True
         
-        # Request rate handling (COMBINED - high and low traffic)
+        # High traffic scaling (REAL KUBERNETES ACTION)
         elif anomaly_type == 'REQUESTS_PER_SEC':
-            rps = metrics.get('requests_per_sec', 0)
-            
-            if rps > 30:  # High traffic - scale up
+            if metrics.get('requests_per_sec', 0) > 30:
                 action = RemediationAction(
                     ActionType.SCALE_UP,
                     target=TARGET_APP,
                     params={
-                        'replicas': 1,
+                        'replicas': 2,
                         'reason': 'high_traffic',
-                        'current_rps': rps,
-                        'description': f"Scale up due to high traffic ({rps:.1f} RPS)"
+                        'current_rps': metrics.get('requests_per_sec')
                     }
                 )
                 action.kubernetes_action = True
-            
-            elif rps < 5:  # Very low traffic - possible issue, restart
+
+        elif anomaly_type == 'REQUESTS_PER_SEC':
+            if metrics.get('requests_per_sec', 0) < 20:
                 action = RemediationAction(
                     ActionType.RESTART_SERVICE,
                     target=TARGET_APP,
                     params={
                         'graceful': True,
-                        'reason': 'low_traffic',
-                        'current_rps': rps,
-                        'description': f"Restart due to low traffic ({rps:.1f} RPS)"
+                        'current_rps': metrics.get('requests_per_sec')
                     }
                 )
-                action.kubernetes_action = True
+                action.kubernetes_action = True        
         
         # Response time - enable caching
         elif anomaly_type == 'RESPONSE_TIME':
-            latency = metrics.get('response_time', 0)
-            if latency > 800:
+            if metrics.get('response_time', 0) > 800:
                 action = RemediationAction(
                     ActionType.ENABLE_CACHE,
                     target="api-gateway",
                     params={
                         'ttl': 300,
                         'aggressive': True,
-                        'latency': latency,
-                        'description': f"Enable cache due to latency={latency:.0f}ms"
+                        'latency': metrics.get('response_time')
                     }
                 )
         
@@ -240,24 +207,12 @@ class SelfHealingOrchestrator:
         elif anomaly_type == 'ERROR_RATE':
             error_rate = metrics.get('error_rate', 0)
             if error_rate > 5:
-                if severity == 'critical':
-                    action = RemediationAction(
-                        ActionType.CIRCUIT_BREAKER,
-                        target="service-mesh",
-                        params={
-                            'error_rate': error_rate,
-                            'description': f"Circuit breaker due to errors={error_rate:.1f}%"
-                        }
-                    )
-                else:
-                    action = RemediationAction(
-                        ActionType.TRAFFIC_SHIFT,
-                        target="service-mesh",
-                        params={
-                            'error_rate': error_rate,
-                            'description': f"Traffic shift due to errors={error_rate:.1f}%"
-                        }
-                    )
+                action = RemediationAction(
+                    ActionType.CIRCUIT_BREAKER if severity == 'critical' else ActionType.TRAFFIC_SHIFT,
+                    target="service-mesh",
+                    params={'error_rate': error_rate}
+                )
+
         
         if action:
             self.action_counter += 1
@@ -330,7 +285,7 @@ class SelfHealingOrchestrator:
             return True
     
     async def _k8s_scale_up(self, action: RemediationAction) -> bool:
-        """REAL Kubernetes scaling implementation - ENHANCED LOGGING"""
+        """REAL Kubernetes scaling implementation"""
         try:
             # Get current deployment
             deployment = self.kubernetes_client.read_namespaced_deployment(
@@ -339,21 +294,10 @@ class SelfHealingOrchestrator:
             )
             
             current_replicas = deployment.spec.replicas
-            additional_replicas = action.params.get('replicas', 1)
+            additional_replicas = action.params.get('replicas', 2)
             new_replicas = current_replicas + additional_replicas
             
-            # Enhanced logging for visibility
-            logger.info("")
-            logger.info("=" * 60)
-            logger.info("🎯 KUBERNETES SCALING ACTION")
-            logger.info("=" * 60)
-            logger.info(f"  Application: {action.target}")
-            logger.info(f"  Namespace:   {TARGET_NAMESPACE}")
-            logger.info(f"  Current:     {current_replicas} pods")
-            logger.info(f"  Adding:      +{additional_replicas} pods")
-            logger.info(f"  New Total:   {new_replicas} pods")
-            logger.info(f"  Reason:      {action.params.get('reason', 'unknown')}")
-            logger.info("=" * 60)
+            logger.info(f"🎯 Triggering K8s scaling: {action.target} {current_replicas} → {new_replicas}")
             
             # Update replicas
             deployment.spec.replicas = new_replicas
@@ -363,10 +307,9 @@ class SelfHealingOrchestrator:
                 body=deployment
             )
             
-            logger.info(f"✅ SCALING COMPLETE: {action.target} → {new_replicas} pods")
-            logger.info("")
+            logger.info(f"✅ Scaled {action.target} from {current_replicas} → {new_replicas} replicas")
             
-            # Update action params for UI display
+            # Update action params with actual values
             action.params['previous_replicas'] = current_replicas
             action.params['new_replicas'] = new_replicas
             

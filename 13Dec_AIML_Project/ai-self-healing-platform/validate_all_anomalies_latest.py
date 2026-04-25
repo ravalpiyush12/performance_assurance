@@ -156,7 +156,7 @@ class AnomalyValidator:
         start = time.time()
         requests_sent = 0
         
-        while (time.time() - start) < 90:
+        while (time.time() - start) < 90: #90 sec was there earlier. Changed to 10 min to give more time for detection
             try:
                 requests.get(f"{self.sample_app_url}/compute", timeout=1)
                 requests_sent += 1
