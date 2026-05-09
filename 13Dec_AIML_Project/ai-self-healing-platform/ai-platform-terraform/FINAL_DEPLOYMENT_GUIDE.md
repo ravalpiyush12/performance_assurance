@@ -400,7 +400,8 @@ sudo k3s kubectl logs -l app=ai-platform -n monitoring-demo --tail=500 | grep "P
 # Check if running
 sudo k3s kubectl get pods -n monitoring-demo
 k3s kubectl get pods -n monitoring-demo -o wide
-
+kubectl get pods -n monitoring | grep prometheus
+kubectl get pods -n monitoring
 
 # Check status
 curl -s http://localhost:30800/api/v1/status | jq '{health_score, active_alerts, current_metrics}'
