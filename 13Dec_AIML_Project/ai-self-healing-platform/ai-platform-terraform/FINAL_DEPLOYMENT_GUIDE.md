@@ -403,6 +403,8 @@ k3s kubectl get pods -n monitoring-demo -o wide
 kubectl get pods -n monitoring | grep prometheus
 kubectl get pods -n monitoring
 
+kubectl get events #to check event happened.
+
 # Check status
 curl -s http://localhost:30800/api/v1/status | jq '{health_score, active_alerts, current_metrics}'
 
